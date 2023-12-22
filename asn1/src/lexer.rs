@@ -55,7 +55,6 @@ impl<'a> Iterator for Lexer<'a> {
             ')' => self.simple_token(TokenKind::RightParen, offset),
             '[' => self.simple_token(TokenKind::LeftSquare, offset),
             ']' => self.simple_token(TokenKind::RightSquare, offset),
-            '-' => self.simple_token(TokenKind::Hyphen, offset),
             ':' => self.simple_token(TokenKind::Colon, offset),
             '=' => self.simple_token(TokenKind::Equals, offset),
             '"' => self.simple_token(TokenKind::DoubleQuote, offset),
@@ -65,6 +64,12 @@ impl<'a> Iterator for Lexer<'a> {
             '|' => self.simple_token(TokenKind::Pipe, offset),
             '!' => self.simple_token(TokenKind::Exclamation, offset),
             '^' => self.simple_token(TokenKind::Caret, offset),
+
+            // ITU-T X.680 (02/2021) 11.8: Hyphen and non-breaking hyphen are
+            // to be treated as identical in all names (including reserved words)
+            '-' | '\u{2011}' => self
+                .single_comment(c, offset)
+                .or_else(|| self.simple_token(TokenKind::Hyphen, offset)),
 
             _ => self.simple_token(TokenKind::Error, offset),
         }
@@ -80,6 +85,47 @@ impl<'a> Lexer<'a> {
         Some(Token {
             kind,
             value: &value[..first.len_utf8()],
+            offset,
+            file: self.file,
+        })
+    }
+
+    /// Parse a single line comment which is text between pairs of two hyphens.
+    /// Non-breaking hyphens are also accepted instead of hyphens.
+    fn single_comment(&mut self, first: char, offset: usize) -> Option<Token<'a>> {
+        let value = &self.source[offset..];
+
+        let &(_, second) = self.chars.peek(0)?;
+        if !matches!(second, '-' | '\u{2011}') {
+            return None;
+        }
+        self.chars.next(); // Consume the second hyphen
+
+        let mut len = first.len_utf8() + second.len_utf8();
+
+        while let Some(&(_, next)) = self.chars.peek(0) {
+            if is_newline(next) {
+                break;
+            }
+
+            len += next.len_utf8();
+
+            if matches!(next, '-' | '\u{2011}') {
+                if let Some(&(_, c @ ('-' | '\u{2011}'))) = self.chars.peek(1) {
+                    len += c.len_utf8();
+
+                    self.chars.next();
+                    self.chars.next();
+                    break;
+                }
+            }
+
+            self.chars.next();
+        }
+
+        Some(Token {
+            kind: TokenKind::SingleComment,
+            value: &value[..len],
             offset,
             file: self.file,
         })

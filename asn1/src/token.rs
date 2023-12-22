@@ -1,71 +1,42 @@
 /// The kind of a lexed token
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum TokenKind {
-    /// Single or multi line comment
-    Comment,
+pub(crate) enum TokenKind {
+    // Comments
+    SingleComment,
+    MultiComment,
 
-    /// {
+    // Single Character tokens
     LeftCurly,
-
-    /// }
     RightCurly,
-
-    /// <
     Less,
-
-    /// >
     Greater,
-
-    /// ,
     Comma,
-
-    /// .
     Dot,
-
-    /// /
     ForwardSlash,
-
-    /// (
     LeftParen,
-
-    /// )
     RightParen,
-
-    /// [
     LeftSquare,
-
-    /// ]
     RightSquare,
-
-    /// -
     Hyphen,
-
-    /// :
     Colon,
-
-    /// =
     Equals,
-
-    /// "
     DoubleQuote,
-
-    /// '
     SingleQuote,
-
-    /// ;
     SemiColon,
-
-    /// @
     At,
-
-    /// |
     Pipe,
-
-    /// !
     Exclamation,
-
-    /// ^
     Caret,
+
+    // Multi character tokens
+    // (Produced when coalescing tokens in the parser)
+    Assignment,
+    Range,
+    Ellipsis,
+    LeftVersion,
+    RightVersion,
+    XMLEndStart,
+    XMLSingleEnd,
 
     /// Unrecognised character
     Error,
@@ -75,18 +46,18 @@ pub enum TokenKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Token<'a> {
     /// The type of this token
-    pub kind: TokenKind,
+    pub(crate) kind: TokenKind,
 
     /// The string value of the token, will be a valid string for the token kind
     /// so it can be parsed further, e.g. into a number.
-    pub value: &'a str,
+    pub(crate) value: &'a str,
 
     /// Byte offset into the file that the token starts at.  The end location
     /// can be derived from this offset + the length of the value string.
-    pub offset: usize,
+    pub(crate) offset: usize,
 
     /// The file ID of the file the token was lexed from
-    pub file: usize,
+    pub(crate) file: usize,
 }
 
 /// Data relating to a single lexed token, owning the string value of the token,
@@ -94,18 +65,18 @@ pub struct Token<'a> {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TokenBuffer {
     /// The type of this token
-    pub kind: TokenKind,
+    pub(crate) kind: TokenKind,
 
     /// The string value of the token, will be a valid string for the token kind
     /// so it can be parsed further, e.g. into a number.
-    pub value: String,
+    pub(crate) value: String,
 
     /// Byte offset into the file that the token starts at.  The end location
     /// can be derived from this offset + the length of the value string.
-    pub offset: usize,
+    pub(crate) offset: usize,
 
     /// The file ID of the file the token was lexed from
-    pub file: usize,
+    pub(crate) file: usize,
 }
 
 impl Token<'_> {
