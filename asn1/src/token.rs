@@ -38,8 +38,9 @@ pub(crate) enum TokenKind {
     XMLEndStart,
     XMLSingleEnd,
 
-    /// Unrecognised character
-    Error,
+    // Errors
+    Unrecognised,
+    NonTerminatedComment,
 }
 
 /// Data relating to a single lexed token

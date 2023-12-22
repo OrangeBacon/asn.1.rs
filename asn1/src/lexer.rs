@@ -50,7 +50,6 @@ impl<'a> Iterator for Lexer<'a> {
             '>' => self.simple_token(TokenKind::Greater, offset),
             ',' => self.simple_token(TokenKind::Comma, offset),
             '.' => self.simple_token(TokenKind::Dot, offset),
-            '/' => self.simple_token(TokenKind::ForwardSlash, offset),
             '(' => self.simple_token(TokenKind::LeftParen, offset),
             ')' => self.simple_token(TokenKind::RightParen, offset),
             '[' => self.simple_token(TokenKind::LeftSquare, offset),
@@ -71,7 +70,11 @@ impl<'a> Iterator for Lexer<'a> {
                 .single_comment(c, offset)
                 .or_else(|| self.simple_token(TokenKind::Hyphen, offset)),
 
-            _ => self.simple_token(TokenKind::Error, offset),
+            '/' => self
+                .multi_comment(offset)
+                .or_else(|| self.simple_token(TokenKind::ForwardSlash, offset)),
+
+            _ => self.simple_token(TokenKind::Unrecognised, offset),
         }
     }
 }
@@ -125,6 +128,52 @@ impl<'a> Lexer<'a> {
 
         Some(Token {
             kind: TokenKind::SingleComment,
+            value: &value[..len],
+            offset,
+            file: self.file,
+        })
+    }
+
+    /// Parse a multi line comment which is text between `/*` and `*/`.  The comment
+    /// ends when a matching `*/` has been found for every `/*` encountered.
+    fn multi_comment(&mut self, offset: usize) -> Option<Token<'a>> {
+        let value = &self.source[offset..];
+
+        let &(_, c) = self.chars.peek(0)?;
+        if c != '*' {
+            // not a start of comment
+            return None;
+        }
+        self.chars.next();
+
+        let mut len = 2;
+        let mut depth = 1;
+        while let Some(&(_, c)) = self.chars.peek(0) {
+            len += c.len_utf8();
+            self.chars.next();
+
+            if c == '/' && matches!(self.chars.peek(0), Some((_, '*'))) {
+                len += 1;
+                depth += 1;
+                self.chars.next();
+            } else if c == '*' && matches!(self.chars.peek(0), Some((_, '/'))) {
+                len += 1;
+                depth -= 1;
+                self.chars.next();
+
+                if depth == 0 {
+                    break;
+                }
+            }
+        }
+
+        let kind = match depth {
+            0 => TokenKind::MultiComment,
+            _ => TokenKind::NonTerminatedComment,
+        };
+
+        Some(Token {
+            kind,
             value: &value[..len],
             offset,
             file: self.file,
