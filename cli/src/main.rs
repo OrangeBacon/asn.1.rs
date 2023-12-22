@@ -1,5 +1,9 @@
-use asn1::add;
+use asn1::lexer::Lexer;
 
 fn main() {
-    println!("Hello, world! {}", add(5, 6));
+    let lexer = Lexer::new(0, "source");
+
+    for tok in lexer {
+        println!("{:?}", tok);
+    }
 }
