@@ -4,6 +4,69 @@ pub enum TokenKind {
     /// Single or multi line comment
     Comment,
 
+    /// {
+    LeftCurly,
+
+    /// }
+    RightCurly,
+
+    /// <
+    Less,
+
+    /// >
+    Greater,
+
+    /// ,
+    Comma,
+
+    /// .
+    Dot,
+
+    /// /
+    ForwardSlash,
+
+    /// (
+    LeftParen,
+
+    /// )
+    RightParen,
+
+    /// [
+    LeftSquare,
+
+    /// ]
+    RightSquare,
+
+    /// -
+    Hyphen,
+
+    /// :
+    Colon,
+
+    /// =
+    Equals,
+
+    /// "
+    DoubleQuote,
+
+    /// '
+    SingleQuote,
+
+    /// ;
+    SemiColon,
+
+    /// @
+    At,
+
+    /// |
+    Pipe,
+
+    /// !
+    Exclamation,
+
+    /// ^
+    Caret,
+
     /// Unrecognised character
     Error,
 }

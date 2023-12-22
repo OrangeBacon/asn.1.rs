@@ -42,12 +42,43 @@ impl<'a> Iterator for Lexer<'a> {
         }
 
         let (offset, c) = self.chars.next()?;
-        let value = &self.source[offset..];
 
+        match c {
+            '{' => self.simple_token(TokenKind::LeftCurly, offset),
+            '}' => self.simple_token(TokenKind::RightCurly, offset),
+            '<' => self.simple_token(TokenKind::Less, offset),
+            '>' => self.simple_token(TokenKind::Greater, offset),
+            ',' => self.simple_token(TokenKind::Comma, offset),
+            '.' => self.simple_token(TokenKind::Dot, offset),
+            '/' => self.simple_token(TokenKind::ForwardSlash, offset),
+            '(' => self.simple_token(TokenKind::LeftParen, offset),
+            ')' => self.simple_token(TokenKind::RightParen, offset),
+            '[' => self.simple_token(TokenKind::LeftSquare, offset),
+            ']' => self.simple_token(TokenKind::RightSquare, offset),
+            '-' => self.simple_token(TokenKind::Hyphen, offset),
+            ':' => self.simple_token(TokenKind::Colon, offset),
+            '=' => self.simple_token(TokenKind::Equals, offset),
+            '"' => self.simple_token(TokenKind::DoubleQuote, offset),
+            '\'' => self.simple_token(TokenKind::SingleQuote, offset),
+            ';' => self.simple_token(TokenKind::SemiColon, offset),
+            '@' => self.simple_token(TokenKind::At, offset),
+            '|' => self.simple_token(TokenKind::Pipe, offset),
+            '!' => self.simple_token(TokenKind::Exclamation, offset),
+            '^' => self.simple_token(TokenKind::Caret, offset),
+
+            _ => self.simple_token(TokenKind::Error, offset),
+        }
+    }
+}
+
+impl<'a> Lexer<'a> {
+    /// Return a 1 character token
+    fn simple_token(&self, kind: TokenKind, offset: usize) -> Option<Token<'a>> {
+        let value = &self.source[offset..];
         // Get first character of value
         let first = value.chars().next()?;
         Some(Token {
-            kind: TokenKind::Error,
+            kind,
             value: &value[..first.len_utf8()],
             offset,
             file: self.file,
