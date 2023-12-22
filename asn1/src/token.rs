@@ -28,15 +28,8 @@ pub(crate) enum TokenKind {
     Exclamation,
     Caret,
 
-    // Multi character tokens
-    // (Produced when coalescing tokens in the parser)
-    Assignment,
-    Range,
-    Ellipsis,
-    LeftVersion,
-    RightVersion,
-    XMLEndStart,
-    XMLSingleEnd,
+    // Compound Tokens
+    Identifier,
 
     // Errors
     Unrecognised,

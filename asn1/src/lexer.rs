@@ -74,6 +74,8 @@ impl<'a> Iterator for Lexer<'a> {
                 .multi_comment(offset)
                 .or_else(|| self.simple_token(TokenKind::ForwardSlash, offset)),
 
+            c if c.is_ascii_alphabetic() => self.identifier(offset),
+
             _ => self.simple_token(TokenKind::Unrecognised, offset),
         }
     }
@@ -174,6 +176,40 @@ impl<'a> Lexer<'a> {
 
         Some(Token {
             kind,
+            value: &value[..len],
+            offset,
+            file: self.file,
+        })
+    }
+
+    /// Parse an identifier.  Could be a type reference, identifier, value reference
+    /// or module reference.
+    fn identifier(&mut self, offset: usize) -> Option<Token<'a>> {
+        let value = &self.source[offset..];
+
+        let mut len = 1;
+        while let Some(&(_, c)) = self.chars.peek(0) {
+            if c.is_ascii_alphanumeric() || "$_".contains(c) {
+                len += 1;
+                self.chars.next();
+                continue;
+            }
+            if c == '-' {
+                if let Some(&(_, c)) = self.chars.peek(1) {
+                    if c.is_ascii_alphanumeric() {
+                        len += 2;
+                        self.chars.next();
+                        self.chars.next();
+                        continue;
+                    }
+                }
+            }
+
+            break;
+        }
+
+        Some(Token {
+            kind: TokenKind::Identifier,
             value: &value[..len],
             offset,
             file: self.file,
