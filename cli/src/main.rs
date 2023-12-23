@@ -1,9 +1,15 @@
 use asn1::{lexer::Lexer, parser::Parser};
 
 fn main() {
-    let lexer = Lexer::new(0, "Hello ::= BOOLEAN world BOOLEAN ::= TRUE stuff BOOLEAN ::= FALSE");
+    let lexer = Lexer::new(
+        0,
+        "Hello ::= BOOLEAN world BOOLEAN /*hello */::= TRUE stuff BOOLEAN ::= FALSE -- hi --",
+    );
 
     let parser = Parser::new(lexer);
 
-    println!("{:?}", parser.run());
+    match parser.run() {
+        Ok(t) => println!("{t}"),
+        Err(e) => println!("{e:?}"),
+    }
 }

@@ -1,78 +1,99 @@
 //! Representation of a parsed ASN.1 description file (NOT an encoded message)
 
-// --------------------
-// 13 Module Definition
-// --------------------
-// WIP
+use std::fmt::Display;
 
-use crate::token::TokenBuffer;
+use crate::token::Token;
 
 /// A whole ASN.1 file including all modules
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Asn1 {
-    /// All included modules in the file
-    pub modules: Vec<ModuleDefinition>,
+pub struct Asn1<'a> {
+    pub root: usize,
+    pub data: Vec<TreeContent<'a>>,
 }
 
-/// Definition of a single module
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ModuleDefinition {
-    /// All assignments within the module body
-    pub assignments: Vec<Assignment>,
-}
-
-/// A single assignment within a module body
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Assignment {
-    Type(TypeAssignment),
-    Value(ValueAssignment),
-}
-
-// --------------------------
-// 16 Assigning Types and Values
-// --------------------------
-// WIP
-
-/// 16.1 Assignment of a type to a name
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TypeAssignment {
-    /// The name to be defined
-    pub type_reference: TokenBuffer,
-
-    /// The type definition being assigned to the name
-    pub ty: Type,
-}
-
-/// 16.2 Assignment of a value to a name
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ValueAssignment {
-    /// The name to be defined
-    pub type_reference: TokenBuffer,
-
-    /// The type of the value
-    pub ty: Type,
-
-    /// The value being assigned to the name
-    pub value: Value,
-}
-
-// ---------------------------------
-// 17 Definition of Types and Values
-// ---------------------------------
-// WIP
-
-/// A type specifier
+/// Content of a tree
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Type {
-    Boolean,
+pub enum TreeContent<'a> {
+    Tree {
+        tag: Asn1Tag,
+        start: usize,
+        count: usize,
+    },
+    Token(Token<'a>),
 }
 
-/// A value of a given type
+/// The possible kinds of tree node
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Value {
-    Boolean(bool),
+pub enum Asn1Tag {
+    Root,
+    ModuleDefinition,
+    TypeAssignment,
+    ValueAssignment,
+    Type,
+    Value,
 }
 
-// --------------------------------
-// 18 Notation for the Boolean Type
-// --------------------------------
+impl Display for Asn1<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let fmt = Asn1Formatter {
+            depth: 0,
+            tree: self,
+            node: self.data[self.root],
+            prefix: String::new(),
+            child_prefix: String::new(),
+        };
+
+        write!(f, "{fmt}")
+    }
+}
+
+struct Asn1Formatter<'a, 'b> {
+    depth: usize,
+    tree: &'a Asn1<'b>,
+    node: TreeContent<'b>,
+    prefix: String,
+    child_prefix: String,
+}
+
+impl Display for Asn1Formatter<'_, '_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.prefix)?;
+
+        match self.node {
+            TreeContent::Tree { tag, start, count } => {
+                write!(f, "{:?}:", tag)?;
+                let Some((last, head)) = self.tree.data[start..start + count].split_last() else {
+                    writeln!(f, " (empty)")?;
+                    return Ok(());
+                };
+
+                writeln!(f)?;
+
+                for &node in head {
+                    let fmt = Asn1Formatter {
+                        depth: self.depth + 1,
+                        tree: self.tree,
+                        node,
+                        prefix: self.child_prefix.clone() + "|-- ",
+                        child_prefix: self.child_prefix.clone() + "|   ",
+                    };
+
+                    write!(f, "{fmt}")?;
+                }
+
+                let fmt = Asn1Formatter {
+                    depth: self.depth + 1,
+                    tree: self.tree,
+                    node: *last,
+                    prefix: self.child_prefix.clone() + "`-- ",
+                    child_prefix: self.child_prefix.clone() + "    ",
+                };
+
+                write!(f, "{fmt}")?;
+            }
+            TreeContent::Token(t) => writeln!(f, "{:?}: {:?}", t.kind, t.value)?,
+        }
+
+        Ok(())
+    }
+}
