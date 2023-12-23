@@ -159,7 +159,7 @@ impl<'a> Parser<'a> {
     fn ty(&mut self) -> Result<()> {
         let temp_start = self.temp_result.len();
 
-        self.try_consume(&[TokenKind::KwBoolean])?;
+        self.try_consume(&[TokenKind::KwBoolean, TokenKind::KwNull])?;
 
         self.end_temp_vec(temp_start, Asn1Tag::Type);
         Ok(())
@@ -169,7 +169,7 @@ impl<'a> Parser<'a> {
     fn value(&mut self) -> Result<()> {
         let temp_start = self.temp_result.len();
 
-        self.try_consume(&[TokenKind::KwTrue, TokenKind::KwFalse])?;
+        self.try_consume(&[TokenKind::KwTrue, TokenKind::KwFalse, TokenKind::KwNull])?;
 
         self.end_temp_vec(temp_start, Asn1Tag::Value);
         Ok(())

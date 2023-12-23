@@ -10,6 +10,8 @@ fn main() {
             Hello ::= BOOLEAN
             world BOOLEAN /*hello */::= TRUE
             stuff BOOLEAN ::= FALSE
+            MyStuff ::= NULL
+            foo NULL ::= NULL
         END -- hi --",
     );
 

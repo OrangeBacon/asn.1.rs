@@ -48,6 +48,7 @@ pub enum TokenKind {
     KwImplied,
     KwBegin,
     KwEnd,
+    KwNull,
 
     // Errors
     Unrecognised,
@@ -116,7 +117,7 @@ impl TokenBuffer {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 13] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 14] = [
     // "ABSENT",
     // "ABSTRACT-SYNTAX",
     // "ALL",
@@ -168,7 +169,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 13] = [
     // "MIN",
     // "MINUS-INFINITY",
     // "NOT-A-NUMBER",
-    // "NULL",
+    ("NULL", TokenKind::KwNull),
     // "NumericString",
     // "OBJECT",
     // "ObjectDescriptor",
