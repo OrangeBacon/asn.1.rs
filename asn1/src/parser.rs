@@ -70,11 +70,64 @@ impl<'a> Parser<'a> {
     fn module_definition(&mut self) -> Result<()> {
         let temp_start = self.temp_result.len();
 
-        while self.peek(0).is_some() {
+        self.module_identifier()?;
+        self.try_consume(&[TokenKind::KwDefinitions])?;
+        self.module_defaults()?;
+        self.try_consume(&[TokenKind::Assignment])?;
+        self.try_consume(&[TokenKind::KwBegin])?;
+        while self.peek(0).map_or(false, |t| t.value != "END") {
             self.assignment()?;
         }
+        self.try_consume(&[TokenKind::KwEnd])?;
 
         self.end_temp_vec(temp_start, Asn1Tag::ModuleDefinition);
+        Ok(())
+    }
+
+    /// Identifier at the start of a module
+    fn module_identifier(&mut self) -> Result<()> {
+        let temp_start = self.temp_result.len();
+
+        self.try_consume(&[TokenKind::ModuleReference])?;
+
+        self.end_temp_vec(temp_start, Asn1Tag::ModuleIdentifier);
+        Ok(())
+    }
+
+    /// The bit between the `DEFINITIONS` keyword and the assignment
+    fn module_defaults(&mut self) -> Result<()> {
+        let temp_start = self.temp_result.len();
+
+        {
+            let temp_start = self.temp_result.len();
+            if self.try_consume(&[TokenKind::EncodingReference]).is_ok() {
+                self.try_consume(&[TokenKind::KwInstructions])?;
+            }
+            self.end_temp_vec(temp_start, Asn1Tag::EncodingReferenceDefault);
+        }
+        {
+            let temp_start = self.temp_result.len();
+            if self
+                .try_consume(&[
+                    TokenKind::KwExplicit,
+                    TokenKind::KwImplicit,
+                    TokenKind::KwAutomatic,
+                ])
+                .is_ok()
+            {
+                self.try_consume(&[TokenKind::KwTags])?;
+            }
+            self.end_temp_vec(temp_start, Asn1Tag::TagDefault);
+        }
+        {
+            let temp_start = self.temp_result.len();
+            if self.try_consume(&[TokenKind::KwExtensibility]).is_ok() {
+                self.try_consume(&[TokenKind::KwImplied])?;
+            }
+            self.end_temp_vec(temp_start, Asn1Tag::ExtensionDefault);
+        }
+
+        self.end_temp_vec(temp_start, Asn1Tag::ModuleIdentifier);
         Ok(())
     }
 
@@ -158,16 +211,23 @@ impl<'a> Parser<'a> {
                 }
 
                 // type reference = identifier with uppercase first letter
-                TokenKind::TypeReference
+                TokenKind::TypeReference | TokenKind::ModuleReference
                     if tok.kind == TokenKind::Identifier
                         && !is_first_lower(tok)
                         && kw.is_none() =>
                 {
                     self.next();
-                    let tok = Token {
-                        kind: TokenKind::TypeReference,
-                        ..tok
-                    };
+                    let tok = Token { kind, ..tok };
+                    self.temp_result.push(TreeContent::Token(tok));
+                    return Ok(tok);
+                }
+
+                // encoding reference = identifier with uppercase first letter
+                TokenKind::EncodingReference
+                    if tok.kind == TokenKind::Identifier && is_not_lower(tok) && kw.is_none() =>
+                {
+                    self.next();
+                    let tok = Token { kind, ..tok };
                     self.temp_result.push(TreeContent::Token(tok));
                     return Ok(tok);
                 }
@@ -235,4 +295,9 @@ fn is_first_lower(tok: Token<'_>) -> bool {
         .chars()
         .next()
         .map_or(false, |c| c.is_ascii_lowercase())
+}
+
+/// Are none of the characters lower case
+fn is_not_lower(tok: Token<'_>) -> bool {
+    tok.value.chars().all(|c| !c.is_ascii_lowercase())
 }

@@ -27,6 +27,10 @@ pub enum TreeContent<'a> {
 pub enum Asn1Tag {
     Root,
     ModuleDefinition,
+    ModuleIdentifier,
+    EncodingReferenceDefault,
+    TagDefault,
+    ExtensionDefault,
     TypeAssignment,
     ValueAssignment,
     Type,
