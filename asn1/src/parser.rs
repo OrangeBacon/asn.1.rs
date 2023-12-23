@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    ast::{Asn1, Assignment, ModuleDefinition, Type, TypeAssignment},
+    ast::{Asn1, Assignment, ModuleDefinition, Type, TypeAssignment, Value, ValueAssignment},
     lexer::Lexer,
     token::{self, Token, TokenBuffer, TokenKind},
 };
@@ -66,13 +66,27 @@ impl<'a> Parser<'a> {
 
     /// Parse a single assignment to a name
     fn assignment(&mut self) -> Result<Assignment> {
-        let name = self.try_consume(&[TokenKind::TypeReference])?;
-        self.try_consume(&[TokenKind::Assignment])?;
+        let name = self.try_consume(&[TokenKind::TypeReference, TokenKind::ValueReference])?;
 
-        Ok(Assignment::Type(TypeAssignment {
-            type_reference: name.to_owned(),
-            ty: self.ty()?,
-        }))
+        match name.kind {
+            TokenKind::TypeReference => {
+                self.try_consume(&[TokenKind::Assignment])?;
+                Ok(Assignment::Type(TypeAssignment {
+                    type_reference: name.to_owned(),
+                    ty: self.ty()?,
+                }))
+            }
+            TokenKind::ValueReference => {
+                let ty = self.ty()?;
+                self.try_consume(&[TokenKind::Assignment])?;
+                Ok(Assignment::Value(ValueAssignment {
+                    type_reference: name.to_owned(),
+                    ty,
+                    value: self.value()?,
+                }))
+            }
+            _ => panic!("try consume error"),
+        }
     }
 
     /// Parse a type declaration
@@ -80,6 +94,13 @@ impl<'a> Parser<'a> {
         let tok = self.try_consume(&[TokenKind::KwBoolean])?;
 
         Ok(Type::Boolean)
+    }
+
+    /// Parse a value
+    fn value(&mut self) -> Result<Value> {
+        let value = self.try_consume(&[TokenKind::KwTrue, TokenKind::KwFalse])?;
+
+        Ok(Value::Boolean(value.kind == TokenKind::KwTrue))
     }
 
     /// If the next token is of the provided type, consumes and returns it,
@@ -93,9 +114,11 @@ impl<'a> Parser<'a> {
             match kind {
                 // Identifiers cannot be passed straight through as an actual
                 // identifier and the ones made by the lexer are different.
-                TokenKind::Identifier if is_first_lower(tok) && kw.is_none() => {
+                TokenKind::Identifier | TokenKind::ValueReference
+                    if is_first_lower(tok) && kw.is_none() =>
+                {
                     self.next();
-                    return Ok(tok);
+                    return Ok(Token { kind, ..tok });
                 }
 
                 // pass through for simple tokens

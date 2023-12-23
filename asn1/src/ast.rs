@@ -25,6 +25,7 @@ pub struct ModuleDefinition {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Assignment {
     Type(TypeAssignment),
+    Value(ValueAssignment),
 }
 
 // --------------------------
@@ -32,7 +33,7 @@ pub enum Assignment {
 // --------------------------
 // WIP
 
-/// Assignment of a type to a name
+/// 16.1 Assignment of a type to a name
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TypeAssignment {
     /// The name to be defined
@@ -42,14 +43,34 @@ pub struct TypeAssignment {
     pub ty: Type,
 }
 
+/// 16.2 Assignment of a value to a name
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ValueAssignment {
+    /// The name to be defined
+    pub type_reference: TokenBuffer,
+
+    /// The type of the value
+    pub ty: Type,
+
+    /// The value being assigned to the name
+    pub value: Value,
+}
+
 // ---------------------------------
 // 17 Definition of Types and Values
 // ---------------------------------
 // WIP
 
+/// A type specifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
     Boolean,
+}
+
+/// A value of a given type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Value {
+    Boolean(bool),
 }
 
 // --------------------------------

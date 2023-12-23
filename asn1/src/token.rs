@@ -29,10 +29,13 @@ pub enum TokenKind {
     // Compound Tokens
     Identifier,
     TypeReference,
+    ValueReference,
     Assignment,
 
     // Keywords
     KwBoolean,
+    KwTrue,
+    KwFalse,
 
     // Errors
     Unrecognised,
@@ -101,8 +104,10 @@ impl TokenBuffer {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 1] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 3] = [
     ("BOOLEAN", TokenKind::KwBoolean),
+    ("TRUE", TokenKind::KwTrue),
+    ("FALSE", TokenKind::KwFalse),
     // "ABSENT",
     // "ABSTRACT-SYNTAX",
     // "ALL",
@@ -134,7 +139,6 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 1] = [
     // "EXPORTS",
     // "EXTENSIBILITY",
     // "EXTERNAL",
-    // "FALSE",
     // "FROM",
     // "GeneralizedTime",
     // "GeneralString",
@@ -181,7 +185,6 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 1] = [
     // "TeletexString",
     // "TIME",
     // "TIME-OF-DAY",
-    // "TRUE",
     // "TYPE-IDENTIFIER",
     // "UNION",
     // "UNIQUE",
