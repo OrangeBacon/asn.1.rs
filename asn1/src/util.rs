@@ -1,9 +1,8 @@
 use std::collections::VecDeque;
 
 /// Iterator extension trait for peekable iterators
-pub trait Peek
+pub trait Peek: Iterator
 where
-    Self: Iterator,
     Self: Sized,
 {
     /// Create a peekable version of the iterator

@@ -1,13 +1,12 @@
-use asn1::lexer::Lexer;
+use asn1::{lexer::Lexer, parser::Parser};
 
 fn main() {
     let lexer = Lexer::new(
         0,
-        "{...::=:= -- hello --}--world\n[]}/*a*/{}
-    /*/*abc*/aa/*aa*/*/;;! hello hi-world a-57 a-;",
+        "Hello ::= BOOLEAN",
     );
 
-    for tok in lexer {
-        println!("{:?}", tok);
-    }
+    let parser = Parser::new(lexer);
+
+    println!("{:?}", parser.run());
 }

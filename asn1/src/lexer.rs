@@ -54,15 +54,16 @@ impl<'a> Iterator for Lexer<'a> {
             ')' => self.simple_token(TokenKind::RightParen, offset),
             '[' => self.simple_token(TokenKind::LeftSquare, offset),
             ']' => self.simple_token(TokenKind::RightSquare, offset),
-            ':' => self.simple_token(TokenKind::Colon, offset),
             '=' => self.simple_token(TokenKind::Equals, offset),
-            '"' => self.simple_token(TokenKind::DoubleQuote, offset),
-            '\'' => self.simple_token(TokenKind::SingleQuote, offset),
             ';' => self.simple_token(TokenKind::SemiColon, offset),
             '@' => self.simple_token(TokenKind::At, offset),
             '|' => self.simple_token(TokenKind::Pipe, offset),
             '!' => self.simple_token(TokenKind::Exclamation, offset),
             '^' => self.simple_token(TokenKind::Caret, offset),
+
+            ':' => self
+                .multi_token(TokenKind::Assignment, offset, "::=")
+                .or_else(|| self.simple_token(TokenKind::Colon, offset)),
 
             // ITU-T X.680 (02/2021) 11.8: Hyphen and non-breaking hyphen are
             // to be treated as identical in all names (including reserved words)
@@ -90,6 +91,26 @@ impl<'a> Lexer<'a> {
         Some(Token {
             kind,
             value: &value[..first.len_utf8()],
+            offset,
+            file: self.file,
+        })
+    }
+
+    /// Try to return a multi-character token
+    fn multi_token(&mut self, kind: TokenKind, offset: usize, value: &str) -> Option<Token<'a>> {
+        let tok_value = &self.source[offset..];
+
+        if !tok_value.starts_with(value) {
+            return None;
+        }
+
+        for _ in 0..value.len() - 1 {
+            self.chars.next();
+        }
+
+        Some(Token {
+            kind,
+            value: &tok_value[..value.len()],
             offset,
             file: self.file,
         })
