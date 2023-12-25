@@ -73,6 +73,32 @@ impl<'a> Parser<'a> {
 
         self.next(&[TokenKind::ModuleReference])?;
 
+        let definitive_start = self.temp_result.len();
+        if self.next(&[TokenKind::LeftCurly]).is_ok() {
+            let mut kind = &[TokenKind::Identifier, TokenKind::Number][..];
+
+            loop {
+                let tok = self.next(kind)?;
+                if tok.kind == TokenKind::RightCurly {
+                    break;
+                }
+
+                if tok.kind == TokenKind::Identifier && self.next(&[TokenKind::LeftParen]).is_ok() {
+                    self.next(&[TokenKind::Number])?;
+                    self.next(&[TokenKind::RightParen])?;
+                }
+
+                kind = &[
+                    TokenKind::Identifier,
+                    TokenKind::Number,
+                    TokenKind::RightCurly,
+                ];
+            }
+            self.end_temp_vec(definitive_start, Asn1Tag::DefinitiveOID);
+
+            let _ = self.iri_value();
+        }
+
         self.end_temp_vec(temp_start, Asn1Tag::ModuleIdentifier);
         Ok(())
     }

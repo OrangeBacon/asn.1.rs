@@ -4,7 +4,8 @@ use asn1::{
 };
 
 fn main() {
-    let source = r#"MyModule DEFINITIONS
+    let source = r#"
+    MyModule { ident(5) } "/1/2" DEFINITIONS
     HELLO INSTRUCTIONS
     AUTOMATIC TAGS
     EXTENSIBILITY IMPLIED ::= BEGIN

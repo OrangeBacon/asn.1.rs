@@ -28,6 +28,7 @@ pub enum Asn1Tag {
     Root,
     ModuleDefinition,
     ModuleIdentifier,
+    DefinitiveOID,
     EncodingReferenceDefault,
     TagDefault,
     ExtensionDefault,

@@ -146,6 +146,7 @@ impl<'a> Lexer<'a> {
 
                 TokenKind::IntegerUnicodeLabel => self.integer_unicode_label(c, offset),
                 TokenKind::NonIntegerUnicodeLabel => self.non_integer_unicode_label(c, offset),
+                TokenKind::Number => self.number(c, offset),
 
                 // "ABSENT",
                 // "ABSTRACT-SYNTAX",
@@ -489,7 +490,7 @@ impl<'a> Lexer<'a> {
                 break;
             }
 
-            len += 1;
+            len += ch.len_utf8();
         }
 
         let value = &value[..len];
@@ -521,7 +522,7 @@ impl<'a> Lexer<'a> {
                 break;
             }
 
-            len += 1;
+            len += ch.len_utf8();
         }
 
         let value = &value[..len];
@@ -537,6 +538,35 @@ impl<'a> Lexer<'a> {
 
         Some(Token {
             kind: TokenKind::NonIntegerUnicodeLabel,
+            value,
+            offset,
+            file: self.file,
+        })
+    }
+
+    /// Parse a number ([1-9][0-9]*)|0
+    fn number(&mut self, first: char, offset: usize) -> Option<Token<'a>> {
+        if !first.is_ascii_digit() {
+            return None;
+        }
+
+        let value = &self.source[offset..];
+        let mut len = 1;
+        while let Some(&(_, ch)) = self.chars.peek(len) {
+            if !ch.is_ascii_digit() {
+                break;
+            }
+
+            len += 1;
+        }
+
+        let value = &value[..len];
+        if value.starts_with('0') && len > 1 {
+            return None;
+        }
+
+        Some(Token {
+            kind: TokenKind::Number,
             value,
             offset,
             file: self.file,

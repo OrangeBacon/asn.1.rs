@@ -38,6 +38,7 @@ pub enum TokenKind {
     ValueReference,
     IntegerUnicodeLabel,
     NonIntegerUnicodeLabel,
+    Number,
 
     // Keywords
     // "ABSENT",
