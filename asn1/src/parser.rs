@@ -142,7 +142,7 @@ impl<'a> Parser<'a> {
     fn ty(&mut self) -> Result<()> {
         let temp_start = self.temp_result.len();
 
-        self.next(&[TokenKind::KwBoolean, TokenKind::KwNull])?;
+        self.next(&[TokenKind::KwBoolean, TokenKind::KwNull, TokenKind::KwOidIri])?;
 
         self.end_temp_vec(temp_start, Asn1Tag::Type);
         Ok(())
@@ -152,9 +152,39 @@ impl<'a> Parser<'a> {
     fn value(&mut self) -> Result<()> {
         let temp_start = self.temp_result.len();
 
-        self.next(&[TokenKind::KwTrue, TokenKind::KwFalse, TokenKind::KwNull])?;
+        if self.peek(&[TokenKind::DoubleQuote]).is_ok() {
+            self.iri_value()?;
+        } else {
+            self.next(&[TokenKind::KwTrue, TokenKind::KwFalse, TokenKind::KwNull])?;
+        }
 
         self.end_temp_vec(temp_start, Asn1Tag::Value);
+        Ok(())
+    }
+
+    /// Parse an internationalised resource identifier
+    fn iri_value(&mut self) -> Result<()> {
+        let temp_start = self.temp_result.len();
+
+        self.next(&[TokenKind::DoubleQuote])?;
+        self.next(&[TokenKind::ForwardSlash])?;
+        self.next(&[
+            TokenKind::IntegerUnicodeLabel,
+            TokenKind::NonIntegerUnicodeLabel,
+        ])?;
+
+        loop {
+            let next = self.next(&[TokenKind::DoubleQuote, TokenKind::ForwardSlash])?;
+            if next.kind == TokenKind::DoubleQuote {
+                break;
+            }
+            self.next(&[
+                TokenKind::IntegerUnicodeLabel,
+                TokenKind::NonIntegerUnicodeLabel,
+            ])?;
+        }
+
+        self.end_temp_vec(temp_start, Asn1Tag::IriValue);
         Ok(())
     }
 

@@ -66,8 +66,16 @@ impl<'a> Lexer<'a> {
         // skip whitespace and comments
         while let Some(&(offset, c)) = self.chars.peek(0) {
             match c {
-                '-' | '\u{2011}' => self.single_comment(c, offset),
-                '/' => self.multi_comment(offset)?,
+                '-' | '\u{2011}' => {
+                    if !self.single_comment(c, offset) {
+                        break;
+                    }
+                }
+                '/' => {
+                    if !self.multi_comment(offset)? {
+                        break;
+                    }
+                }
                 _ if is_whitespace(c) => {
                     self.chars.next();
                 }
@@ -108,7 +116,7 @@ impl<'a> Lexer<'a> {
                     self.multi_token(TokenKind::Assignment, offset, "::=")
                 }
 
-                TokenKind::Identifier | TokenKind::ValueReference => {
+                TokenKind::Identifier | TokenKind::ValueReference if c.is_ascii_alphabetic() => {
                     let ident = self.identifier(c, offset);
 
                     if ident.kind == TokenKind::Identifier {
@@ -117,7 +125,7 @@ impl<'a> Lexer<'a> {
                         None
                     }
                 }
-                TokenKind::TypeReference | TokenKind::ModuleReference => {
+                TokenKind::TypeReference | TokenKind::ModuleReference if c.is_ascii_alphabetic() => {
                     let ident = self.identifier(c, offset);
 
                     if ident.kind == TokenKind::TypeReference {
@@ -126,7 +134,7 @@ impl<'a> Lexer<'a> {
                         None
                     }
                 }
-                TokenKind::EncodingReference => {
+                TokenKind::EncodingReference if c.is_ascii_alphabetic() => {
                     let ident = self.identifier(c, offset);
 
                     if ident.kind == TokenKind::EncodingReference {
@@ -135,6 +143,9 @@ impl<'a> Lexer<'a> {
                         None
                     }
                 }
+
+                TokenKind::IntegerUnicodeLabel => self.integer_unicode_label(c, offset),
+                TokenKind::NonIntegerUnicodeLabel => self.non_integer_unicode_label(c, offset),
 
                 // "ABSENT",
                 // "ABSTRACT-SYNTAX",
@@ -193,7 +204,7 @@ impl<'a> Lexer<'a> {
                 // "ObjectDescriptor",
                 // "OCTET",
                 // "OF",
-                // "OID-IRI",
+                | TokenKind::KwOidIri
                 // "OPTIONAL",
                 // "PATTERN",
                 // "PDV",
@@ -312,12 +323,12 @@ impl<'a> Lexer<'a> {
 
     /// Parse a single line comment which is text between pairs of two hyphens.
     /// Non-breaking hyphens are also accepted instead of hyphens.
-    fn single_comment(&mut self, first: char, offset: usize) {
+    fn single_comment(&mut self, first: char, offset: usize) -> bool {
         let value = &self.source[offset..];
 
-        let Some(&(_, second)) = self.chars.peek(1) else { return };
+        let Some(&(_, second)) = self.chars.peek(1) else { return false };
         if !matches!(second, '-' | '\u{2011}') {
-            return;
+            return false;
         }
         self.chars.next(); // Consume the first hyphen
         self.chars.next(); // Consume the second hyphen
@@ -350,17 +361,19 @@ impl<'a> Lexer<'a> {
             offset,
             file: self.file,
         });
+
+        true
     }
 
     /// Parse a multi line comment which is text between `/*` and `*/`.  The comment
     /// ends when a matching `*/` has been found for every `/*` encountered.
-    fn multi_comment(&mut self, offset: usize) -> Result<()> {
+    fn multi_comment(&mut self, offset: usize) -> Result<bool> {
         let value = &self.source[offset..];
 
-        let Some(&(_, c)) = self.chars.peek(1) else { return Ok(())};
+        let Some(&(_, c)) = self.chars.peek(1) else { return Ok(false)};
         if c != '*' {
             // not a start of comment
-            return Ok(());
+            return Ok(false);
         }
 
         self.chars.next();
@@ -401,13 +414,14 @@ impl<'a> Lexer<'a> {
             file: self.file,
         });
 
-        Ok(())
+        Ok(true)
     }
 
     /// Parse an identifier.  Could be a type reference, identifier, value reference
     /// or module reference.  Does not consume the identifier, len characters must
     /// be skipped after the identifier is parsed if the identifier is used.
     fn identifier(&mut self, first: char, offset: usize) -> Token<'a> {
+        // cache to speed up matching against a lot of different key words
         if let Some((o, ident)) = self.identifier {
             if o == offset {
                 return ident;
@@ -458,6 +472,76 @@ impl<'a> Lexer<'a> {
             file: self.file,
         }
     }
+
+    /// Parse an integer valued unicode label as per X.680 (02/2021) 12.26
+    fn integer_unicode_label(&mut self, first: char, offset: usize) -> Option<Token<'a>> {
+        if !first.is_ascii_digit() {
+            return None;
+        }
+
+        let value = &self.source[offset..];
+        let mut len = 1;
+        let mut is_number = true;
+        while let Some(&(_, ch)) = self.chars.peek(len) {
+            is_number &= ch.is_ascii_digit();
+
+            if !is_unicode_label_char(ch) {
+                break;
+            }
+
+            len += 1;
+        }
+
+        let value = &value[..len];
+        if value == "0" || !is_number {
+            return None;
+        }
+
+        Some(Token {
+            kind: TokenKind::IntegerUnicodeLabel,
+            value,
+            offset,
+            file: self.file,
+        })
+    }
+
+    /// Parse an non-integer unicode label as per X.680 (02/2021) 12.27
+    fn non_integer_unicode_label(&mut self, first: char, offset: usize) -> Option<Token<'a>> {
+        if !is_unicode_label_char(first) || first == '-' || first == '\u{2011}' {
+            return None;
+        }
+
+        let value = &self.source[offset..];
+        let mut len = 1;
+        let mut is_number = true;
+        while let Some(&(_, ch)) = self.chars.peek(len) {
+            is_number &= ch.is_ascii_digit();
+
+            if !is_unicode_label_char(ch) {
+                break;
+            }
+
+            len += 1;
+        }
+
+        let value = &value[..len];
+
+        let mut chars = value.chars();
+        let third = chars.nth(2);
+        let fourth = chars.next();
+        if is_number
+            || (matches!(third, Some('-' | '\u{2011}')) && matches!(fourth, Some('-' | '\u{2011}')))
+        {
+            return None;
+        }
+
+        Some(Token {
+            kind: TokenKind::NonIntegerUnicodeLabel,
+            value,
+            offset,
+            file: self.file,
+        })
+    }
 }
 
 /// Is the character any valid whitespace
@@ -477,4 +561,32 @@ fn is_newline(c: char) -> bool {
 fn keywords() -> &'static HashMap<&'static str, TokenKind> {
     static KEYWORDS: OnceLock<HashMap<&'static str, TokenKind>> = OnceLock::new();
     KEYWORDS.get_or_init(|| HashMap::from(token::KEYWORD_DATA))
+}
+
+/// Is the character allowed to be in a non-integer unicode label as per
+/// X.660 (07/2011) 7.5.2, however that includes some of the utf-16 surrogates
+/// (but not all? idk?) so the definition below that has been taken from
+/// rfc 3987 (January 2005) section 2.2, rule "iunreserved"
+fn is_unicode_label_char(c: char) -> bool {
+    "-._~".contains(c)
+        || c.is_ascii_alphanumeric()
+        // note: using U+D7FF
+        || ('\u{000A0}'..='\u{0D7FF}').contains(&c)
+        || ('\u{0F900}'..'\u{0FDCF}').contains(&c)
+        || ('\u{0FDF0}'..'\u{0FFEF}').contains(&c)
+        || ('\u{0FDF0}'..'\u{0FFEF}').contains(&c)
+        || ('\u{10000}'..'\u{1FFFD}').contains(&c)
+        || ('\u{20000}'..'\u{2FFFD}').contains(&c)
+        || ('\u{30000}'..'\u{3FFFD}').contains(&c)
+        || ('\u{40000}'..'\u{4FFFD}').contains(&c)
+        || ('\u{50000}'..'\u{5FFFD}').contains(&c)
+        || ('\u{60000}'..'\u{6FFFD}').contains(&c)
+        || ('\u{70000}'..'\u{7FFFD}').contains(&c)
+        || ('\u{80000}'..'\u{8FFFD}').contains(&c)
+        || ('\u{90000}'..'\u{9FFFD}').contains(&c)
+        || ('\u{A0000}'..'\u{AFFFD}').contains(&c)
+        || ('\u{B0000}'..'\u{BFFFD}').contains(&c)
+        || ('\u{C0000}'..'\u{CFFFD}').contains(&c)
+        || ('\u{D0000}'..'\u{DFFFD}').contains(&c)
+        || ('\u{E1000}'..'\u{EFFFD}').contains(&c)
 }

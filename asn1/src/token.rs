@@ -36,6 +36,8 @@ pub enum TokenKind {
     ModuleReference,
     EncodingReference,
     ValueReference,
+    IntegerUnicodeLabel,
+    NonIntegerUnicodeLabel,
 
     // Keywords
     // "ABSENT",
@@ -95,7 +97,7 @@ pub enum TokenKind {
     // "ObjectDescriptor",
     // "OCTET",
     // "OF",
-    // "OID-IRI",
+    KwOidIri,
     // "OPTIONAL",
     // "PATTERN",
     // "PDV",
@@ -192,7 +194,7 @@ impl TokenBuffer {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 14] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 15] = [
     // "ABSENT",
     // "ABSTRACT-SYNTAX",
     // "ALL",
@@ -250,7 +252,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 14] = [
     // "ObjectDescriptor",
     // "OCTET",
     // "OF",
-    // "OID-IRI",
+    ("OID-IRI", TokenKind::KwOidIri),
     // "OPTIONAL",
     // "PATTERN",
     // "PDV",

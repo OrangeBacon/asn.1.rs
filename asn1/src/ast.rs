@@ -35,6 +35,7 @@ pub enum Asn1Tag {
     ValueAssignment,
     Type,
     Value,
+    IriValue,
 }
 
 impl Display for Asn1<'_> {
