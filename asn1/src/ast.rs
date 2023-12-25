@@ -35,7 +35,10 @@ pub enum Asn1Tag {
     TypeAssignment,
     ValueAssignment,
     Type,
+    IntegerType,
     Value,
+    DefinedValue,
+    IntegerValue,
     IriValue,
 }
 

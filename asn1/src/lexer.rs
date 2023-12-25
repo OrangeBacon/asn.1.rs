@@ -192,7 +192,7 @@ impl<'a> Lexer<'a> {
                 // "INCLUDES",
                 // "INSTANCE",
                 | TokenKind::KwInstructions
-                // "INTEGER",
+                | TokenKind::KwInteger
                 // "INTERSECTION",
                 // "ISO646String",
                 // "MAX",

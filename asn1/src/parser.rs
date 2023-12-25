@@ -55,12 +55,19 @@ impl<'a> Parser<'a> {
         self.module_defaults()?;
         self.next(&[TokenKind::Assignment])?;
         self.next(&[TokenKind::KwBegin])?;
+        // TODO: exports, imports
+
+        // ensure there is at least one assignment
+        self.peek(&[TokenKind::TypeReference, TokenKind::ValueReference])?;
         while matches!(
             self.peek(&[TokenKind::KwEnd]),
             Err(LexerError::Expected { .. })
         ) {
             self.assignment()?;
         }
+
+        // TODO: encoding control sections
+
         self.next(&[TokenKind::KwEnd])?;
 
         self.end_temp_vec(temp_start, Asn1Tag::ModuleDefinition);
@@ -171,6 +178,12 @@ impl<'a> Parser<'a> {
             TokenKind::KwEnd,
         ])?;
 
+        // TODO: XML value assignment
+        // TODO: Value set type assignment
+        // TODO: Object class assignment
+        // TODO: Object set assignment
+        // TODO: Parameterized assignment
+
         match name.kind {
             TokenKind::KwEnd => {
                 // shouldn't get here but oh well, end is in the list so that
@@ -198,9 +211,73 @@ impl<'a> Parser<'a> {
     fn ty(&mut self) -> Result<()> {
         let temp_start = self.temp_result.len();
 
-        self.next(&[TokenKind::KwBoolean, TokenKind::KwNull, TokenKind::KwOidIri])?;
+        // TODO: Bit string, character string, choice, date, date time, duration
+        // embedded pdv, enumerated, external, instance of, integer, object class field,
+        // object identifier, octet string, real, relative iri, relative oid, sequence,
+        // sequence of, set, set of, prefixed, time, time of day.
+        // TODO: referenced type, constrained type
+
+        let tok = self.peek(&[
+            TokenKind::KwBoolean,
+            TokenKind::KwNull,
+            TokenKind::KwOidIri,
+            TokenKind::KwInteger,
+        ])?;
+        match tok.kind {
+            TokenKind::KwInteger => {
+                self.integer_type()?;
+            }
+            _ => {
+                self.next(&[TokenKind::KwBoolean, TokenKind::KwNull, TokenKind::KwOidIri])?;
+            }
+        }
 
         self.end_temp_vec(temp_start, Asn1Tag::Type);
+        Ok(())
+    }
+
+    /// Integer type definition, including named numbers
+    fn integer_type(&mut self) -> Result<()> {
+        let temp_start = self.temp_result.len();
+
+        self.next(&[TokenKind::KwInteger])?;
+
+        // TODO: add expected `{` after integer type to anything parsed after
+        // an integer type definition, but a pain to put it inside the parser as
+        // a check would have to be added after every type parse location
+
+        if self.next(&[TokenKind::LeftCurly]).is_ok() {
+            loop {
+                self.next(&[TokenKind::Identifier])?;
+
+                self.next(&[TokenKind::LeftParen])?;
+                let tok = self.peek(&[
+                    TokenKind::Number,
+                    TokenKind::Hyphen,
+                    TokenKind::ValueReference,
+                    TokenKind::ModuleReference,
+                ])?;
+                match tok.kind {
+                    TokenKind::Number => {
+                        self.next(&[TokenKind::Number])?;
+                    }
+                    TokenKind::Hyphen => {
+                        self.next(&[TokenKind::Hyphen])?;
+                        self.next(&[TokenKind::Number])?;
+                    }
+                    _ => self.defined_value()?,
+                }
+
+                self.next(&[TokenKind::RightParen])?;
+                let tok = self.next(&[TokenKind::Comma, TokenKind::RightCurly])?;
+
+                if tok.kind == TokenKind::RightCurly {
+                    break;
+                }
+            }
+        }
+
+        self.end_temp_vec(temp_start, Asn1Tag::IntegerType);
         Ok(())
     }
 
@@ -208,19 +285,47 @@ impl<'a> Parser<'a> {
     fn value(&mut self) -> Result<()> {
         let temp_start = self.temp_result.len();
 
+        // TODO: bit string, character string, choice, embedded pdv, enumerated,
+        // external, instance of, integer, object identifier, octet string, real
+        // relative iri, relative oid, sequence, sequence of, set, set of, prefixed,
+        // time
+        // TODO: referenced value, object class field value
+
         let tok = self.peek(&[
             TokenKind::DoubleQuote,
             TokenKind::KwTrue,
             TokenKind::KwFalse,
             TokenKind::KwNull,
+            TokenKind::Number,
+            TokenKind::Hyphen,
+            TokenKind::Identifier,
         ])?;
-        if tok.kind == TokenKind::DoubleQuote {
-            self.iri_value()?;
-        } else {
-            self.next(&[TokenKind::KwTrue, TokenKind::KwFalse, TokenKind::KwNull])?;
+        match tok.kind {
+            TokenKind::Number | TokenKind::Hyphen | TokenKind::Identifier => {
+                self.integer_value()?
+            }
+            TokenKind::DoubleQuote => self.iri_value()?,
+            _ => {
+                self.next(&[TokenKind::KwTrue, TokenKind::KwFalse, TokenKind::KwNull])?;
+            }
+        }
+        self.end_temp_vec(temp_start, Asn1Tag::Value);
+        Ok(())
+    }
+
+    /// parse reference to defined value
+    fn defined_value(&mut self) -> Result<()> {
+        let temp_start = self.temp_result.len();
+
+        // TODO: parameterized value
+
+        let tok = self.next(&[TokenKind::ValueReference, TokenKind::ModuleReference])?;
+        if tok.kind == TokenKind::ModuleReference {
+            self.next(&[TokenKind::Dot])?;
+            self.next(&[TokenKind::ValueReference])?;
         }
 
-        self.end_temp_vec(temp_start, Asn1Tag::Value);
+        self.end_temp_vec(temp_start, Asn1Tag::DefinedValue);
         Ok(())
     }
 
@@ -247,6 +352,19 @@ impl<'a> Parser<'a> {
         }
 
         self.end_temp_vec(temp_start, Asn1Tag::IriValue);
+        Ok(())
+    }
+
+    fn integer_value(&mut self) -> Result<()> {
+        let temp_start = self.temp_result.len();
+
+        let tok = self.next(&[TokenKind::Number, TokenKind::Hyphen, TokenKind::Identifier])?;
+
+        if tok.kind == TokenKind::Hyphen {
+            self.next(&[TokenKind::Number])?;
+        }
+
+        self.end_temp_vec(temp_start, Asn1Tag::IntegerValue);
         Ok(())
     }
 

@@ -16,6 +16,9 @@ fn main() {
         foo NULL ::= NULL
         Iri ::= OID-IRI
         enc OID-IRI ::= "/ISO/Registration_Authority/19785.CBEFF/Organizations/JTC1-SC37/Patron-formats/TLV-encoded"
+        MyInt ::= INTEGER { a(-5), b(Module.num) }
+        a INTEGER ::= a
+        b INTEGER ::= -3
     END -- hi --"#;
     let lexer = Lexer::new(0, source);
 

@@ -85,7 +85,7 @@ pub enum TokenKind {
     // "INCLUDES",
     // "INSTANCE",
     KwInstructions,
-    // "INTEGER",
+    KwInteger,
     // "INTERSECTION",
     // "ISO646String",
     // "MAX",
@@ -195,7 +195,7 @@ impl TokenBuffer {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 15] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 16] = [
     // "ABSENT",
     // "ABSTRACT-SYNTAX",
     // "ALL",
@@ -240,7 +240,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 15] = [
     // "INCLUDES",
     // "INSTANCE",
     ("INSTRUCTIONS", TokenKind::KwInstructions),
-    // "INTEGER",
+    ("INTEGER", TokenKind::KwInteger),
     // "INTERSECTION",
     // "ISO646String",
     // "MAX",
