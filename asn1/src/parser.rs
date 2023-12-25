@@ -74,7 +74,10 @@ impl<'a> Parser<'a> {
         self.next(&[TokenKind::ModuleReference])?;
 
         let definitive_start = self.temp_result.len();
-        if self.next(&[TokenKind::LeftCurly]).is_ok() {
+        let tok = self.peek(&[TokenKind::LeftCurly, TokenKind::KwDefinitions])?;
+        if tok.kind == TokenKind::LeftCurly {
+            self.next(&[TokenKind::LeftCurly])?;
+
             let mut kind = &[TokenKind::Identifier, TokenKind::Number][..];
 
             loop {
@@ -96,6 +99,8 @@ impl<'a> Parser<'a> {
             }
             self.end_temp_vec(definitive_start, Asn1Tag::DefinitiveOID);
 
+            self.peek(&[TokenKind::DoubleQuote, TokenKind::KwDefinitions])?;
+
             let _ = self.iri_value();
         }
 
@@ -109,12 +114,27 @@ impl<'a> Parser<'a> {
 
         {
             let temp_start = self.temp_result.len();
+            self.peek(&[
+                TokenKind::EncodingReference,
+                TokenKind::KwExplicit,
+                TokenKind::KwImplicit,
+                TokenKind::KwAutomatic,
+                TokenKind::KwExtensibility,
+                TokenKind::Assignment,
+            ])?;
             if self.next(&[TokenKind::EncodingReference]).is_ok() {
                 self.next(&[TokenKind::KwInstructions])?;
             }
             self.end_temp_vec(temp_start, Asn1Tag::EncodingReferenceDefault);
         }
         {
+            self.peek(&[
+                TokenKind::KwExplicit,
+                TokenKind::KwImplicit,
+                TokenKind::KwAutomatic,
+                TokenKind::KwExtensibility,
+                TokenKind::Assignment,
+            ])?;
             let temp_start = self.temp_result.len();
             if self
                 .next(&[
@@ -129,6 +149,7 @@ impl<'a> Parser<'a> {
             self.end_temp_vec(temp_start, Asn1Tag::TagDefault);
         }
         {
+            self.peek(&[TokenKind::KwExtensibility, TokenKind::Assignment])?;
             let temp_start = self.temp_result.len();
             if self.next(&[TokenKind::KwExtensibility]).is_ok() {
                 self.next(&[TokenKind::KwImplied])?;
@@ -144,9 +165,18 @@ impl<'a> Parser<'a> {
     fn assignment(&mut self) -> Result<()> {
         let temp_start = self.temp_result.len();
 
-        let name = self.next(&[TokenKind::TypeReference, TokenKind::ValueReference])?;
+        let name = self.next(&[
+            TokenKind::TypeReference,
+            TokenKind::ValueReference,
+            TokenKind::KwEnd,
+        ])?;
 
         match name.kind {
+            TokenKind::KwEnd => {
+                // shouldn't get here but oh well, end is in the list so that
+                // better expected lines can be generated
+                return Ok(());
+            }
             TokenKind::TypeReference => {
                 self.next(&[TokenKind::Assignment])?;
                 self.ty()?;
@@ -178,7 +208,13 @@ impl<'a> Parser<'a> {
     fn value(&mut self) -> Result<()> {
         let temp_start = self.temp_result.len();
 
-        if self.peek(&[TokenKind::DoubleQuote]).is_ok() {
+        let tok = self.peek(&[
+            TokenKind::DoubleQuote,
+            TokenKind::KwTrue,
+            TokenKind::KwFalse,
+            TokenKind::KwNull,
+        ])?;
+        if tok.kind == TokenKind::DoubleQuote {
             self.iri_value()?;
         } else {
             self.next(&[TokenKind::KwTrue, TokenKind::KwFalse, TokenKind::KwNull])?;
