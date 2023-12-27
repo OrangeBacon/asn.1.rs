@@ -9,7 +9,7 @@ fn main() {
     HELLO INSTRUCTIONS
     AUTOMATIC TAGS
     EXTENSIBILITY IMPLIED ::= BEGIN
-        Hello ::= BOOLEAN
+        HELLO ::= BOOLEAN
         world BOOLEAN /*hello */::= TRUE
         stuff BOOLEAN ::= FALSE
         MyStuff ::= NULL
@@ -19,6 +19,11 @@ fn main() {
         MyInt ::= INTEGER { a(-5), b(Module.num) }
         a INTEGER ::= a
         b INTEGER ::= -3
+        a ::= <INTEGER/>
+        b ::= <Hello></Hello>
+        c ::= <World><true/></World>
+        d ::= <Foo>-5</Foo>
+        e ::= <I>/a/b</I>
     END -- hi --"#;
     let lexer = Lexer::new(0, source);
 

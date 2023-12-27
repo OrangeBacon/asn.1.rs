@@ -108,7 +108,7 @@ impl<'a> Parser<'a> {
 
             self.peek(&[TokenKind::DoubleQuote, TokenKind::KwDefinitions])?;
 
-            let _ = self.iri_value();
+            let _ = self.iri_value(false);
         }
 
         self.end_temp_vec(temp_start, Asn1Tag::ModuleIdentifier);
@@ -178,7 +178,6 @@ impl<'a> Parser<'a> {
             TokenKind::KwEnd,
         ])?;
 
-        // TODO: XML value assignment
         // TODO: Value set type assignment
         // TODO: Object class assignment
         // TODO: Object set assignment
@@ -192,14 +191,20 @@ impl<'a> Parser<'a> {
             }
             TokenKind::TypeReference => {
                 self.next(&[TokenKind::Assignment])?;
-                self.ty()?;
+                self.ty(false)?;
                 self.end_temp_vec(temp_start, Asn1Tag::TypeAssignment)
             }
             TokenKind::ValueReference => {
-                self.ty()?;
+                let is_assign = self.ty(true)?;
                 self.next(&[TokenKind::Assignment])?;
-                self.value()?;
-                self.end_temp_vec(temp_start, Asn1Tag::ValueAssignment)
+
+                if is_assign {
+                    self.xml_typed_value()?;
+                    self.end_temp_vec(temp_start, Asn1Tag::XMLAssignment)
+                } else {
+                    self.value()?;
+                    self.end_temp_vec(temp_start, Asn1Tag::ValueAssignment)
+                }
             }
             _ => panic!("try consume error"),
         }
@@ -207,8 +212,10 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    /// Parse a type declaration
-    fn ty(&mut self) -> Result<()> {
+    /// Parse a type declaration.  If `or_assign` is true, then could also return
+    /// an assignment token, if it did, the return value is true.  In all other cases
+    /// the return value is false.
+    fn ty(&mut self, or_assign: bool) -> Result<bool> {
         let temp_start = self.temp_result.len();
 
         // TODO: Bit string, character string, choice, date, date time, duration
@@ -222,8 +229,12 @@ impl<'a> Parser<'a> {
             TokenKind::KwNull,
             TokenKind::KwOidIri,
             TokenKind::KwInteger,
+            TokenKind::Assignment,
         ])?;
         match tok.kind {
+            TokenKind::Assignment if or_assign => {
+                return Ok(true);
+            }
             TokenKind::KwInteger => {
                 self.integer_type()?;
             }
@@ -233,7 +244,7 @@ impl<'a> Parser<'a> {
         }
 
         self.end_temp_vec(temp_start, Asn1Tag::Type);
-        Ok(())
+        Ok(false)
     }
 
     /// Integer type definition, including named numbers
@@ -304,7 +315,7 @@ impl<'a> Parser<'a> {
             TokenKind::Number | TokenKind::Hyphen | TokenKind::Identifier => {
                 self.integer_value()?
             }
-            TokenKind::DoubleQuote => self.iri_value()?,
+            TokenKind::DoubleQuote => self.iri_value(false)?,
             _ => {
                 self.next(&[TokenKind::KwTrue, TokenKind::KwFalse, TokenKind::KwNull])?;
             }
@@ -319,9 +330,10 @@ impl<'a> Parser<'a> {
 
         // TODO: parameterized value
 
-        let tok = self.next(&[TokenKind::ValueReference, TokenKind::ModuleReference])?;
+        let tok = self.peek(&[TokenKind::ValueReference, TokenKind::ModuleReference])?;
         if tok.kind == TokenKind::ModuleReference {
-            self.next(&[TokenKind::Dot])?;
+            self.external_value_reference()?;
+        } else {
             self.next(&[TokenKind::ValueReference])?;
         }
 
@@ -330,28 +342,42 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an internationalised resource identifier
-    fn iri_value(&mut self) -> Result<()> {
+    fn iri_value(&mut self, xml: bool) -> Result<()> {
         let temp_start = self.temp_result.len();
 
-        self.next(&[TokenKind::DoubleQuote])?;
+        if !xml {
+            self.next(&[TokenKind::DoubleQuote])?;
+        }
         self.next(&[TokenKind::ForwardSlash])?;
         self.next(&[
             TokenKind::IntegerUnicodeLabel,
             TokenKind::NonIntegerUnicodeLabel,
         ])?;
 
+        let kind = if xml {
+            &[TokenKind::XMLEndTag, TokenKind::ForwardSlash]
+        } else {
+            &[TokenKind::DoubleQuote, TokenKind::ForwardSlash]
+        };
         loop {
-            let next = self.next(&[TokenKind::DoubleQuote, TokenKind::ForwardSlash])?;
-            if next.kind == TokenKind::DoubleQuote {
+            let next = self.peek(kind)?;
+            if next.kind == TokenKind::DoubleQuote || next.kind == TokenKind::XMLEndTag {
                 break;
             }
+            self.next(&[TokenKind::ForwardSlash])?;
             self.next(&[
                 TokenKind::IntegerUnicodeLabel,
                 TokenKind::NonIntegerUnicodeLabel,
             ])?;
         }
 
-        self.end_temp_vec(temp_start, Asn1Tag::IriValue);
+        if xml {
+            self.end_temp_vec(temp_start, Asn1Tag::XMLIri);
+        } else {
+            self.next(&[TokenKind::DoubleQuote])?;
+            self.end_temp_vec(temp_start, Asn1Tag::IriValue);
+        }
+
         Ok(())
     }
 
@@ -365,6 +391,158 @@ impl<'a> Parser<'a> {
         }
 
         self.end_temp_vec(temp_start, Asn1Tag::IntegerValue);
+        Ok(())
+    }
+
+    /// Parse an XML Typed value for XML value assignment
+    fn xml_typed_value(&mut self) -> Result<()> {
+        let temp_start = self.temp_result.len();
+
+        self.next(&[TokenKind::Less])?;
+
+        self.non_parameterized_type_name()?;
+
+        let tok = self.next(&[TokenKind::Greater, TokenKind::XMLSingleTagEnd])?;
+
+        if tok.kind == TokenKind::XMLSingleTagEnd {
+            self.end_temp_vec(temp_start, Asn1Tag::XMLEmptyTag);
+        } else if tok.kind == TokenKind::Greater {
+            self.end_temp_vec(temp_start, Asn1Tag::XMLStartTag);
+
+            self.xml_value()?;
+
+            let temp_start = self.temp_result.len();
+            self.next(&[TokenKind::XMLEndTag])?;
+            self.non_parameterized_type_name()?;
+            self.next(&[TokenKind::Greater])?;
+            self.end_temp_vec(temp_start, Asn1Tag::XMLEndTag);
+        }
+
+        self.end_temp_vec(temp_start, Asn1Tag::XMLTypedValue);
+
+        Ok(())
+    }
+
+    /// Parse a value within a typed xml value
+    fn xml_value(&mut self) -> Result<()> {
+        let temp_start = self.temp_result.len();
+
+        // TODO: bit string, character string, choice, embedded pdv,
+        // enumerated, external, instance of, iri, object identifier,
+        // octet string, real, relative iri, relative oid, sequence, sequence of,
+        // set, set of, prefixed, time
+        // TODO: object class field value
+
+        let tok = self.peek(&[
+            TokenKind::XMLEndTag,
+            TokenKind::Less,
+            TokenKind::IdentTrue,
+            TokenKind::IdentFalse,
+            TokenKind::XMLBoolNumber,
+            TokenKind::Number,
+            TokenKind::Hyphen,
+            TokenKind::Identifier,
+            TokenKind::ForwardSlash,
+        ])?;
+
+        match tok.kind {
+            TokenKind::XMLEndTag => {
+                return Ok(());
+            }
+            TokenKind::Less => {
+                self.next(&[TokenKind::Less])?;
+
+                let tok = self.next(&[
+                    TokenKind::IdentTrue,
+                    TokenKind::IdentFalse,
+                    TokenKind::Identifier,
+                ])?;
+                self.next(&[TokenKind::XMLSingleTagEnd])?;
+                let kind = match tok.kind {
+                    TokenKind::Identifier => Asn1Tag::XMLInteger,
+                    _ => Asn1Tag::XMLBoolean,
+                };
+                self.end_temp_vec(temp_start, kind);
+            }
+            TokenKind::IdentTrue | TokenKind::IdentFalse | TokenKind::XMLBoolNumber => {
+                self.next(&[
+                    TokenKind::IdentTrue,
+                    TokenKind::IdentFalse,
+                    TokenKind::XMLBoolNumber,
+                ])?;
+                self.end_temp_vec(temp_start, Asn1Tag::XMLBoolean);
+            }
+            TokenKind::Hyphen => {
+                self.next(&[TokenKind::Hyphen])?;
+                self.next(&[TokenKind::Number])?;
+                self.end_temp_vec(temp_start, Asn1Tag::XMLInteger);
+            }
+            TokenKind::Number | TokenKind::Identifier => {
+                self.next(&[TokenKind::Number, TokenKind::Identifier])?;
+                self.end_temp_vec(temp_start, Asn1Tag::XMLInteger);
+            }
+            TokenKind::ForwardSlash => {
+                self.iri_value(true)?;
+            }
+            _ => (),
+        }
+
+        self.end_temp_vec(temp_start, Asn1Tag::XMLValue);
+
+        Ok(())
+    }
+
+    /// Parse the type name that is at the start of an XML element
+    fn non_parameterized_type_name(&mut self) -> Result<()> {
+        let temp_start = self.temp_result.len();
+
+        // a non-parameterized type name could be an external type reference, a
+        // type reference or an xml asn1 typename.  It could also be prefixed with
+        // an underscore, if it would have started with the characters "XML".
+        // All xml asn1 type names are either valid type references, or keywords,
+        // so the validity check can be done after parsing.  The XML asn1 type name
+        // token kind allows any identifier regardless of capitalisation or whether
+        // it is a keyword.  The underscore is also always accepted, even if the
+        // next characters are not "XML", so should be checked later.
+
+        let tok = self.peek(&[
+            TokenKind::Underscore,
+            TokenKind::TypeReference,
+            TokenKind::XMLAsn1TypeName,
+        ])?;
+
+        if tok.kind == TokenKind::Underscore {
+            self.next(&[TokenKind::Underscore])?;
+        }
+
+        let tok = self.next(&[TokenKind::TypeReference, TokenKind::XMLAsn1TypeName])?;
+        if tok.kind == TokenKind::TypeReference {
+            let tok = self.peek(&[
+                TokenKind::Dot,
+                TokenKind::Greater,
+                TokenKind::XMLSingleTagEnd,
+            ])?;
+            if tok.kind == TokenKind::Dot {
+                self.next(&[TokenKind::Dot])?;
+                self.next(&[TokenKind::TypeReference])?;
+            }
+        }
+
+        self.end_temp_vec(temp_start, Asn1Tag::XMLTypedValue);
+
+        Ok(())
+    }
+
+    /// Parse a reference to an external value
+    fn external_value_reference(&mut self) -> Result<()> {
+        let temp_start = self.temp_result.len();
+
+        self.next(&[TokenKind::ModuleReference])?;
+        self.next(&[TokenKind::Dot])?;
+        self.next(&[TokenKind::ValueReference])?;
+
+        self.end_temp_vec(temp_start, Asn1Tag::ExternalTypeReference);
+
         Ok(())
     }
 

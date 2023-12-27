@@ -111,9 +111,16 @@ impl<'a> Lexer<'a> {
                 TokenKind::Pipe if c == '|' => self.simple_token(kind, offset),
                 TokenKind::Exclamation if c == '!' => self.simple_token(kind, offset),
                 TokenKind::Caret if c == '^' => self.simple_token(kind, offset),
+                TokenKind::Underscore if c == '_' => self.simple_token(kind, offset),
 
                 TokenKind::Assignment if c == ':' => {
                     self.multi_token(TokenKind::Assignment, offset, "::=")
+                }
+                TokenKind::XMLEndTag if c == '<' => {
+                    self.multi_token(TokenKind::XMLEndTag, offset, "</")
+                }
+                TokenKind::XMLSingleTagEnd if c == '/' => {
+                    self.multi_token(TokenKind::XMLSingleTagEnd, offset, "/>")
                 }
 
                 TokenKind::Identifier | TokenKind::ValueReference if c.is_ascii_alphabetic() => {
@@ -128,7 +135,7 @@ impl<'a> Lexer<'a> {
                 TokenKind::TypeReference | TokenKind::ModuleReference if c.is_ascii_alphabetic() => {
                     let ident = self.identifier(c, offset);
 
-                    if ident.kind == TokenKind::TypeReference {
+                    if ident.kind == TokenKind::TypeReference || ident.kind == TokenKind::EncodingReference {
                         Some(Token { kind, ..ident })
                     } else {
                         None
@@ -143,10 +150,39 @@ impl<'a> Lexer<'a> {
                         None
                     }
                 }
+                TokenKind::XMLAsn1TypeName if c.is_ascii_alphabetic() => {
+                    let ident = self.identifier(c, offset);
+
+                    Some(Token { kind, ..ident })
+                }
 
                 TokenKind::IntegerUnicodeLabel => self.integer_unicode_label(c, offset),
                 TokenKind::NonIntegerUnicodeLabel => self.non_integer_unicode_label(c, offset),
                 TokenKind::Number => self.number(c, offset),
+
+                TokenKind::IdentTrue if c.is_ascii_alphabetic() => {
+                    let ident = self.identifier(c, offset);
+
+                    if ident.value == "true" {
+                        Some(Token { kind:TokenKind::IdentTrue,.. ident})
+                    } else {
+                        None
+                    }
+                }
+                TokenKind::IdentFalse if c.is_ascii_alphabetic() => {
+                    let ident = self.identifier(c, offset);
+
+                    if ident.value == "false" {
+                        Some(Token { kind:TokenKind::IdentTrue,.. ident})
+                    } else {
+                        None
+                    }
+                }
+                TokenKind::XMLBoolNumber if c == '0' || c == '1' => {
+                    self.number(c, offset)
+                        .filter(|&tok| tok.value == "0" || tok.value == "1")
+                        .map(|t| Token { kind:TokenKind::XMLBoolNumber, ..t })
+                }
 
                 // "ABSENT",
                 // "ABSTRACT-SYNTAX",

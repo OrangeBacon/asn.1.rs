@@ -34,12 +34,22 @@ pub enum Asn1Tag {
     ExtensionDefault,
     TypeAssignment,
     ValueAssignment,
+    XMLAssignment,
     Type,
     IntegerType,
     Value,
     DefinedValue,
     IntegerValue,
+    XMLTypedValue,
     IriValue,
+    ExternalTypeReference,
+    XMLStartTag,
+    XMLEndTag,
+    XMLValue,
+    XMLEmptyTag,
+    XMLBoolean,
+    XMLInteger,
+    XMLIri,
 }
 
 impl Display for Asn1<'_> {

@@ -26,9 +26,12 @@ pub enum TokenKind {
     Pipe,
     Exclamation,
     Caret,
+    Underscore,
 
     // Multi-character tokens
     Assignment,
+    XMLEndTag,
+    XMLSingleTagEnd,
 
     // Compound tokens
     Identifier,
@@ -39,6 +42,10 @@ pub enum TokenKind {
     IntegerUnicodeLabel,
     NonIntegerUnicodeLabel,
     Number,
+    XMLAsn1TypeName,
+    IdentTrue,
+    IdentFalse,
+    XMLBoolNumber,
 
     // Keywords
     // "ABSENT",
