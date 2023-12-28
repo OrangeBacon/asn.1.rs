@@ -24,6 +24,9 @@ fn main() {
         c ::= <World><true/></World>
         d ::= <Foo>-5</Foo>
         e ::= <I>/a/b</I>
+        F ::= ENUMERATED {
+            a(5), b, c(7), ... !-5, z(3)
+        }
     END -- hi --"#;
     let lexer = Lexer::new(0, source);
 

@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Asn1, Asn1Tag, TreeContent},
+    cst::{Asn1, Asn1Tag, TreeContent},
     lexer::{Lexer, LexerError, Result},
     token::{Token, TokenKind},
 };
@@ -15,6 +15,18 @@ pub struct Parser<'a> {
 
     /// Temporary storage used when making the tree
     temp_result: Vec<TreeContent<'a>>,
+}
+
+/// The kind of tokens accepted along side a type
+enum TypeStartKind {
+    /// nothing extra
+    None,
+
+    /// Also allow an assignment token `::=`
+    Assignment,
+
+    /// Also allow a signed number or a defined value for the exception spec
+    Exception,
 }
 
 impl<'a> Parser<'a> {
@@ -191,11 +203,11 @@ impl<'a> Parser<'a> {
             }
             TokenKind::TypeReference => {
                 self.next(&[TokenKind::Assignment])?;
-                self.ty(false)?;
+                self.ty(TypeStartKind::None)?;
                 self.end_temp_vec(temp_start, Asn1Tag::TypeAssignment)
             }
             TokenKind::ValueReference => {
-                let is_assign = self.ty(true)?;
+                let is_assign = self.ty(TypeStartKind::Assignment)?;
                 self.next(&[TokenKind::Assignment])?;
 
                 if is_assign {
@@ -212,32 +224,44 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    /// Parse a type declaration.  If `or_assign` is true, then could also return
-    /// an assignment token, if it did, the return value is true.  In all other cases
-    /// the return value is false.
-    fn ty(&mut self, or_assign: bool) -> Result<bool> {
+    /// Parse a type declaration.  `kind` represents the other kinds of token that
+    /// could be peeked at the start of the type definition, for error reporting
+    /// purposes.  If one of them is matched, then returns true, otherwise false.
+    fn ty(&mut self, kind: TypeStartKind) -> Result<bool> {
         let temp_start = self.temp_result.len();
 
         // TODO: Bit string, character string, choice, date, date time, duration
-        // embedded pdv, enumerated, external, instance of, integer, object class field,
+        // embedded pdv, external, instance of, integer, object class field,
         // object identifier, octet string, real, relative iri, relative oid, sequence,
         // sequence of, set, set of, prefixed, time, time of day.
         // TODO: referenced type, constrained type
 
-        let tok = self.peek(&[
-            TokenKind::KwBoolean,
-            TokenKind::KwNull,
-            TokenKind::KwOidIri,
-            TokenKind::KwInteger,
-            TokenKind::Assignment,
-        ])?;
+        macro_rules! kinds {
+            ($($extra:path),* $(,)?) => {
+                &[
+                    TokenKind::KwBoolean,
+                    TokenKind::KwNull,
+                    TokenKind::KwOidIri,
+                    TokenKind::KwInteger,
+                    TokenKind::KwEnumerated,
+                    $($extra),*
+                ][..]
+            };
+        }
+
+        let kind = match kind {
+            TypeStartKind::None => kinds!(),
+            TypeStartKind::Assignment => kinds!(TokenKind::Assignment),
+            TypeStartKind::Exception => kinds!(TokenKind::Hyphen, TokenKind::Number),
+        };
+        let tok = self.peek(kind)?;
+
         match tok.kind {
-            TokenKind::Assignment if or_assign => {
+            TokenKind::Assignment | TokenKind::Hyphen | TokenKind::Number => {
                 return Ok(true);
             }
-            TokenKind::KwInteger => {
-                self.integer_type()?;
-            }
+            TokenKind::KwInteger => self.integer_type()?,
+            TokenKind::KwEnumerated => self.enumerated_type()?,
             _ => {
                 self.next(&[TokenKind::KwBoolean, TokenKind::KwNull, TokenKind::KwOidIri])?;
             }
@@ -259,27 +283,8 @@ impl<'a> Parser<'a> {
 
         if self.next(&[TokenKind::LeftCurly]).is_ok() {
             loop {
-                self.next(&[TokenKind::Identifier])?;
+                self.named_number(false)?;
 
-                self.next(&[TokenKind::LeftParen])?;
-                let tok = self.peek(&[
-                    TokenKind::Number,
-                    TokenKind::Hyphen,
-                    TokenKind::ValueReference,
-                    TokenKind::ModuleReference,
-                ])?;
-                match tok.kind {
-                    TokenKind::Number => {
-                        self.next(&[TokenKind::Number])?;
-                    }
-                    TokenKind::Hyphen => {
-                        self.next(&[TokenKind::Hyphen])?;
-                        self.next(&[TokenKind::Number])?;
-                    }
-                    _ => self.defined_value()?,
-                }
-
-                self.next(&[TokenKind::RightParen])?;
                 let tok = self.next(&[TokenKind::Comma, TokenKind::RightCurly])?;
 
                 if tok.kind == TokenKind::RightCurly {
@@ -290,6 +295,146 @@ impl<'a> Parser<'a> {
 
         self.end_temp_vec(temp_start, Asn1Tag::IntegerType);
         Ok(())
+    }
+
+    /// Parse an enum type declaration
+    fn enumerated_type(&mut self) -> Result<()> {
+        let temp_start = self.temp_result.len();
+
+        self.next(&[TokenKind::KwEnumerated])?;
+        self.next(&[TokenKind::LeftCurly])?;
+
+        self.enum_item_list(true)?;
+        let tok = self.peek(&[TokenKind::RightCurly, TokenKind::Ellipsis])?;
+        if tok.kind == TokenKind::Ellipsis {
+            self.next(&[TokenKind::Ellipsis])?;
+
+            let kind = if self.exception_spec()? {
+                &[TokenKind::Comma, TokenKind::RightCurly][..]
+            } else {
+                &[
+                    TokenKind::Comma,
+                    TokenKind::RightCurly,
+                    TokenKind::Exclamation,
+                ]
+            };
+
+            let tok = self.peek(kind)?;
+            if tok.kind == TokenKind::Comma {
+                self.next(&[TokenKind::Comma])?;
+                self.enum_item_list(false)?;
+            }
+        }
+
+        self.next(&[TokenKind::RightCurly])?;
+
+        self.end_temp_vec(temp_start, Asn1Tag::EnumeratedType);
+        Ok(())
+    }
+
+    /// The list of items on the inside of an enum, is item "Enumeration" in the
+    /// specification.  If first is true will also break out of the loop if there
+    /// is an ellipsis, not just a curly brace.
+    fn enum_item_list(&mut self, first: bool) -> Result<()> {
+        let temp_start = self.temp_result.len();
+
+        loop {
+            self.named_number(true)?;
+
+            let tok = self.peek(&[TokenKind::RightCurly, TokenKind::Comma])?;
+            if tok.kind == TokenKind::RightCurly {
+                break;
+            }
+            self.next(&[TokenKind::Comma])?;
+
+            if first {
+                let tok = self.peek(&[TokenKind::Identifier, TokenKind::Ellipsis])?;
+                if tok.kind == TokenKind::Ellipsis {
+                    break;
+                }
+            }
+        }
+
+        self.end_temp_vec(temp_start, Asn1Tag::EnumItemList);
+        Ok(())
+    }
+
+    /// An integer value with a name, `hello(5)`.  If `is_enum`, then it will
+    /// also allow returning just an identifier, without the parenthesized
+    /// value.
+    fn named_number(&mut self, is_enum: bool) -> Result<()> {
+        let temp_start = self.temp_result.len();
+
+        self.next(&[TokenKind::Identifier])?;
+
+        let kind = if is_enum {
+            &[
+                TokenKind::LeftParen,
+                TokenKind::Comma,
+                TokenKind::RightCurly,
+            ][..]
+        } else {
+            &[TokenKind::LeftParen]
+        };
+
+        let tok = self.peek(kind)?;
+        if tok.kind != TokenKind::LeftParen {
+            self.end_temp_vec(temp_start, Asn1Tag::EnumItem);
+            return Ok(());
+        }
+        self.next(&[TokenKind::LeftParen])?;
+
+        let tok = self.peek(&[
+            TokenKind::Number,
+            TokenKind::Hyphen,
+            TokenKind::ValueReference,
+            TokenKind::ModuleReference,
+        ])?;
+        match tok.kind {
+            TokenKind::Number => {
+                self.next(&[TokenKind::Number])?;
+            }
+            TokenKind::Hyphen => {
+                self.next(&[TokenKind::Hyphen])?;
+                self.next(&[TokenKind::Number])?;
+            }
+            _ => self.defined_value()?,
+        }
+
+        self.next(&[TokenKind::RightParen])?;
+
+        if is_enum {
+            self.end_temp_vec(temp_start, Asn1Tag::EnumItem);
+        } else {
+            self.end_temp_vec(temp_start, Asn1Tag::NamedNumber);
+        }
+
+        Ok(())
+    }
+
+    /// Parse a specifier that there is an un-specified constraint in the asn.1
+    /// file.  returns true if the exception spec was not empty.
+    fn exception_spec(&mut self) -> Result<bool> {
+        let temp_start = self.temp_result.len();
+
+        if self.next(&[TokenKind::Exclamation]).is_err() {
+            return Ok(false);
+        }
+
+        // TODO: Defined value option
+
+        if self.ty(TypeStartKind::Exception)? {
+            let tok = self.next(&[TokenKind::Hyphen, TokenKind::Number])?;
+            if tok.kind == TokenKind::Hyphen {
+                self.next(&[TokenKind::Number])?;
+            }
+        } else {
+            self.next(&[TokenKind::Colon])?;
+            self.value()?;
+        }
+
+        self.end_temp_vec(temp_start, Asn1Tag::ExceptionSpec);
+        Ok(true)
     }
 
     /// Parse a value

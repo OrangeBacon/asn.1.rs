@@ -37,6 +37,10 @@ pub enum Asn1Tag {
     XMLAssignment,
     Type,
     IntegerType,
+    EnumeratedType,
+    EnumItemList,
+    EnumItem,
+    ExceptionSpec,
     Value,
     DefinedValue,
     IntegerValue,
@@ -50,6 +54,7 @@ pub enum Asn1Tag {
     XMLBoolean,
     XMLInteger,
     XMLIri,
+    NamedNumber,
 }
 
 impl Display for Asn1<'_> {

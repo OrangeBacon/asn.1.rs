@@ -122,6 +122,9 @@ impl<'a> Lexer<'a> {
                 TokenKind::XMLSingleTagEnd if c == '/' => {
                     self.multi_token(TokenKind::XMLSingleTagEnd, offset, "/>")
                 }
+                TokenKind::Ellipsis if c == '.' => {
+                    self.multi_token(TokenKind::Ellipsis, offset, "...")
+                }
 
                 TokenKind::Identifier | TokenKind::ValueReference if c.is_ascii_alphabetic() => {
                     let ident = self.identifier(c, offset);
@@ -210,7 +213,7 @@ impl<'a> Lexer<'a> {
                 // "ENCODED",
                 // "ENCODING-CONTROL",
                 | TokenKind::KwEnd
-                // "ENUMERATED",
+                | TokenKind::KwEnumerated
                 // "EXCEPT",
                 | TokenKind::KwExplicit
                 // "EXPORTS",

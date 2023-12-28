@@ -32,6 +32,7 @@ pub enum TokenKind {
     Assignment,
     XMLEndTag,
     XMLSingleTagEnd,
+    Ellipsis,
 
     // Compound tokens
     Identifier,
@@ -74,7 +75,7 @@ pub enum TokenKind {
     // "ENCODED",
     // "ENCODING-CONTROL",
     KwEnd,
-    // "ENUMERATED",
+    KwEnumerated,
     // "EXCEPT",
     KwExplicit,
     // "EXPORTS",
@@ -202,7 +203,7 @@ impl TokenBuffer {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 16] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 17] = [
     // "ABSENT",
     // "ABSTRACT-SYNTAX",
     // "ALL",
@@ -229,7 +230,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 16] = [
     // "ENCODED",
     // "ENCODING-CONTROL",
     ("END", TokenKind::KwEnd),
-    // "ENUMERATED",
+    ("ENUMERATED", TokenKind::KwEnumerated),
     // "EXCEPT",
     ("EXPLICIT", TokenKind::KwExplicit),
     // "EXPORTS",
