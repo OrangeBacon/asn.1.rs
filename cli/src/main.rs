@@ -17,8 +17,8 @@ fn main() {
         Iri ::= OID-IRI
         enc OID-IRI ::= "/ISO/Registration_Authority/19785.CBEFF/Organizations/JTC1-SC37/Patron-formats/TLV-encoded"
         MyInt ::= INTEGER { a(-5), b(Module.num) }
-        a INTEGER ::= a
-        b INTEGER ::= -3
+        a INTEGER ::= a -- comment
+        b INTEGER --comment2--::= -3
         a ::= <INTEGER/>
         b ::= <Hello></Hello>
         c ::= <World><true/></World>

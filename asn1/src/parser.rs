@@ -15,6 +15,9 @@ pub struct Parser<'a> {
 
     /// Temporary storage used when making the tree
     temp_result: Vec<TreeContent<'a>>,
+
+    /// data to finish constructing a partial cst in error cases
+    error_nodes: Vec<TempVec>,
 }
 
 /// The kind of tokens accepted along side a type
@@ -29,6 +32,14 @@ enum TypeStartKind {
     Exception,
 }
 
+/// Helper for constructing cst tree nodes from the temp_result array in the error
+/// case, when unwinding (through result) through the parser.
+#[derive(Debug, Clone)]
+struct TempVec {
+    tag: Asn1Tag,
+    offset: usize,
+}
+
 impl<'a> Parser<'a> {
     /// Create a new parser from a lexer
     pub fn new(lexer: Lexer<'a>) -> Self {
@@ -36,11 +47,14 @@ impl<'a> Parser<'a> {
             lexer,
             result: vec![],
             temp_result: vec![],
+            error_nodes: vec![],
         }
     }
 
     /// Run the parser to produce a set of ASN.1 definitions
     pub fn run(mut self) -> Result<Asn1<'a>> {
+        self.start_temp_vec(Asn1Tag::Root);
+
         while !self.lexer.is_eof() {
             self.module_definition()?;
         }
@@ -48,9 +62,11 @@ impl<'a> Parser<'a> {
         // handle comments at the end of the file after all meaningful tokens
         let _ = self.next(&[]);
 
-        self.end_temp_vec(0, Asn1Tag::Root);
+        self.end_temp_vec(Asn1Tag::Root);
         let root = self.result.len();
         self.result.push(self.temp_result[0]);
+
+        println!("{:?}", self.error_nodes);
 
         Ok(Asn1 {
             root,
@@ -60,7 +76,7 @@ impl<'a> Parser<'a> {
 
     /// Parse a single ASN.1 module definition
     fn module_definition(&mut self) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        self.start_temp_vec(Asn1Tag::ModuleDefinition);
 
         self.module_identifier()?;
         self.next(&[TokenKind::KwDefinitions])?;
@@ -82,19 +98,19 @@ impl<'a> Parser<'a> {
 
         self.next(&[TokenKind::KwEnd])?;
 
-        self.end_temp_vec(temp_start, Asn1Tag::ModuleDefinition);
+        self.end_temp_vec(Asn1Tag::ModuleDefinition);
         Ok(())
     }
 
     /// Identifier at the start of a module
     fn module_identifier(&mut self) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        self.start_temp_vec(Asn1Tag::ModuleIdentifier);
 
         self.next(&[TokenKind::ModuleReference])?;
 
-        let definitive_start = self.temp_result.len();
         let tok = self.peek(&[TokenKind::LeftCurly, TokenKind::KwDefinitions])?;
         if tok.kind == TokenKind::LeftCurly {
+            self.start_temp_vec(Asn1Tag::DefinitiveOID);
             self.next(&[TokenKind::LeftCurly])?;
 
             let mut kind = &[TokenKind::Identifier, TokenKind::Number][..];
@@ -116,23 +132,23 @@ impl<'a> Parser<'a> {
                     TokenKind::RightCurly,
                 ];
             }
-            self.end_temp_vec(definitive_start, Asn1Tag::DefinitiveOID);
+            self.end_temp_vec(Asn1Tag::DefinitiveOID);
 
             self.peek(&[TokenKind::DoubleQuote, TokenKind::KwDefinitions])?;
 
             let _ = self.iri_value(false);
         }
 
-        self.end_temp_vec(temp_start, Asn1Tag::ModuleIdentifier);
+        self.end_temp_vec(Asn1Tag::ModuleIdentifier);
         Ok(())
     }
 
     /// The bit between the `DEFINITIONS` keyword and the assignment
     fn module_defaults(&mut self) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        self.start_temp_vec(Asn1Tag::ModuleDefaults);
 
         {
-            let temp_start = self.temp_result.len();
+            self.start_temp_vec(Asn1Tag::EncodingReferenceDefault);
             self.peek(&[
                 TokenKind::EncodingReference,
                 TokenKind::KwExplicit,
@@ -144,9 +160,10 @@ impl<'a> Parser<'a> {
             if self.next(&[TokenKind::EncodingReference]).is_ok() {
                 self.next(&[TokenKind::KwInstructions])?;
             }
-            self.end_temp_vec(temp_start, Asn1Tag::EncodingReferenceDefault);
+            self.end_temp_vec(Asn1Tag::EncodingReferenceDefault);
         }
         {
+            self.start_temp_vec(Asn1Tag::TagDefault);
             self.peek(&[
                 TokenKind::KwExplicit,
                 TokenKind::KwImplicit,
@@ -154,7 +171,6 @@ impl<'a> Parser<'a> {
                 TokenKind::KwExtensibility,
                 TokenKind::Assignment,
             ])?;
-            let temp_start = self.temp_result.len();
             if self
                 .next(&[
                     TokenKind::KwExplicit,
@@ -165,24 +181,24 @@ impl<'a> Parser<'a> {
             {
                 self.next(&[TokenKind::KwTags])?;
             }
-            self.end_temp_vec(temp_start, Asn1Tag::TagDefault);
+            self.end_temp_vec(Asn1Tag::TagDefault);
         }
         {
+            self.start_temp_vec(Asn1Tag::ExtensionDefault);
             self.peek(&[TokenKind::KwExtensibility, TokenKind::Assignment])?;
-            let temp_start = self.temp_result.len();
             if self.next(&[TokenKind::KwExtensibility]).is_ok() {
                 self.next(&[TokenKind::KwImplied])?;
             }
-            self.end_temp_vec(temp_start, Asn1Tag::ExtensionDefault);
+            self.end_temp_vec(Asn1Tag::ExtensionDefault);
         }
 
-        self.end_temp_vec(temp_start, Asn1Tag::ModuleIdentifier);
+        self.end_temp_vec(Asn1Tag::ModuleDefaults);
         Ok(())
     }
 
     /// Parse a single assignment to a name
     fn assignment(&mut self) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        self.start_temp_vec(Asn1Tag::Assignment);
 
         let name = self.next(&[
             TokenKind::TypeReference,
@@ -202,24 +218,28 @@ impl<'a> Parser<'a> {
                 return Ok(());
             }
             TokenKind::TypeReference => {
+                self.start_temp_vec(Asn1Tag::TypeAssignment);
                 self.next(&[TokenKind::Assignment])?;
                 self.ty(TypeStartKind::None)?;
-                self.end_temp_vec(temp_start, Asn1Tag::TypeAssignment)
+                self.end_temp_vec(Asn1Tag::TypeAssignment);
             }
             TokenKind::ValueReference => {
+                self.start_temp_vec(Asn1Tag::ValueAssignment);
+
                 let is_assign = self.ty(TypeStartKind::Assignment)?;
                 self.next(&[TokenKind::Assignment])?;
 
                 if is_assign {
                     self.xml_typed_value()?;
-                    self.end_temp_vec(temp_start, Asn1Tag::XMLAssignment)
                 } else {
                     self.value()?;
-                    self.end_temp_vec(temp_start, Asn1Tag::ValueAssignment)
                 }
+                self.end_temp_vec(Asn1Tag::ValueAssignment)
             }
             _ => panic!("try consume error"),
         }
+
+        self.end_temp_vec(Asn1Tag::Assignment);
 
         Ok(())
     }
@@ -228,8 +248,6 @@ impl<'a> Parser<'a> {
     /// could be peeked at the start of the type definition, for error reporting
     /// purposes.  If one of them is matched, then returns true, otherwise false.
     fn ty(&mut self, kind: TypeStartKind) -> Result<bool> {
-        let temp_start = self.temp_result.len();
-
         // TODO: Bit string, character string, choice, date, date time, duration
         // embedded pdv, external, instance of, integer, object class field,
         // object identifier, octet string, real, relative iri, relative oid, sequence,
@@ -260,20 +278,27 @@ impl<'a> Parser<'a> {
             TokenKind::Assignment | TokenKind::Hyphen | TokenKind::Number => {
                 return Ok(true);
             }
-            TokenKind::KwInteger => self.integer_type()?,
-            TokenKind::KwEnumerated => self.enumerated_type()?,
+            TokenKind::KwInteger => {
+                self.start_temp_vec(Asn1Tag::Type);
+                self.integer_type()?
+            }
+            TokenKind::KwEnumerated => {
+                self.start_temp_vec(Asn1Tag::Type);
+                self.enumerated_type()?
+            }
             _ => {
+                self.start_temp_vec(Asn1Tag::Type);
                 self.next(&[TokenKind::KwBoolean, TokenKind::KwNull, TokenKind::KwOidIri])?;
             }
         }
 
-        self.end_temp_vec(temp_start, Asn1Tag::Type);
+        self.end_temp_vec(Asn1Tag::Type);
         Ok(false)
     }
 
     /// Integer type definition, including named numbers
     fn integer_type(&mut self) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        self.start_temp_vec(Asn1Tag::IntegerType);
 
         self.next(&[TokenKind::KwInteger])?;
 
@@ -293,13 +318,13 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.end_temp_vec(temp_start, Asn1Tag::IntegerType);
+        self.end_temp_vec(Asn1Tag::IntegerType);
         Ok(())
     }
 
     /// Parse an enum type declaration
     fn enumerated_type(&mut self) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        self.start_temp_vec(Asn1Tag::EnumeratedType);
 
         self.next(&[TokenKind::KwEnumerated])?;
         self.next(&[TokenKind::LeftCurly])?;
@@ -328,7 +353,7 @@ impl<'a> Parser<'a> {
 
         self.next(&[TokenKind::RightCurly])?;
 
-        self.end_temp_vec(temp_start, Asn1Tag::EnumeratedType);
+        self.end_temp_vec(Asn1Tag::EnumeratedType);
         Ok(())
     }
 
@@ -336,7 +361,7 @@ impl<'a> Parser<'a> {
     /// specification.  If first is true will also break out of the loop if there
     /// is an ellipsis, not just a curly brace.
     fn enum_item_list(&mut self, first: bool) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        self.start_temp_vec(Asn1Tag::EnumItemList);
 
         loop {
             self.named_number(true)?;
@@ -355,7 +380,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.end_temp_vec(temp_start, Asn1Tag::EnumItemList);
+        self.end_temp_vec(Asn1Tag::EnumItemList);
         Ok(())
     }
 
@@ -363,7 +388,12 @@ impl<'a> Parser<'a> {
     /// also allow returning just an identifier, without the parenthesized
     /// value.
     fn named_number(&mut self, is_enum: bool) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        let tag = if is_enum {
+            Asn1Tag::EnumItem
+        } else {
+            Asn1Tag::NamedNumber
+        };
+        self.start_temp_vec(tag);
 
         self.next(&[TokenKind::Identifier])?;
 
@@ -379,7 +409,7 @@ impl<'a> Parser<'a> {
 
         let tok = self.peek(kind)?;
         if tok.kind != TokenKind::LeftParen {
-            self.end_temp_vec(temp_start, Asn1Tag::EnumItem);
+            self.end_temp_vec(tag);
             return Ok(());
         }
         self.next(&[TokenKind::LeftParen])?;
@@ -403,25 +433,23 @@ impl<'a> Parser<'a> {
 
         self.next(&[TokenKind::RightParen])?;
 
-        if is_enum {
-            self.end_temp_vec(temp_start, Asn1Tag::EnumItem);
-        } else {
-            self.end_temp_vec(temp_start, Asn1Tag::NamedNumber);
-        }
-
+        self.end_temp_vec(tag);
         Ok(())
     }
 
     /// Parse a specifier that there is an un-specified constraint in the asn.1
     /// file.  returns true if the exception spec was not empty.
     fn exception_spec(&mut self) -> Result<bool> {
-        let temp_start = self.temp_result.len();
+        self.start_temp_vec(Asn1Tag::ExceptionSpec);
 
         if self.next(&[TokenKind::Exclamation]).is_err() {
+            self.end_temp_vec(Asn1Tag::ExceptionSpec);
             return Ok(false);
         }
 
         // TODO: Defined value option
+        // = external value reference
+        // | value reference
 
         if self.ty(TypeStartKind::Exception)? {
             let tok = self.next(&[TokenKind::Hyphen, TokenKind::Number])?;
@@ -433,13 +461,13 @@ impl<'a> Parser<'a> {
             self.value()?;
         }
 
-        self.end_temp_vec(temp_start, Asn1Tag::ExceptionSpec);
+        self.end_temp_vec(Asn1Tag::ExceptionSpec);
         Ok(true)
     }
 
     /// Parse a value
     fn value(&mut self) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        self.start_temp_vec(Asn1Tag::Value);
 
         // TODO: bit string, character string, choice, embedded pdv, enumerated,
         // external, instance of, integer, object identifier, octet string, real
@@ -465,13 +493,13 @@ impl<'a> Parser<'a> {
                 self.next(&[TokenKind::KwTrue, TokenKind::KwFalse, TokenKind::KwNull])?;
             }
         }
-        self.end_temp_vec(temp_start, Asn1Tag::Value);
+        self.end_temp_vec(Asn1Tag::Value);
         Ok(())
     }
 
     /// parse reference to defined value
     fn defined_value(&mut self) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        self.start_temp_vec(Asn1Tag::DefinedValue);
 
         // TODO: parameterized value
 
@@ -482,13 +510,18 @@ impl<'a> Parser<'a> {
             self.next(&[TokenKind::ValueReference])?;
         }
 
-        self.end_temp_vec(temp_start, Asn1Tag::DefinedValue);
+        self.end_temp_vec(Asn1Tag::DefinedValue);
         Ok(())
     }
 
     /// Parse an internationalised resource identifier
     fn iri_value(&mut self, xml: bool) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        let tag = if xml {
+            Asn1Tag::XMLIri
+        } else {
+            Asn1Tag::IriValue
+        };
+        self.start_temp_vec(tag);
 
         if !xml {
             self.next(&[TokenKind::DoubleQuote])?;
@@ -516,18 +549,17 @@ impl<'a> Parser<'a> {
             ])?;
         }
 
-        if xml {
-            self.end_temp_vec(temp_start, Asn1Tag::XMLIri);
-        } else {
+        if !xml {
             self.next(&[TokenKind::DoubleQuote])?;
-            self.end_temp_vec(temp_start, Asn1Tag::IriValue);
         }
+
+        self.end_temp_vec(tag);
 
         Ok(())
     }
 
     fn integer_value(&mut self) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        self.start_temp_vec(Asn1Tag::IntegerValue);
 
         let tok = self.next(&[TokenKind::Number, TokenKind::Hyphen, TokenKind::Identifier])?;
 
@@ -535,42 +567,39 @@ impl<'a> Parser<'a> {
             self.next(&[TokenKind::Number])?;
         }
 
-        self.end_temp_vec(temp_start, Asn1Tag::IntegerValue);
+        self.end_temp_vec(Asn1Tag::IntegerValue);
         Ok(())
     }
 
     /// Parse an XML Typed value for XML value assignment
     fn xml_typed_value(&mut self) -> Result<()> {
-        let temp_start = self.temp_result.len();
-
+        self.start_temp_vec(Asn1Tag::XMLTypedValue);
+        self.start_temp_vec(Asn1Tag::XMLTag);
         self.next(&[TokenKind::Less])?;
 
         self.non_parameterized_type_name()?;
 
         let tok = self.next(&[TokenKind::Greater, TokenKind::XMLSingleTagEnd])?;
 
-        if tok.kind == TokenKind::XMLSingleTagEnd {
-            self.end_temp_vec(temp_start, Asn1Tag::XMLEmptyTag);
-        } else if tok.kind == TokenKind::Greater {
-            self.end_temp_vec(temp_start, Asn1Tag::XMLStartTag);
-
+        self.end_temp_vec(Asn1Tag::XMLTag);
+        if tok.kind == TokenKind::Greater {
             self.xml_value()?;
 
-            let temp_start = self.temp_result.len();
+            self.start_temp_vec(Asn1Tag::XMLTag);
             self.next(&[TokenKind::XMLEndTag])?;
             self.non_parameterized_type_name()?;
             self.next(&[TokenKind::Greater])?;
-            self.end_temp_vec(temp_start, Asn1Tag::XMLEndTag);
+            self.end_temp_vec(Asn1Tag::XMLTag);
         }
 
-        self.end_temp_vec(temp_start, Asn1Tag::XMLTypedValue);
+        self.end_temp_vec(Asn1Tag::XMLTypedValue);
 
         Ok(())
     }
 
     /// Parse a value within a typed xml value
     fn xml_value(&mut self) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        self.start_temp_vec(Asn1Tag::XMLValue);
 
         // TODO: bit string, character string, choice, embedded pdv,
         // enumerated, external, instance of, iri, object identifier,
@@ -592,39 +621,51 @@ impl<'a> Parser<'a> {
 
         match tok.kind {
             TokenKind::XMLEndTag => {
+                self.end_temp_vec(Asn1Tag::XMLValue);
                 return Ok(());
             }
             TokenKind::Less => {
+                self.start_temp_vec(Asn1Tag::XMLTag);
                 self.next(&[TokenKind::Less])?;
 
-                let tok = self.next(&[
+                let kind = &[
                     TokenKind::IdentTrue,
                     TokenKind::IdentFalse,
                     TokenKind::Identifier,
-                ])?;
-                self.next(&[TokenKind::XMLSingleTagEnd])?;
-                let kind = match tok.kind {
-                    TokenKind::Identifier => Asn1Tag::XMLInteger,
-                    _ => Asn1Tag::XMLBoolean,
+                ];
+                let tok = self.peek(kind)?;
+                let tag = if tok.kind == TokenKind::Identifier {
+                    Asn1Tag::IntegerValue
+                } else {
+                    Asn1Tag::XMLBoolean
                 };
-                self.end_temp_vec(temp_start, kind);
+                self.start_temp_vec(tag);
+
+                self.next(kind)?;
+                self.end_temp_vec(tag);
+
+                self.next(&[TokenKind::XMLSingleTagEnd])?;
+                self.end_temp_vec(Asn1Tag::XMLTag);
             }
             TokenKind::IdentTrue | TokenKind::IdentFalse | TokenKind::XMLBoolNumber => {
+                self.start_temp_vec(Asn1Tag::XMLBoolean);
                 self.next(&[
                     TokenKind::IdentTrue,
                     TokenKind::IdentFalse,
                     TokenKind::XMLBoolNumber,
                 ])?;
-                self.end_temp_vec(temp_start, Asn1Tag::XMLBoolean);
+                self.end_temp_vec(Asn1Tag::XMLBoolean);
             }
             TokenKind::Hyphen => {
+                self.start_temp_vec(Asn1Tag::XMLInteger);
                 self.next(&[TokenKind::Hyphen])?;
                 self.next(&[TokenKind::Number])?;
-                self.end_temp_vec(temp_start, Asn1Tag::XMLInteger);
+                self.end_temp_vec(Asn1Tag::XMLInteger);
             }
             TokenKind::Number | TokenKind::Identifier => {
+                self.start_temp_vec(Asn1Tag::XMLInteger);
                 self.next(&[TokenKind::Number, TokenKind::Identifier])?;
-                self.end_temp_vec(temp_start, Asn1Tag::XMLInteger);
+                self.end_temp_vec(Asn1Tag::XMLInteger);
             }
             TokenKind::ForwardSlash => {
                 self.iri_value(true)?;
@@ -632,14 +673,14 @@ impl<'a> Parser<'a> {
             _ => (),
         }
 
-        self.end_temp_vec(temp_start, Asn1Tag::XMLValue);
+        self.end_temp_vec(Asn1Tag::XMLValue);
 
         Ok(())
     }
 
     /// Parse the type name that is at the start of an XML element
     fn non_parameterized_type_name(&mut self) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        self.start_temp_vec(Asn1Tag::XMLTypedValue);
 
         // a non-parameterized type name could be an external type reference, a
         // type reference or an xml asn1 typename.  It could also be prefixed with
@@ -673,21 +714,19 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.end_temp_vec(temp_start, Asn1Tag::XMLTypedValue);
-
+        self.end_temp_vec(Asn1Tag::XMLTypedValue);
         Ok(())
     }
 
     /// Parse a reference to an external value
     fn external_value_reference(&mut self) -> Result<()> {
-        let temp_start = self.temp_result.len();
+        self.start_temp_vec(Asn1Tag::ExternalValueReference);
 
         self.next(&[TokenKind::ModuleReference])?;
         self.next(&[TokenKind::Dot])?;
         self.next(&[TokenKind::ValueReference])?;
 
-        self.end_temp_vec(temp_start, Asn1Tag::ExternalTypeReference);
-
+        self.end_temp_vec(Asn1Tag::ExternalValueReference);
         Ok(())
     }
 
@@ -709,14 +748,32 @@ impl<'a> Parser<'a> {
         self.lexer.peek(kind)
     }
 
-    /// Close an ast tree node with the given tag to describe the node
-    fn end_temp_vec(&mut self, temp_start: usize, tag: Asn1Tag) {
+    /// Start an ast tree node with the given tag to describe the node
+    fn start_temp_vec(&mut self, tag: Asn1Tag) {
+        self.error_nodes.push(TempVec {
+            tag,
+            offset: self.temp_result.len(),
+        })
+    }
+
+    /// End the most recent temporary vec.
+    #[track_caller]
+    fn end_temp_vec(&mut self, tag: Asn1Tag) {
+        let end = self.error_nodes.pop().unwrap();
+
+        debug_assert_eq!(tag, end.tag);
+
+        let temp_start = end.offset;
+
         let start = self.result.len();
         let count = self.temp_result.len() - temp_start;
 
         self.result.extend(self.temp_result.drain(temp_start..));
 
-        self.temp_result
-            .push(TreeContent::Tree { tag, start, count })
+        self.temp_result.push(TreeContent::Tree {
+            tag: end.tag,
+            start,
+            count,
+        })
     }
 }
