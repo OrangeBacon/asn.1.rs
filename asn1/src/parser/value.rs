@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
             TokenKind::Number | TokenKind::Hyphen | TokenKind::Identifier => {
                 self.integer_value()?
             }
-            TokenKind::DoubleQuote => self.iri_value(false)?,
+            TokenKind::DoubleQuote => self.iri_value()?,
             _ => {
                 self.next(&[TokenKind::KwTrue, TokenKind::KwFalse, TokenKind::KwNull])?;
             }
@@ -53,31 +53,20 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an internationalised resource identifier
-    pub(in crate::parser) fn iri_value(&mut self, xml: bool) -> Result<()> {
-        let tag = if xml {
-            Asn1Tag::XMLIri
-        } else {
-            Asn1Tag::IriValue
-        };
-        self.start_temp_vec(tag);
+    pub(in crate::parser) fn iri_value(&mut self) -> Result<()> {
+        self.start_temp_vec(Asn1Tag::IriValue);
 
-        if !xml {
-            self.next(&[TokenKind::DoubleQuote])?;
-        }
+        self.next(&[TokenKind::DoubleQuote])?;
+
         self.next(&[TokenKind::ForwardSlash])?;
         self.next(&[
             TokenKind::IntegerUnicodeLabel,
             TokenKind::NonIntegerUnicodeLabel,
         ])?;
 
-        let kind = if xml {
-            &[TokenKind::XMLEndTag, TokenKind::ForwardSlash]
-        } else {
-            &[TokenKind::DoubleQuote, TokenKind::ForwardSlash]
-        };
         loop {
-            let next = self.peek(kind)?;
-            if next.kind == TokenKind::DoubleQuote || next.kind == TokenKind::XMLEndTag {
+            let next = self.peek(&[TokenKind::DoubleQuote, TokenKind::ForwardSlash])?;
+            if next.kind == TokenKind::DoubleQuote {
                 break;
             }
             self.next(&[TokenKind::ForwardSlash])?;
@@ -87,11 +76,9 @@ impl<'a> Parser<'a> {
             ])?;
         }
 
-        if !xml {
-            self.next(&[TokenKind::DoubleQuote])?;
-        }
+        self.next(&[TokenKind::DoubleQuote])?;
 
-        self.end_temp_vec(tag);
+        self.end_temp_vec(Asn1Tag::IriValue);
 
         Ok(())
     }

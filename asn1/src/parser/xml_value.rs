@@ -100,7 +100,7 @@ impl<'a> Parser<'a> {
                 self.end_temp_vec(Asn1Tag::XMLInteger);
             }
             TokenKind::ForwardSlash => {
-                self.iri_value(true)?;
+                self.xml_iri()?;
             }
             _ => (),
         }
@@ -147,6 +147,33 @@ impl<'a> Parser<'a> {
         }
 
         self.end_temp_vec(Asn1Tag::XMLTypedValue);
+        Ok(())
+    }
+
+    /// Parse an internationalised resource identifier
+    fn xml_iri(&mut self) -> Result<()> {
+        self.start_temp_vec(Asn1Tag::XMLIri);
+
+        self.next(&[TokenKind::ForwardSlash])?;
+        self.next(&[
+            TokenKind::IntegerUnicodeLabel,
+            TokenKind::NonIntegerUnicodeLabel,
+        ])?;
+
+        loop {
+            let next = self.peek(&[TokenKind::XMLEndTag, TokenKind::ForwardSlash])?;
+            if next.kind == TokenKind::XMLEndTag {
+                break;
+            }
+            self.next(&[TokenKind::ForwardSlash])?;
+            self.next(&[
+                TokenKind::IntegerUnicodeLabel,
+                TokenKind::NonIntegerUnicodeLabel,
+            ])?;
+        }
+
+        self.end_temp_vec(Asn1Tag::XMLIri);
+
         Ok(())
     }
 }

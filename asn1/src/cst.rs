@@ -25,7 +25,10 @@ pub enum TreeContent<'a> {
 /// The possible kinds of tree node
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Asn1Tag {
+    // parser
     Root,
+
+    // module
     ModuleDefinition,
     ModuleIdentifier,
     ModuleDefaults,
@@ -36,26 +39,31 @@ pub enum Asn1Tag {
     Assignment,
     TypeAssignment,
     ValueAssignment,
-    XMLAssignment,
+    Exports,
+
+    // type
     Type,
     IntegerType,
     EnumeratedType,
     EnumItemList,
     EnumItem,
     ExceptionSpec,
+    NamedNumber,
+
+    // value
     Value,
     DefinedValue,
     IntegerValue,
-    XMLTypedValue,
     IriValue,
     ExternalValueReference,
+
+    // xml value
+    XMLTypedValue,
     XMLTag,
     XMLValue,
     XMLBoolean,
     XMLInteger,
     XMLIri,
-    NamedNumber,
-    Exports,
 }
 
 impl Display for Asn1<'_> {

@@ -42,7 +42,7 @@ impl<'a> Parser<'a> {
 
             let tok = self.peek(&[TokenKind::DoubleQuote, TokenKind::KwDefinitions])?;
             if tok.kind == TokenKind::DoubleQuote {
-                self.iri_value(false)?;
+                self.iri_value()?;
             }
         }
 
