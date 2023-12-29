@@ -149,16 +149,4 @@ impl<'a> Parser<'a> {
         self.end_temp_vec(Asn1Tag::XMLTypedValue);
         Ok(())
     }
-
-    /// Parse a reference to an external value
-    pub(in crate::parser) fn external_value_reference(&mut self) -> Result<()> {
-        self.start_temp_vec(Asn1Tag::ExternalValueReference);
-
-        self.next(&[TokenKind::ModuleReference])?;
-        self.next(&[TokenKind::Dot])?;
-        self.next(&[TokenKind::ValueReference])?;
-
-        self.end_temp_vec(Asn1Tag::ExternalValueReference);
-        Ok(())
-    }
 }

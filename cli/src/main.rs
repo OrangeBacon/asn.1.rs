@@ -9,8 +9,10 @@ fn main() {
     HELLO INSTRUCTIONS
     AUTOMATIC TAGS
     EXTENSIBILITY IMPLIED ::= BEGIN
+        EXPORTS ALL;
+        
         HELLO ::= BOOLEAN
-        world BOOLEAN /*hello */::= TRUE
+        /*world BOOLEAN /*hello */::= TRUE
         stuff BOOLEAN ::= FALSE
         MyStuff ::= NULL
         foo NULL ::= NULL
@@ -26,7 +28,7 @@ fn main() {
         e ::= <I>/a/b</I>
         F ::= ENUMERATED {
             a(5), b, c(7), ... !-5, z(3)
-        }
+        }*/
     END -- hi --"#;
     let lexer = Lexer::new(0, source);
 

@@ -59,8 +59,6 @@ impl<'a> Parser<'a> {
         let root = self.result.len();
         self.result.push(self.temp_result[0]);
 
-        println!("{:?}", self.error_nodes);
-
         Ok(Asn1 {
             root,
             data: self.result,

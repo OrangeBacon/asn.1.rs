@@ -51,7 +51,7 @@ pub enum TokenKind {
     // Keywords
     // "ABSENT",
     // "ABSTRACT-SYNTAX",
-    // "ALL",
+    KwAll,
     // "APPLICATION",
     KwAutomatic,
     KwBegin,
@@ -78,7 +78,7 @@ pub enum TokenKind {
     KwEnumerated,
     // "EXCEPT",
     KwExplicit,
-    // "EXPORTS",
+    KwExports,
     KwExtensibility,
     // "EXTERNAL",
     KwFalse,
@@ -203,10 +203,10 @@ impl TokenBuffer {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 17] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 19] = [
     // "ABSENT",
     // "ABSTRACT-SYNTAX",
-    // "ALL",
+    ("ALL", TokenKind::KwAll),
     // "APPLICATION",
     ("AUTOMATIC", TokenKind::KwAutomatic),
     ("BEGIN", TokenKind::KwBegin),
@@ -233,7 +233,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 17] = [
     ("ENUMERATED", TokenKind::KwEnumerated),
     // "EXCEPT",
     ("EXPLICIT", TokenKind::KwExplicit),
-    // "EXPORTS",
+    ("EXPORTS", TokenKind::KwExports),
     ("EXTENSIBILITY", TokenKind::KwExtensibility),
     // "EXTERNAL",
     ("FALSE", TokenKind::KwFalse),

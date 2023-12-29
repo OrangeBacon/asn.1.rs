@@ -55,6 +55,7 @@ pub enum Asn1Tag {
     XMLInteger,
     XMLIri,
     NamedNumber,
+    Exports,
 }
 
 impl Display for Asn1<'_> {

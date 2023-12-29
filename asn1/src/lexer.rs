@@ -43,7 +43,7 @@ pub enum LexerError {
     },
 }
 
-pub type Result<T, E = LexerError> = std::result::Result<T, E>;
+pub type Result<T = (), E = LexerError> = std::result::Result<T, E>;
 
 impl<'a> Lexer<'a> {
     /// Create a new Lexer for a given source file.  `file` represents a file
@@ -135,10 +135,14 @@ impl<'a> Lexer<'a> {
                         None
                     }
                 }
-                TokenKind::TypeReference | TokenKind::ModuleReference if c.is_ascii_alphabetic() => {
+                TokenKind::TypeReference | TokenKind::ModuleReference
+                    if c.is_ascii_alphabetic() =>
+                {
                     let ident = self.identifier(c, offset);
 
-                    if ident.kind == TokenKind::TypeReference || ident.kind == TokenKind::EncodingReference {
+                    if ident.kind == TokenKind::TypeReference
+                        || ident.kind == TokenKind::EncodingReference
+                    {
                         Some(Token { kind, ..ident })
                     } else {
                         None
@@ -167,7 +171,10 @@ impl<'a> Lexer<'a> {
                     let ident = self.identifier(c, offset);
 
                     if ident.value == "true" {
-                        Some(Token { kind:TokenKind::IdentTrue,.. ident})
+                        Some(Token {
+                            kind: TokenKind::IdentTrue,
+                            ..ident
+                        })
                     } else {
                         None
                     }
@@ -176,108 +183,23 @@ impl<'a> Lexer<'a> {
                     let ident = self.identifier(c, offset);
 
                     if ident.value == "false" {
-                        Some(Token { kind:TokenKind::IdentTrue,.. ident})
+                        Some(Token {
+                            kind: TokenKind::IdentTrue,
+                            ..ident
+                        })
                     } else {
                         None
                     }
                 }
-                TokenKind::XMLBoolNumber if c == '0' || c == '1' => {
-                    self.number(c, offset)
-                        .filter(|&tok| tok.value == "0" || tok.value == "1")
-                        .map(|t| Token { kind:TokenKind::XMLBoolNumber, ..t })
-                }
+                TokenKind::XMLBoolNumber if c == '0' || c == '1' => self
+                    .number(c, offset)
+                    .filter(|&tok| tok.value == "0" || tok.value == "1")
+                    .map(|t| Token {
+                        kind: TokenKind::XMLBoolNumber,
+                        ..t
+                    }),
 
-                // "ABSENT",
-                // "ABSTRACT-SYNTAX",
-                // "ALL",
-                // "APPLICATION",
-                TokenKind::KwAutomatic
-                | TokenKind::KwBegin
-                // "BIT",
-                // "BMPString",
-                | TokenKind::KwBoolean
-                // "BY",
-                // "CHARACTER",
-                // "CHOICE",
-                // "CLASS",
-                // "COMPONENT",
-                // "COMPONENTS",
-                // "CONSTRAINED",
-                // "CONTAINING",
-                // "DATE",
-                // "DATE-TIME",
-                // "DEFAULT",
-                | TokenKind::KwDefinitions
-                // "DURATION",
-                // "EMBEDDED",
-                // "ENCODED",
-                // "ENCODING-CONTROL",
-                | TokenKind::KwEnd
-                | TokenKind::KwEnumerated
-                // "EXCEPT",
-                | TokenKind::KwExplicit
-                // "EXPORTS",
-                | TokenKind::KwExtensibility
-                // "EXTERNAL",
-                | TokenKind::KwFalse
-                // "FROM",
-                // "GeneralizedTime",
-                // "GeneralString",
-                // "IA5String",
-                // "IDENTIFIER",
-                | TokenKind::KwImplicit
-                | TokenKind::KwImplied
-                // "IMPORTS",
-                // "INCLUDES",
-                // "INSTANCE",
-                | TokenKind::KwInstructions
-                | TokenKind::KwInteger
-                // "INTERSECTION",
-                // "ISO646String",
-                // "MAX",
-                // "MIN",
-                // "MINUS-INFINITY",
-                // "NOT-A-NUMBER",
-                | TokenKind::KwNull
-                // "NumericString",
-                // "OBJECT",
-                // "ObjectDescriptor",
-                // "OCTET",
-                // "OF",
-                | TokenKind::KwOidIri
-                // "OPTIONAL",
-                // "PATTERN",
-                // "PDV",
-                // "PLUS-INFINITY",
-                // "PRESENT",
-                // "PrintableString",
-                // "PRIVATE",
-                // "REAL",
-                // "RELATIVE-OID",
-                // "RELATIVE-OID-IRI",
-                // "SEQUENCE",
-                // "SET",
-                // "SETTINGS",
-                // "SIZE",
-                // "STRING",
-                // "SYNTAX",
-                // "T61String",
-                | TokenKind::KwTags
-                // "TeletexString",
-                // "TIME",
-                // "TIME-OF-DAY",
-                | TokenKind::KwTrue
-                // "TYPE-IDENTIFIER",
-                // "UNION",
-                // "UNIQUE",
-                // "UNIVERSAL",
-                // "UniversalString",
-                // "UTCTime",
-                // "UTF8String",
-                // "VideotexString",
-                // "VisibleString",
-                // "WITH",
-                if c.is_ascii_alphabetic() => {
+                _ if c.is_ascii_alphabetic() => {
                     let ident = self.identifier(c, offset);
 
                     if ident.kind == kind {
@@ -285,7 +207,7 @@ impl<'a> Lexer<'a> {
                     } else {
                         None
                     }
-                },
+                }
 
                 _ => None,
             };
