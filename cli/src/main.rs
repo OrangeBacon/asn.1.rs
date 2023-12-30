@@ -9,8 +9,8 @@ fn main() {
     HELLO INSTRUCTIONS
     AUTOMATIC TAGS
     EXTENSIBILITY IMPLIED ::= BEGIN
-        EXPORTS ALL;
-        
+        EXPORTS a, b, c {};
+
         HELLO ::= BOOLEAN
         /*world BOOLEAN /*hello */::= TRUE
         stuff BOOLEAN ::= FALSE

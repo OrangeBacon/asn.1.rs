@@ -16,6 +16,8 @@ impl<'a> Parser<'a> {
         self.exports()?;
         // TODO: imports
 
+        // ensure there is at least one assignment before the end token
+        self.peek(&[TokenKind::TypeReference, TokenKind::ValueReference])?;
         loop {
             self.assignment()?;
 
@@ -155,7 +157,18 @@ impl<'a> Parser<'a> {
         self.start_temp_vec(Asn1Tag::Exports);
 
         self.next(&[TokenKind::KwExports])?;
-        self.next(&[TokenKind::KwAll])?;
+        let tok = self.peek(&[
+            TokenKind::SemiColon,
+            TokenKind::KwAll,
+            TokenKind::ValueReference,
+            TokenKind::TypeReference,
+        ])?;
+        if tok.kind == TokenKind::KwAll {
+            self.next(&[TokenKind::KwAll])?;
+        } else if tok.kind != TokenKind::SemiColon {
+            self.symbol_list()?;
+        }
+
         self.next(&[TokenKind::SemiColon])?;
 
         self.end_temp_vec(Asn1Tag::Exports);

@@ -2,6 +2,7 @@ mod module;
 mod ty;
 mod value;
 mod xml_value;
+mod reference;
 
 use crate::{
     cst::{Asn1, Asn1Tag, TreeContent},

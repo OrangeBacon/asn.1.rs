@@ -64,6 +64,11 @@ pub enum Asn1Tag {
     XMLBoolean,
     XMLInteger,
     XMLIri,
+
+    // reference
+    SymbolList,
+    Symbol,
+    Reference,
 }
 
 impl Display for Asn1<'_> {
