@@ -49,6 +49,7 @@ pub enum Asn1Tag {
     EnumItem,
     ExceptionSpec,
     NamedNumber,
+    ObjectIDType,
 
     // value
     Value,
@@ -56,6 +57,8 @@ pub enum Asn1Tag {
     IntegerValue,
     IriValue,
     ExternalValueReference,
+    ObjectIDValue,
+    ObjectIDComponent,
 
     // xml value
     XMLTypedValue,

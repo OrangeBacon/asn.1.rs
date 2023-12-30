@@ -33,6 +33,7 @@ impl<'a> Parser<'a> {
                     TokenKind::KwOidIri,
                     TokenKind::KwInteger,
                     TokenKind::KwEnumerated,
+                    TokenKind::KwObject,
                     $($extra),*
                 ][..]
             };
@@ -45,20 +46,19 @@ impl<'a> Parser<'a> {
         };
         let tok = self.peek(kind)?;
 
+        if matches!(
+            tok.kind,
+            TokenKind::Assignment | TokenKind::Hyphen | TokenKind::Number
+        ) {
+            return Ok(true);
+        }
+
+        self.start_temp_vec(Asn1Tag::Type);
         match tok.kind {
-            TokenKind::Assignment | TokenKind::Hyphen | TokenKind::Number => {
-                return Ok(true);
-            }
-            TokenKind::KwInteger => {
-                self.start_temp_vec(Asn1Tag::Type);
-                self.integer_type()?
-            }
-            TokenKind::KwEnumerated => {
-                self.start_temp_vec(Asn1Tag::Type);
-                self.enumerated_type()?
-            }
+            TokenKind::KwInteger => self.integer_type()?,
+            TokenKind::KwEnumerated => self.enumerated_type()?,
+            TokenKind::KwObject => self.object_identifier_type()?,
             _ => {
-                self.start_temp_vec(Asn1Tag::Type);
                 self.next(&[TokenKind::KwBoolean, TokenKind::KwNull, TokenKind::KwOidIri])?;
             }
         }
@@ -234,5 +234,15 @@ impl<'a> Parser<'a> {
 
         self.end_temp_vec(Asn1Tag::ExceptionSpec);
         Ok(true)
+    }
+
+    fn object_identifier_type(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::ObjectIDType);
+
+        self.next(&[TokenKind::KwObject])?;
+        self.next(&[TokenKind::KwIdentifier])?;
+
+        self.end_temp_vec(Asn1Tag::ObjectIDType);
+        Ok(())
     }
 }

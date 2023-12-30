@@ -12,7 +12,7 @@ fn main() {
         EXPORTS a, b, c {};
 
         HELLO ::= BOOLEAN
-        /*world BOOLEAN /*hello */::= TRUE
+        world BOOLEAN /*hello */::= TRUE
         stuff BOOLEAN ::= FALSE
         MyStuff ::= NULL
         foo NULL ::= NULL
@@ -28,7 +28,11 @@ fn main() {
         e ::= <I>/a/b</I>
         F ::= ENUMERATED {
             a(5), b, c(7), ... !-5, z(3)
-        }*/
+        }
+        G ::= OBJECT IDENTIFIER
+        h OBJECT IDENTIFIER ::= { iso standard 8571 application-context(1) }
+        h OBJECT IDENTIFIER ::= { 1 0 8571 1 }
+        i OBJECT IDENTIFIER ::= { A.b c(D.e) }
     END -- hi --"#;
     let lexer = Lexer::new(0, source);
 

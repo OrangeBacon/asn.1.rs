@@ -86,7 +86,7 @@ pub enum TokenKind {
     // "GeneralizedTime",
     // "GeneralString",
     // "IA5String",
-    // "IDENTIFIER",
+    KwIdentifier,
     KwImplicit,
     KwImplied,
     // "IMPORTS",
@@ -102,7 +102,7 @@ pub enum TokenKind {
     // "NOT-A-NUMBER",
     KwNull,
     // "NumericString",
-    // "OBJECT",
+    KwObject,
     // "ObjectDescriptor",
     // "OCTET",
     // "OF",
@@ -203,7 +203,7 @@ impl TokenBuffer {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 19] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 21] = [
     // "ABSENT",
     // "ABSTRACT-SYNTAX",
     ("ALL", TokenKind::KwAll),
@@ -241,7 +241,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 19] = [
     // "GeneralizedTime",
     // "GeneralString",
     // "IA5String",
-    // "IDENTIFIER",
+    ("IDENTIFIER", TokenKind::KwIdentifier),
     ("IMPLICIT", TokenKind::KwImplicit),
     ("IMPLIED", TokenKind::KwImplied),
     // "IMPORTS",
@@ -257,7 +257,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 19] = [
     // "NOT-A-NUMBER",
     ("NULL", TokenKind::KwNull),
     // "NumericString",
-    // "OBJECT",
+    ("OBJECT", TokenKind::KwObject),
     // "ObjectDescriptor",
     // "OCTET",
     // "OF",

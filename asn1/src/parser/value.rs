@@ -21,11 +21,13 @@ impl<'a> Parser<'a> {
             TokenKind::Number,
             TokenKind::Hyphen,
             TokenKind::Identifier,
+            TokenKind::LeftCurly,
         ])?;
         match tok.kind {
             TokenKind::Number | TokenKind::Hyphen | TokenKind::Identifier => {
                 self.integer_value()?
             }
+            TokenKind::LeftCurly => self.object_identifier_value()?,
             TokenKind::DoubleQuote => self.iri_value()?,
             _ => {
                 self.next(&[TokenKind::KwTrue, TokenKind::KwFalse, TokenKind::KwNull])?;
@@ -105,6 +107,99 @@ impl<'a> Parser<'a> {
         self.next(&[TokenKind::ValueReference])?;
 
         self.end_temp_vec(Asn1Tag::ExternalValueReference);
+        Ok(())
+    }
+
+    /// Parse an object identifier value
+    fn object_identifier_value(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::ObjectIDValue);
+
+        self.next(&[TokenKind::LeftCurly])?;
+
+        loop {
+            self.object_id_component()?;
+            let tok = self.peek(&[
+                TokenKind::Identifier,
+                TokenKind::Number,
+                TokenKind::ValueReference,
+                TokenKind::ModuleReference,
+                TokenKind::RightCurly,
+            ])?;
+            if tok.kind == TokenKind::RightCurly {
+                break;
+            }
+        }
+
+        self.next(&[TokenKind::RightCurly])?;
+
+        self.end_temp_vec(Asn1Tag::ObjectIDValue);
+        Ok(())
+    }
+
+    /// parse a single object ID component, assuming the next token is not a
+    /// closing curly brace.
+    ///
+    /// Object ID component =
+    /// | ident
+    /// | number
+    /// | ident(number)
+    /// | ident(defined value)
+    /// | defined value
+    ///
+    /// Defined value =
+    /// | value reference
+    /// | module reference . value reference
+    ///
+    /// Ident and value reference are the same token, therefore if one of them
+    /// matches it could be ambiguous, so we assume it always takes the ident
+    /// option and the value reference part of defined value never matches in
+    /// this function.
+    fn object_id_component(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::ObjectIDValue);
+
+        let tok = self.peek(&[
+            TokenKind::Identifier,
+            TokenKind::Number,
+            TokenKind::ValueReference,
+            TokenKind::ModuleReference,
+            TokenKind::RightCurly,
+        ])?;
+
+        match tok.kind {
+            TokenKind::Number => {
+                self.next(&[TokenKind::Number])?;
+            }
+            TokenKind::ModuleReference => {
+                self.defined_value()?;
+            }
+            _ => {
+                self.next(&[TokenKind::Identifier])?;
+                let tok = self.peek(&[
+                    TokenKind::LeftParen,
+                    TokenKind::Identifier,
+                    TokenKind::Number,
+                    TokenKind::ValueReference,
+                    TokenKind::ModuleReference,
+                    TokenKind::RightCurly,
+                ])?;
+                if tok.kind == TokenKind::LeftParen {
+                    self.next(&[TokenKind::LeftParen])?;
+                    let tok = self.peek(&[
+                        TokenKind::ModuleReference,
+                        TokenKind::ValueReference,
+                        TokenKind::Number,
+                    ])?;
+                    if tok.kind == TokenKind::Number {
+                        self.next(&[TokenKind::Number])?;
+                    } else {
+                        self.defined_value()?;
+                    }
+                    self.next(&[TokenKind::RightParen])?;
+                }
+            }
+        }
+
+        self.end_temp_vec(Asn1Tag::ObjectIDValue);
         Ok(())
     }
 }
