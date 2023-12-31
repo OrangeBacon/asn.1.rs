@@ -1,8 +1,8 @@
 mod module;
+mod reference;
 mod ty;
 mod value;
 mod xml_value;
-mod reference;
 
 use crate::{
     cst::{Asn1, Asn1Tag, TreeContent},
@@ -82,6 +82,11 @@ impl<'a> Parser<'a> {
     /// Peek a token without consuming it
     fn peek(&mut self, kind: &'static [TokenKind]) -> Result<Token<'a>> {
         self.lexer.peek(kind)
+    }
+
+    /// Peek multiple tokens ahead
+    fn peek_n(&mut self, kind: &[&'static [TokenKind]]) -> Result<Token<'a>> {
+        self.lexer.peek_n(kind)
     }
 
     /// Start an ast tree node with the given tag to describe the node

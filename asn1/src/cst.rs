@@ -40,6 +40,7 @@ pub enum Asn1Tag {
     TypeAssignment,
     ValueAssignment,
     Exports,
+    Imports,
 
     // type
     Type,
@@ -72,6 +73,10 @@ pub enum Asn1Tag {
     SymbolList,
     Symbol,
     Reference,
+    SymbolsFromModuleList,
+    SymbolsFromModule,
+    GlobalModuleReference,
+    SelectionOption,
 }
 
 impl Display for Asn1<'_> {

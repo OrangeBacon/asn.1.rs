@@ -82,14 +82,14 @@ pub enum TokenKind {
     KwExtensibility,
     // "EXTERNAL",
     KwFalse,
-    // "FROM",
+    KwFrom,
     // "GeneralizedTime",
     // "GeneralString",
     // "IA5String",
     KwIdentifier,
     KwImplicit,
     KwImplied,
-    // "IMPORTS",
+    KwImports,
     // "INCLUDES",
     // "INSTANCE",
     KwInstructions,
@@ -138,7 +138,11 @@ pub enum TokenKind {
     // "UTF8String",
     // "VideotexString",
     // "VisibleString",
-    // "WITH",
+    KwWith,
+
+    // Contextual keywords
+    CtxKwSuccessors,
+    CtxKwDescendants,
 }
 
 /// Data relating to a single lexed token
@@ -203,7 +207,7 @@ impl TokenBuffer {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 21] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 24] = [
     // "ABSENT",
     // "ABSTRACT-SYNTAX",
     ("ALL", TokenKind::KwAll),
@@ -237,14 +241,14 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 21] = [
     ("EXTENSIBILITY", TokenKind::KwExtensibility),
     // "EXTERNAL",
     ("FALSE", TokenKind::KwFalse),
-    // "FROM",
+    ("FROM", TokenKind::KwFrom),
     // "GeneralizedTime",
     // "GeneralString",
     // "IA5String",
     ("IDENTIFIER", TokenKind::KwIdentifier),
     ("IMPLICIT", TokenKind::KwImplicit),
     ("IMPLIED", TokenKind::KwImplied),
-    // "IMPORTS",
+    ("IMPORTS", TokenKind::KwImports),
     // "INCLUDES",
     // "INSTANCE",
     ("INSTRUCTIONS", TokenKind::KwInstructions),
@@ -293,5 +297,5 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 21] = [
     // "UTF8String",
     // "VideotexString",
     // "VisibleString",
-    // "WITH",
+    ("WITH", TokenKind::KwWith),
 ];

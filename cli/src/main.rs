@@ -10,6 +10,11 @@ fn main() {
     AUTOMATIC TAGS
     EXTENSIBILITY IMPLIED ::= BEGIN
         EXPORTS a, b, c {};
+        IMPORTS a, b FROM A A.b WITH SUCCESSORS
+            c, d FROM B { 1 2 } WITH DESCENDANTS
+            e FROM Z e WITH SUCCESSORS
+            a, F FROM X
+            G, z FROM A b c, d FROM X X.x;
 
         HELLO ::= BOOLEAN
         world BOOLEAN /*hello */::= TRUE
@@ -33,7 +38,34 @@ fn main() {
         h OBJECT IDENTIFIER ::= { iso standard 8571 application-context(1) }
         h OBJECT IDENTIFIER ::= { 1 0 8571 1 }
         i OBJECT IDENTIFIER ::= { A.b c(D.e) }
-    END -- hi --"#;
+    END
+
+    -- I believe this is an exhaustive list of all situations within the import
+    -- statement parser, hopefully
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A { 1 2 }; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A a; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A A.a; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A WITH SUCCESSORS; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A a WITH SUCCESSORS; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A A.a WITH SUCCESSORS; HELLO ::= BOOLEAN END
+
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A c FROM D; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A { 1 2 } c FROM D; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A a c FROM D; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A A.a c FROM D; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A WITH SUCCESSORS c FROM D; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A a WITH SUCCESSORS c FROM D; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A A.a WITH SUCCESSORS c FROM D; HELLO ::= BOOLEAN END
+
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A c, d FROM D; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A { 1 2 } c, d FROM D; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A a c, d FROM D; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A A.a c, d FROM D; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A WITH SUCCESSORS c, d FROM D; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A a WITH SUCCESSORS c, d FROM D; HELLO ::= BOOLEAN END
+    MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A A.a WITH SUCCESSORS c, d FROM D; HELLO ::= BOOLEAN END
+    -- hi --"#;
     let lexer = Lexer::new(0, source);
 
     let parser = Parser::new(lexer);

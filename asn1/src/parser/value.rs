@@ -111,7 +111,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an object identifier value
-    fn object_identifier_value(&mut self) -> Result {
+    pub(super) fn object_identifier_value(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::ObjectIDValue);
 
         self.next(&[TokenKind::LeftCurly])?;
@@ -155,7 +155,7 @@ impl<'a> Parser<'a> {
     /// option and the value reference part of defined value never matches in
     /// this function.
     fn object_id_component(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::ObjectIDValue);
+        self.start_temp_vec(Asn1Tag::ObjectIDComponent);
 
         let tok = self.peek(&[
             TokenKind::Identifier,
@@ -199,7 +199,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.end_temp_vec(Asn1Tag::ObjectIDValue);
+        self.end_temp_vec(Asn1Tag::ObjectIDComponent);
         Ok(())
     }
 }

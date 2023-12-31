@@ -1,10 +1,10 @@
 use crate::{cst::Asn1Tag, token::TokenKind};
 
-use super::{ty::TypeStartKind, Parser, Result};
+use super::{reference::SymbolListKind, ty::TypeStartKind, Parser, Result};
 
 impl<'a> Parser<'a> {
     /// Parse a single ASN.1 module definition
-    pub(in crate::parser) fn module_definition(&mut self) -> Result {
+    pub(super) fn module_definition(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::ModuleDefinition);
 
         self.module_identifier()?;
@@ -14,7 +14,7 @@ impl<'a> Parser<'a> {
         self.next(&[TokenKind::KwBegin])?;
 
         self.exports()?;
-        // TODO: imports
+        self.imports()?;
 
         // ensure there is at least one assignment before the end token
         self.peek(&[TokenKind::TypeReference, TokenKind::ValueReference])?;
@@ -147,6 +147,7 @@ impl<'a> Parser<'a> {
     fn exports(&mut self) -> Result {
         let tok = self.peek(&[
             TokenKind::KwExports,
+            TokenKind::KwImports,
             TokenKind::TypeReference,
             TokenKind::ValueReference,
         ])?;
@@ -166,12 +167,34 @@ impl<'a> Parser<'a> {
         if tok.kind == TokenKind::KwAll {
             self.next(&[TokenKind::KwAll])?;
         } else if tok.kind != TokenKind::SemiColon {
-            self.symbol_list()?;
+            self.symbol_list(SymbolListKind::Exports)?;
         }
 
         self.next(&[TokenKind::SemiColon])?;
 
         self.end_temp_vec(Asn1Tag::Exports);
+
+        Ok(())
+    }
+
+    /// Parse the list of imported symbols
+    fn imports(&mut self) -> Result {
+        let tok = self.peek(&[
+            TokenKind::KwImports,
+            TokenKind::TypeReference,
+            TokenKind::ValueReference,
+        ])?;
+
+        if tok.kind != TokenKind::KwImports {
+            return Ok(());
+        }
+        self.start_temp_vec(Asn1Tag::Imports);
+
+        self.next(&[TokenKind::KwImports])?;
+        self.symbols_imported()?;
+        self.next(&[TokenKind::SemiColon])?;
+
+        self.end_temp_vec(Asn1Tag::Imports);
 
         Ok(())
     }

@@ -199,6 +199,13 @@ impl<'a> Lexer<'a> {
                         ..t
                     }),
 
+                TokenKind::CtxKwSuccessors => {
+                    self.contextual_keyword(c, offset, "SUCCESSORS", TokenKind::CtxKwSuccessors)
+                }
+                TokenKind::CtxKwDescendants => {
+                    self.contextual_keyword(c, offset, "DESCENDANTS", TokenKind::CtxKwDescendants)
+                }
+
                 _ if c.is_ascii_alphabetic() => {
                     let ident = self.identifier(c, offset);
 
@@ -222,6 +229,41 @@ impl<'a> Lexer<'a> {
             offset: Some(offset),
             file: self.file,
         })
+    }
+
+    /// Peek multiple tokens ahead and return the furthest ahead one
+    pub fn peek_n(&mut self, kind: &[&'static [TokenKind]]) -> Result<Token<'a>> {
+        let Some((&tail, head)) = kind.split_last() else {
+            let &(offset, _) = self.chars.peek(0).ok_or(LexerError::Expected {
+                kind: &[],
+                offset: None,
+                file: self.file,
+            })?;
+
+            return Err(LexerError::Expected {
+                kind: &[],
+                offset: Some(offset),
+                file: self.file,
+            })
+        };
+
+        let comment_count = self.comments.len();
+        let chars = self.chars.clone();
+
+        for &kind in head {
+            if let Err(e) = self.next(kind) {
+                self.comments.truncate(comment_count);
+                self.chars = chars;
+                return Err(e);
+            }
+        }
+
+        let ret = self.peek(tail);
+
+        self.comments.truncate(comment_count);
+        self.chars = chars;
+
+        ret
     }
 
     /// Peeks a token of the given kind (see peek()), then advances the source
@@ -532,6 +574,27 @@ impl<'a> Lexer<'a> {
             offset,
             file: self.file,
         })
+    }
+
+    /// Parse an identifier as a contextual keyword
+    fn contextual_keyword(
+        &mut self,
+        first: char,
+        offset: usize,
+        value: &str,
+        kind: TokenKind,
+    ) -> Option<Token<'a>> {
+        if !first.is_ascii_alphabetic() {
+            return None;
+        }
+
+        let tok = self.identifier(first, offset);
+
+        if tok.value == value {
+            Some(Token { kind, ..tok })
+        } else {
+            None
+        }
     }
 }
 
