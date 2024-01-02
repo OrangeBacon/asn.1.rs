@@ -65,7 +65,10 @@ fn main() {
     MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A WITH SUCCESSORS c, d FROM D; HELLO ::= BOOLEAN END
     MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A a WITH SUCCESSORS c, d FROM D; HELLO ::= BOOLEAN END
     MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A A.a WITH SUCCESSORS c, d FROM D; HELLO ::= BOOLEAN END
-    -- hi --"#;
+
+    TestModule2 DEFINITIONS ::= BEGIN
+        Test BOOLEAN ::= {}
+    END -- hi --"#;
     let lexer = Lexer::new(0, source);
 
     let parser = Parser::new(lexer);

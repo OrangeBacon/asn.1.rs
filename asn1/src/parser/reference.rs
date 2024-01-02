@@ -145,7 +145,7 @@ impl<'a> Parser<'a> {
             TokenKind::TypeReference,
             TokenKind::KwWith,
         ])?;
-        
+
         if tok.kind == TokenKind::LeftCurly {
             self.object_identifier_value()?;
         } else if tok.kind == TokenKind::ValueReference || tok.kind == TokenKind::TypeReference {
@@ -162,7 +162,7 @@ impl<'a> Parser<'a> {
                 ],
             ])?;
 
-            if !matches!(tok.kind, TokenKind::Comma | TokenKind::KwFrom,) {
+            if !matches!(tok.kind, TokenKind::Comma | TokenKind::KwFrom) {
                 self.defined_value()?;
             }
         }

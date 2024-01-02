@@ -209,7 +209,6 @@ impl<'a> Parser<'a> {
             TokenKind::KwEnd,
         ])?;
 
-        // TODO: Value set type assignment
         // TODO: Object class assignment
         // TODO: Object set assignment
         // TODO: Parameterized assignment
@@ -222,8 +221,18 @@ impl<'a> Parser<'a> {
             }
             TokenKind::TypeReference => {
                 self.start_temp_vec(Asn1Tag::TypeAssignment);
+
+                let is_assign = self.ty(TypeStartKind::Assignment)?;
                 self.next(&[TokenKind::Assignment])?;
-                self.ty(TypeStartKind::None)?;
+
+                if is_assign {
+                    self.ty(TypeStartKind::None)?;
+                } else {
+                    self.next(&[TokenKind::LeftCurly])?;
+                    // TODO: element set specs
+                    self.next(&[TokenKind::RightCurly])?;
+                }
+
                 self.end_temp_vec(Asn1Tag::TypeAssignment);
             }
             TokenKind::ValueReference => {

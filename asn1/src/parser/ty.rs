@@ -14,6 +14,21 @@ pub(in crate::parser) enum TypeStartKind {
     Exception,
 }
 
+/// Add tokens to the list of tokens that can start a type declaration
+macro_rules! kinds {
+    ($($extra:path),* $(,)?) => {
+        &[
+            TokenKind::KwBoolean,
+            TokenKind::KwNull,
+            TokenKind::KwOidIri,
+            TokenKind::KwInteger,
+            TokenKind::KwEnumerated,
+            TokenKind::KwObject,
+            $($extra),*
+        ][..]
+    };
+}
+
 impl<'a> Parser<'a> {
     /// Parse a type declaration.  `kind` represents the other kinds of token that
     /// could be peeked at the start of the type definition, for error reporting
@@ -21,23 +36,15 @@ impl<'a> Parser<'a> {
     pub(in crate::parser) fn ty(&mut self, kind: TypeStartKind) -> Result<bool> {
         // TODO: Bit string, character string, choice, date, date time, duration
         // embedded pdv, external, instance of, integer, object class field,
-        // object identifier, octet string, real, relative iri, relative oid, sequence,
+        // octet string, real, relative iri, relative oid, sequence,
         // sequence of, set, set of, prefixed, time, time of day.
-        // TODO: referenced type, constrained type
+        // TODO: defined type, useful type, selection type, type from object,
+        // value set from objects
+        // TODO: constrained type
 
-        macro_rules! kinds {
-            ($($extra:path),* $(,)?) => {
-                &[
-                    TokenKind::KwBoolean,
-                    TokenKind::KwNull,
-                    TokenKind::KwOidIri,
-                    TokenKind::KwInteger,
-                    TokenKind::KwEnumerated,
-                    TokenKind::KwObject,
-                    $($extra),*
-                ][..]
-            };
-        }
+        // module ref . type ref
+        // type ref
+        // type { ... } // parameterized type
 
         let kind = match kind {
             TypeStartKind::None => kinds!(),
