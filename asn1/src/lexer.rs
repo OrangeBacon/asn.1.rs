@@ -126,21 +126,19 @@ impl<'a> Lexer<'a> {
                     self.multi_token(TokenKind::Ellipsis, offset, "...")
                 }
 
-                TokenKind::Identifier | TokenKind::ValueReference if c.is_ascii_alphabetic() => {
+                TokenKind::ValueRefOrIdent if c.is_ascii_alphabetic() => {
                     let ident = self.identifier(c, offset);
 
-                    if ident.kind == TokenKind::Identifier {
+                    if ident.kind == TokenKind::ValueRefOrIdent {
                         Some(Token { kind, ..ident })
                     } else {
                         None
                     }
                 }
-                TokenKind::TypeReference | TokenKind::ModuleReference
-                    if c.is_ascii_alphabetic() =>
-                {
+                TokenKind::TypeOrModuleRef if c.is_ascii_alphabetic() => {
                     let ident = self.identifier(c, offset);
 
-                    if ident.kind == TokenKind::TypeReference
+                    if ident.kind == TokenKind::TypeOrModuleRef
                         || ident.kind == TokenKind::EncodingReference
                     {
                         Some(Token { kind, ..ident })
@@ -461,9 +459,9 @@ impl<'a> Lexer<'a> {
         let ident_kind = if !contains_lower {
             TokenKind::EncodingReference
         } else if first.is_ascii_lowercase() {
-            TokenKind::Identifier
+            TokenKind::ValueRefOrIdent
         } else {
-            TokenKind::TypeReference
+            TokenKind::TypeOrModuleRef
         };
 
         let value = &value[..len];

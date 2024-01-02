@@ -47,7 +47,7 @@ impl<'a> Parser<'a> {
             TokenKind::XMLBoolNumber,
             TokenKind::Number,
             TokenKind::Hyphen,
-            TokenKind::Identifier,
+            TokenKind::ValueRefOrIdent,
             TokenKind::ForwardSlash,
         ])?;
 
@@ -63,10 +63,10 @@ impl<'a> Parser<'a> {
                 let kind = &[
                     TokenKind::IdentTrue,
                     TokenKind::IdentFalse,
-                    TokenKind::Identifier,
+                    TokenKind::ValueRefOrIdent,
                 ];
                 let tok = self.peek(kind)?;
-                let tag = if tok.kind == TokenKind::Identifier {
+                let tag = if tok.kind == TokenKind::ValueRefOrIdent {
                     Asn1Tag::IntegerValue
                 } else {
                     Asn1Tag::XMLBoolean
@@ -94,9 +94,9 @@ impl<'a> Parser<'a> {
                 self.next(&[TokenKind::Number])?;
                 self.end_temp_vec(Asn1Tag::XMLInteger);
             }
-            TokenKind::Number | TokenKind::Identifier => {
+            TokenKind::Number | TokenKind::ValueRefOrIdent => {
                 self.start_temp_vec(Asn1Tag::XMLInteger);
-                self.next(&[TokenKind::Number, TokenKind::Identifier])?;
+                self.next(&[TokenKind::Number, TokenKind::ValueRefOrIdent])?;
                 self.end_temp_vec(Asn1Tag::XMLInteger);
             }
             TokenKind::ForwardSlash => {
@@ -125,7 +125,7 @@ impl<'a> Parser<'a> {
 
         let tok = self.peek(&[
             TokenKind::Underscore,
-            TokenKind::TypeReference,
+            TokenKind::TypeOrModuleRef,
             TokenKind::XMLAsn1TypeName,
         ])?;
 
@@ -133,8 +133,8 @@ impl<'a> Parser<'a> {
             self.next(&[TokenKind::Underscore])?;
         }
 
-        let tok = self.next(&[TokenKind::TypeReference, TokenKind::XMLAsn1TypeName])?;
-        if tok.kind == TokenKind::TypeReference {
+        let tok = self.next(&[TokenKind::TypeOrModuleRef, TokenKind::XMLAsn1TypeName])?;
+        if tok.kind == TokenKind::TypeOrModuleRef {
             let tok = self.peek(&[
                 TokenKind::Dot,
                 TokenKind::Greater,
@@ -142,7 +142,7 @@ impl<'a> Parser<'a> {
             ])?;
             if tok.kind == TokenKind::Dot {
                 self.next(&[TokenKind::Dot])?;
-                self.next(&[TokenKind::TypeReference])?;
+                self.next(&[TokenKind::TypeOrModuleRef])?;
             }
         }
 

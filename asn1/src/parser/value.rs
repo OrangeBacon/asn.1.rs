@@ -20,11 +20,11 @@ impl<'a> Parser<'a> {
             TokenKind::KwNull,
             TokenKind::Number,
             TokenKind::Hyphen,
-            TokenKind::Identifier,
+            TokenKind::ValueRefOrIdent,
             TokenKind::LeftCurly,
         ])?;
         match tok.kind {
-            TokenKind::Number | TokenKind::Hyphen | TokenKind::Identifier => {
+            TokenKind::Number | TokenKind::Hyphen | TokenKind::ValueRefOrIdent => {
                 self.integer_value()?
             }
             TokenKind::LeftCurly => self.object_identifier_value()?,
@@ -43,11 +43,11 @@ impl<'a> Parser<'a> {
 
         // TODO: parameterized value
 
-        let tok = self.peek(&[TokenKind::ValueReference, TokenKind::ModuleReference])?;
-        if tok.kind == TokenKind::ModuleReference {
+        let tok = self.peek(&[TokenKind::ValueRefOrIdent, TokenKind::TypeOrModuleRef])?;
+        if tok.kind == TokenKind::TypeOrModuleRef {
             self.external_value_reference()?;
         } else {
-            self.next(&[TokenKind::ValueReference])?;
+            self.next(&[TokenKind::ValueRefOrIdent])?;
         }
 
         self.end_temp_vec(Asn1Tag::DefinedValue);
@@ -88,7 +88,11 @@ impl<'a> Parser<'a> {
     fn integer_value(&mut self) -> Result<()> {
         self.start_temp_vec(Asn1Tag::IntegerValue);
 
-        let tok = self.next(&[TokenKind::Number, TokenKind::Hyphen, TokenKind::Identifier])?;
+        let tok = self.next(&[
+            TokenKind::Number,
+            TokenKind::Hyphen,
+            TokenKind::ValueRefOrIdent,
+        ])?;
 
         if tok.kind == TokenKind::Hyphen {
             self.next(&[TokenKind::Number])?;
@@ -102,9 +106,9 @@ impl<'a> Parser<'a> {
     fn external_value_reference(&mut self) -> Result<()> {
         self.start_temp_vec(Asn1Tag::ExternalValueReference);
 
-        self.next(&[TokenKind::ModuleReference])?;
+        self.next(&[TokenKind::TypeOrModuleRef])?;
         self.next(&[TokenKind::Dot])?;
-        self.next(&[TokenKind::ValueReference])?;
+        self.next(&[TokenKind::ValueRefOrIdent])?;
 
         self.end_temp_vec(Asn1Tag::ExternalValueReference);
         Ok(())
@@ -119,10 +123,10 @@ impl<'a> Parser<'a> {
         loop {
             self.object_id_component()?;
             let tok = self.peek(&[
-                TokenKind::Identifier,
+                TokenKind::ValueRefOrIdent,
                 TokenKind::Number,
-                TokenKind::ValueReference,
-                TokenKind::ModuleReference,
+                TokenKind::ValueRefOrIdent,
+                TokenKind::TypeOrModuleRef,
                 TokenKind::RightCurly,
             ])?;
             if tok.kind == TokenKind::RightCurly {
@@ -158,10 +162,10 @@ impl<'a> Parser<'a> {
         self.start_temp_vec(Asn1Tag::ObjectIDComponent);
 
         let tok = self.peek(&[
-            TokenKind::Identifier,
+            TokenKind::ValueRefOrIdent,
             TokenKind::Number,
-            TokenKind::ValueReference,
-            TokenKind::ModuleReference,
+            TokenKind::ValueRefOrIdent,
+            TokenKind::TypeOrModuleRef,
             TokenKind::RightCurly,
         ])?;
 
@@ -169,24 +173,24 @@ impl<'a> Parser<'a> {
             TokenKind::Number => {
                 self.next(&[TokenKind::Number])?;
             }
-            TokenKind::ModuleReference => {
+            TokenKind::TypeOrModuleRef => {
                 self.defined_value()?;
             }
             _ => {
-                self.next(&[TokenKind::Identifier])?;
+                self.next(&[TokenKind::ValueRefOrIdent])?;
                 let tok = self.peek(&[
                     TokenKind::LeftParen,
-                    TokenKind::Identifier,
+                    TokenKind::ValueRefOrIdent,
                     TokenKind::Number,
-                    TokenKind::ValueReference,
-                    TokenKind::ModuleReference,
+                    TokenKind::ValueRefOrIdent,
+                    TokenKind::TypeOrModuleRef,
                     TokenKind::RightCurly,
                 ])?;
                 if tok.kind == TokenKind::LeftParen {
                     self.next(&[TokenKind::LeftParen])?;
                     let tok = self.peek(&[
-                        TokenKind::ModuleReference,
-                        TokenKind::ValueReference,
+                        TokenKind::TypeOrModuleRef,
+                        TokenKind::ValueRefOrIdent,
                         TokenKind::Number,
                     ])?;
                     if tok.kind == TokenKind::Number {

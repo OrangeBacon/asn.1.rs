@@ -151,7 +151,7 @@ impl<'a> Parser<'a> {
             self.next(&[TokenKind::Comma])?;
 
             if first {
-                let tok = self.peek(&[TokenKind::Identifier, TokenKind::Ellipsis])?;
+                let tok = self.peek(&[TokenKind::ValueRefOrIdent, TokenKind::Ellipsis])?;
                 if tok.kind == TokenKind::Ellipsis {
                     break;
                 }
@@ -173,7 +173,7 @@ impl<'a> Parser<'a> {
         };
         self.start_temp_vec(tag);
 
-        self.next(&[TokenKind::Identifier])?;
+        self.next(&[TokenKind::ValueRefOrIdent])?;
 
         let kind = if is_enum {
             &[
@@ -195,8 +195,8 @@ impl<'a> Parser<'a> {
         let tok = self.peek(&[
             TokenKind::Number,
             TokenKind::Hyphen,
-            TokenKind::ValueReference,
-            TokenKind::ModuleReference,
+            TokenKind::ValueRefOrIdent,
+            TokenKind::TypeOrModuleRef,
         ])?;
         match tok.kind {
             TokenKind::Number => {

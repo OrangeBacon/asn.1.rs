@@ -63,7 +63,7 @@ impl<'a> Parser<'a> {
 
         // object references all parse as a type reference, so this is all that
         // needs to be specified here
-        self.next(&[TokenKind::TypeReference, TokenKind::ValueReference])?;
+        self.next(&[TokenKind::TypeOrModuleRef, TokenKind::ValueRefOrIdent])?;
 
         self.end_temp_vec(Asn1Tag::Reference);
         Ok(())
@@ -75,8 +75,8 @@ impl<'a> Parser<'a> {
 
         loop {
             let tok = self.peek(&[
-                TokenKind::TypeReference,
-                TokenKind::ValueReference,
+                TokenKind::TypeOrModuleRef,
+                TokenKind::ValueRefOrIdent,
                 TokenKind::SemiColon,
             ])?;
             if tok.kind == TokenKind::SemiColon {
@@ -102,8 +102,8 @@ impl<'a> Parser<'a> {
             TokenKind::KwWith,
             TokenKind::SemiColon,
             TokenKind::LeftCurly,
-            TokenKind::ValueReference,
-            TokenKind::TypeReference,
+            TokenKind::ValueRefOrIdent,
+            TokenKind::TypeOrModuleRef,
         ])?;
         if tok.kind == TokenKind::KwWith {
             self.selection_option()?;
@@ -136,29 +136,29 @@ impl<'a> Parser<'a> {
     fn global_module_reference(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::GlobalModuleReference);
 
-        self.next(&[TokenKind::ModuleReference])?;
+        self.next(&[TokenKind::TypeOrModuleRef])?;
 
         let tok = self.peek(&[
             TokenKind::SemiColon,
             TokenKind::LeftCurly,
-            TokenKind::ValueReference,
-            TokenKind::TypeReference,
+            TokenKind::ValueRefOrIdent,
+            TokenKind::TypeOrModuleRef,
             TokenKind::KwWith,
         ])?;
 
         if tok.kind == TokenKind::LeftCurly {
             self.object_identifier_value()?;
-        } else if tok.kind == TokenKind::ValueReference || tok.kind == TokenKind::TypeReference {
+        } else if tok.kind == TokenKind::ValueRefOrIdent || tok.kind == TokenKind::TypeOrModuleRef {
             let tok = self.peek_n(&[
-                &[TokenKind::ValueReference, TokenKind::TypeReference],
+                &[TokenKind::ValueRefOrIdent, TokenKind::TypeOrModuleRef],
                 &[
                     TokenKind::SemiColon,
                     TokenKind::Dot,
                     TokenKind::KwWith,
                     TokenKind::Comma,
                     TokenKind::KwFrom,
-                    TokenKind::TypeReference,
-                    TokenKind::ValueReference,
+                    TokenKind::TypeOrModuleRef,
+                    TokenKind::ValueRefOrIdent,
                 ],
             ])?;
 

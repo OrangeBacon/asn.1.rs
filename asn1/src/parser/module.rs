@@ -17,7 +17,7 @@ impl<'a> Parser<'a> {
         self.imports()?;
 
         // ensure there is at least one assignment before the end token
-        self.peek(&[TokenKind::TypeReference, TokenKind::ValueReference])?;
+        self.peek(&[TokenKind::TypeOrModuleRef, TokenKind::ValueRefOrIdent])?;
         loop {
             self.assignment()?;
 
@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
     fn module_identifier(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::ModuleIdentifier);
 
-        self.next(&[TokenKind::ModuleReference])?;
+        self.next(&[TokenKind::TypeOrModuleRef])?;
 
         let tok = self.peek(&[TokenKind::LeftCurly, TokenKind::KwDefinitions])?;
         if tok.kind == TokenKind::LeftCurly {
@@ -56,7 +56,7 @@ impl<'a> Parser<'a> {
         self.start_temp_vec(Asn1Tag::DefinitiveOID);
         self.next(&[TokenKind::LeftCurly])?;
 
-        let mut kind = &[TokenKind::Identifier, TokenKind::Number][..];
+        let mut kind = &[TokenKind::ValueRefOrIdent, TokenKind::Number][..];
 
         loop {
             let tok = self.next(kind)?;
@@ -64,13 +64,14 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            if tok.kind == TokenKind::Identifier && self.next(&[TokenKind::LeftParen]).is_ok() {
+            if tok.kind == TokenKind::ValueRefOrIdent && self.next(&[TokenKind::LeftParen]).is_ok()
+            {
                 self.next(&[TokenKind::Number])?;
                 self.next(&[TokenKind::RightParen])?;
             }
 
             kind = &[
-                TokenKind::Identifier,
+                TokenKind::ValueRefOrIdent,
                 TokenKind::Number,
                 TokenKind::RightCurly,
             ];
@@ -148,8 +149,8 @@ impl<'a> Parser<'a> {
         let tok = self.peek(&[
             TokenKind::KwExports,
             TokenKind::KwImports,
-            TokenKind::TypeReference,
-            TokenKind::ValueReference,
+            TokenKind::TypeOrModuleRef,
+            TokenKind::ValueRefOrIdent,
         ])?;
 
         if tok.kind != TokenKind::KwExports {
@@ -161,8 +162,8 @@ impl<'a> Parser<'a> {
         let tok = self.peek(&[
             TokenKind::SemiColon,
             TokenKind::KwAll,
-            TokenKind::ValueReference,
-            TokenKind::TypeReference,
+            TokenKind::ValueRefOrIdent,
+            TokenKind::TypeOrModuleRef,
         ])?;
         if tok.kind == TokenKind::KwAll {
             self.next(&[TokenKind::KwAll])?;
@@ -181,8 +182,8 @@ impl<'a> Parser<'a> {
     fn imports(&mut self) -> Result {
         let tok = self.peek(&[
             TokenKind::KwImports,
-            TokenKind::TypeReference,
-            TokenKind::ValueReference,
+            TokenKind::TypeOrModuleRef,
+            TokenKind::ValueRefOrIdent,
         ])?;
 
         if tok.kind != TokenKind::KwImports {
@@ -204,8 +205,8 @@ impl<'a> Parser<'a> {
         self.start_temp_vec(Asn1Tag::Assignment);
 
         let name = self.next(&[
-            TokenKind::TypeReference,
-            TokenKind::ValueReference,
+            TokenKind::TypeOrModuleRef,
+            TokenKind::ValueRefOrIdent,
             TokenKind::KwEnd,
         ])?;
 
@@ -219,7 +220,7 @@ impl<'a> Parser<'a> {
                 // better expected lines can be generated
                 return Ok(());
             }
-            TokenKind::TypeReference => {
+            TokenKind::TypeOrModuleRef => {
                 self.start_temp_vec(Asn1Tag::TypeAssignment);
 
                 let is_assign = self.ty(TypeStartKind::Assignment)?;
@@ -235,7 +236,7 @@ impl<'a> Parser<'a> {
 
                 self.end_temp_vec(Asn1Tag::TypeAssignment);
             }
-            TokenKind::ValueReference => {
+            TokenKind::ValueRefOrIdent => {
                 self.start_temp_vec(Asn1Tag::ValueAssignment);
 
                 let is_assign = self.ty(TypeStartKind::Assignment)?;

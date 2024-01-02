@@ -35,11 +35,9 @@ pub enum TokenKind {
     Ellipsis,
 
     // Compound tokens
-    Identifier,
-    TypeReference,
-    ModuleReference,
+    ValueRefOrIdent,
+    TypeOrModuleRef,
     EncodingReference,
-    ValueReference,
     IntegerUnicodeLabel,
     NonIntegerUnicodeLabel,
     Number,
