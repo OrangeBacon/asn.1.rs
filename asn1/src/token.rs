@@ -81,7 +81,7 @@ pub enum TokenKind {
     // "EXTERNAL",
     KwFalse,
     KwFrom,
-    // "GeneralizedTime",
+    KwGeneralizedTime,
     // "GeneralString",
     // "IA5String",
     KwIdentifier,
@@ -101,7 +101,7 @@ pub enum TokenKind {
     KwNull,
     // "NumericString",
     KwObject,
-    // "ObjectDescriptor",
+    KwObjectDescriptor,
     // "OCTET",
     // "OF",
     KwOidIri,
@@ -132,7 +132,7 @@ pub enum TokenKind {
     // "UNIQUE",
     // "UNIVERSAL",
     // "UniversalString",
-    // "UTCTime",
+    KwUTCTime,
     // "UTF8String",
     // "VideotexString",
     // "VisibleString",
@@ -205,7 +205,7 @@ impl TokenBuffer {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 24] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 27] = [
     // "ABSENT",
     // "ABSTRACT-SYNTAX",
     ("ALL", TokenKind::KwAll),
@@ -240,7 +240,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 24] = [
     // "EXTERNAL",
     ("FALSE", TokenKind::KwFalse),
     ("FROM", TokenKind::KwFrom),
-    // "GeneralizedTime",
+    ("GeneralizedTime", TokenKind::KwGeneralizedTime),
     // "GeneralString",
     // "IA5String",
     ("IDENTIFIER", TokenKind::KwIdentifier),
@@ -260,7 +260,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 24] = [
     ("NULL", TokenKind::KwNull),
     // "NumericString",
     ("OBJECT", TokenKind::KwObject),
-    // "ObjectDescriptor",
+    ("ObjectDescriptor", TokenKind::KwObjectDescriptor),
     // "OCTET",
     // "OF",
     ("OID-IRI", TokenKind::KwOidIri),
@@ -291,7 +291,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 24] = [
     // "UNIQUE",
     // "UNIVERSAL",
     // "UniversalString",
-    // "UTCTime",
+    ("UTCTime", TokenKind::KwUTCTime),
     // "UTF8String",
     // "VideotexString",
     // "VisibleString",

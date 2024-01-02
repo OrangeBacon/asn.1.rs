@@ -11,7 +11,7 @@ impl<'a> Parser<'a> {
         // embedded pdv, external, instance of, integer, object class field,
         // octet string, real, relative iri, relative oid, sequence,
         // sequence of, set, set of, prefixed, time, time of day.
-        // TODO: useful type, type from object,
+        // TODO: type from object,
         // value set from objects
         // TODO: constrained type
 
@@ -30,6 +30,10 @@ impl<'a> Parser<'a> {
             // reference type
             TokenKind::TypeOrModuleRef,
             TokenKind::ValueRefOrIdent,
+            // useful type
+            TokenKind::KwGeneralizedTime,
+            TokenKind::KwUTCTime,
+            TokenKind::KwObjectDescriptor,
         ])?;
 
         self.start_temp_vec(Asn1Tag::Type);
@@ -40,7 +44,14 @@ impl<'a> Parser<'a> {
             TokenKind::TypeOrModuleRef => self.defined_type()?,
             TokenKind::ValueRefOrIdent => self.selection_type()?,
             _ => {
-                self.next(&[TokenKind::KwBoolean, TokenKind::KwNull, TokenKind::KwOidIri])?;
+                self.next(&[
+                    TokenKind::KwBoolean,
+                    TokenKind::KwNull,
+                    TokenKind::KwOidIri,
+                    TokenKind::KwGeneralizedTime,
+                    TokenKind::KwUTCTime,
+                    TokenKind::KwObjectDescriptor,
+                ])?;
             }
         }
 
