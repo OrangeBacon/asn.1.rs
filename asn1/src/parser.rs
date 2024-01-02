@@ -49,9 +49,11 @@ impl<'a> Parser<'a> {
     pub fn run(mut self) -> Result<Asn1<'a>> {
         self.start_temp_vec(Asn1Tag::Root);
 
-        while !self.lexer.is_eof() {
-            self.module_definition()?;
-        }
+        // while !self.lexer.is_eof() {
+        //     self.module_definition()?;
+        // }
+
+        self.ty()?;
 
         // handle comments at the end of the file after all meaningful tokens
         let _ = self.next(&[]);
@@ -85,9 +87,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek multiple tokens ahead
-    fn peek_n(&mut self, kind: &[&'static [TokenKind]]) -> Result<Token<'a>> {
-        self.lexer.peek_n(kind)
-    }
+    // fn peek_n(&mut self, kind: &[&'static [TokenKind]]) -> Result<Token<'a>> {
+    //     self.lexer.peek_n(kind)
+    // }
 
     /// Start an ast tree node with the given tag to describe the node
     fn start_temp_vec(&mut self, tag: Asn1Tag) {

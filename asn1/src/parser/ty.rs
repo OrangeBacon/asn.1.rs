@@ -2,38 +2,11 @@ use crate::{cst::Asn1Tag, token::TokenKind};
 
 use super::{Parser, Result};
 
-/// The kind of tokens accepted along side a type
-pub(in crate::parser) enum TypeStartKind {
-    /// nothing extra
-    None,
-
-    /// Also allow an assignment token `::=`
-    Assignment,
-
-    /// Also allow a signed number or a defined value for the exception spec
-    Exception,
-}
-
-/// Add tokens to the list of tokens that can start a type declaration
-macro_rules! kinds {
-    ($($extra:path),* $(,)?) => {
-        &[
-            TokenKind::KwBoolean,
-            TokenKind::KwNull,
-            TokenKind::KwOidIri,
-            TokenKind::KwInteger,
-            TokenKind::KwEnumerated,
-            TokenKind::KwObject,
-            $($extra),*
-        ][..]
-    };
-}
-
 impl<'a> Parser<'a> {
     /// Parse a type declaration.  `kind` represents the other kinds of token that
     /// could be peeked at the start of the type definition, for error reporting
     /// purposes.  If one of them is matched, then returns true, otherwise false.
-    pub(in crate::parser) fn ty(&mut self, kind: TypeStartKind) -> Result<bool> {
+    pub(in crate::parser) fn ty(&mut self) -> Result<bool> {
         // TODO: Bit string, character string, choice, date, date time, duration
         // embedded pdv, external, instance of, integer, object class field,
         // octet string, real, relative iri, relative oid, sequence,
@@ -46,12 +19,14 @@ impl<'a> Parser<'a> {
         // type ref
         // type { ... } // parameterized type
 
-        let kind = match kind {
-            TypeStartKind::None => kinds!(),
-            TypeStartKind::Assignment => kinds!(TokenKind::Assignment),
-            TypeStartKind::Exception => kinds!(TokenKind::Hyphen, TokenKind::Number),
-        };
-        let tok = self.peek(kind)?;
+        let tok = self.peek(&[
+            TokenKind::KwBoolean,
+            TokenKind::KwNull,
+            TokenKind::KwOidIri,
+            TokenKind::KwInteger,
+            TokenKind::KwEnumerated,
+            TokenKind::KwObject,
+        ])?;
 
         if matches!(
             tok.kind,
@@ -229,7 +204,7 @@ impl<'a> Parser<'a> {
         // = external value reference
         // | value reference
 
-        if self.ty(TypeStartKind::Exception)? {
+        if self.ty()? {
             let tok = self.next(&[TokenKind::Hyphen, TokenKind::Number])?;
             if tok.kind == TokenKind::Hyphen {
                 self.next(&[TokenKind::Number])?;

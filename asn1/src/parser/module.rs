@@ -1,4 +1,4 @@
-use crate::{cst::Asn1Tag, token::TokenKind};
+/*use crate::{cst::Asn1Tag, token::TokenKind};
 
 use super::{reference::SymbolListKind, ty::TypeStartKind, Parser, Result};
 
@@ -223,11 +223,11 @@ impl<'a> Parser<'a> {
             TokenKind::TypeOrModuleRef => {
                 self.start_temp_vec(Asn1Tag::TypeAssignment);
 
-                let is_assign = self.ty(TypeStartKind::Assignment)?;
+                let is_assign = self.ty()?;
                 self.next(&[TokenKind::Assignment])?;
 
                 if is_assign {
-                    self.ty(TypeStartKind::None)?;
+                    self.ty()?;
                 } else {
                     self.next(&[TokenKind::LeftCurly])?;
                     // TODO: element set specs
@@ -239,7 +239,7 @@ impl<'a> Parser<'a> {
             TokenKind::ValueRefOrIdent => {
                 self.start_temp_vec(Asn1Tag::ValueAssignment);
 
-                let is_assign = self.ty(TypeStartKind::Assignment)?;
+                let is_assign = self.ty()?;
                 self.next(&[TokenKind::Assignment])?;
 
                 if is_assign {
@@ -257,3 +257,4 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 }
+*/
