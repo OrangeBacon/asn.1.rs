@@ -3,6 +3,7 @@ mod reference;
 mod ty;
 mod value;
 mod xml_value;
+mod parameterized;
 
 use crate::{
     cst::{Asn1, Asn1Tag, TreeContent},
@@ -47,7 +48,7 @@ impl<'a> Parser<'a> {
 
     /// Run the parser to produce a set of ASN.1 definitions
     pub fn run(mut self) -> Result<Asn1<'a>> {
-        self.start_temp_vec(Asn1Tag::Root);
+        //self.start_temp_vec(Asn1Tag::Root);
 
         // while !self.lexer.is_eof() {
         //     self.module_definition()?;
@@ -58,7 +59,7 @@ impl<'a> Parser<'a> {
         // handle comments at the end of the file after all meaningful tokens
         let _ = self.next(&[]);
 
-        self.end_temp_vec(Asn1Tag::Root);
+        //self.end_temp_vec(Asn1Tag::Root);
         let root = self.result.len();
         self.result.push(self.temp_result[0]);
 

@@ -51,6 +51,8 @@ pub enum Asn1Tag {
     ExceptionSpec,
     NamedNumber,
     ObjectIDType,
+    DefinedType,
+    SelectionType,
 
     // value
     Value,
@@ -77,6 +79,9 @@ pub enum Asn1Tag {
     SymbolsFromModule,
     GlobalModuleReference,
     SelectionOption,
+
+    // parameterized
+    ActualParameterList,
 }
 
 impl Display for Asn1<'_> {

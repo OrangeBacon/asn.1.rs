@@ -4,23 +4,26 @@ use asn1::{
 };
 
 fn main() {
-    let source = r#"INTEGER"#;
-    let lexer = Lexer::new(0, source);
+    let types = ["MyRef.Foo", "MyTypeRef", "a < INTEGER"];
 
-    let parser = Parser::new(lexer);
+    for source in types {
+        let lexer = Lexer::new(0, source);
 
-    match parser.run() {
-        Ok(t) => println!("{t}"),
-        Err(LexerError::Expected { kind, offset, .. }) => {
-            let at = offset
-                .map(|o| {
-                    let s: String = source[o..].chars().take(15).collect();
-                    format!("{s:?}")
-                })
-                .unwrap_or("EOF".to_string());
+        let parser = Parser::new(lexer);
 
-            println!("Expected {{ kind: {kind:?}, at: {at} }}");
+        match parser.run() {
+            Ok(t) => print!("{t}"),
+            Err(LexerError::Expected { kind, offset, .. }) => {
+                let at = offset
+                    .map(|o| {
+                        let s: String = source[o..].chars().take(15).collect();
+                        format!("{s:?}")
+                    })
+                    .unwrap_or("EOF".to_string());
+
+                println!("Expected {{ kind: {kind:?}, at: {at} }}");
+            }
+            Err(e) => println!("{e:?}"),
         }
-        Err(e) => println!("{e:?}"),
     }
 }

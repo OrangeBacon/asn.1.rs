@@ -6,12 +6,12 @@ impl<'a> Parser<'a> {
     /// Parse a type declaration.  `kind` represents the other kinds of token that
     /// could be peeked at the start of the type definition, for error reporting
     /// purposes.  If one of them is matched, then returns true, otherwise false.
-    pub(in crate::parser) fn ty(&mut self) -> Result<bool> {
+    pub(in crate::parser) fn ty(&mut self) -> Result {
         // TODO: Bit string, character string, choice, date, date time, duration
         // embedded pdv, external, instance of, integer, object class field,
         // octet string, real, relative iri, relative oid, sequence,
         // sequence of, set, set of, prefixed, time, time of day.
-        // TODO: defined type, useful type, selection type, type from object,
+        // TODO: useful type, type from object,
         // value set from objects
         // TODO: constrained type
 
@@ -20,33 +20,32 @@ impl<'a> Parser<'a> {
         // type { ... } // parameterized type
 
         let tok = self.peek(&[
+            // builtin types
             TokenKind::KwBoolean,
             TokenKind::KwNull,
             TokenKind::KwOidIri,
             TokenKind::KwInteger,
             TokenKind::KwEnumerated,
             TokenKind::KwObject,
+            // reference type
+            TokenKind::TypeOrModuleRef,
+            TokenKind::ValueRefOrIdent,
         ])?;
-
-        if matches!(
-            tok.kind,
-            TokenKind::Assignment | TokenKind::Hyphen | TokenKind::Number
-        ) {
-            return Ok(true);
-        }
 
         self.start_temp_vec(Asn1Tag::Type);
         match tok.kind {
             TokenKind::KwInteger => self.integer_type()?,
             TokenKind::KwEnumerated => self.enumerated_type()?,
             TokenKind::KwObject => self.object_identifier_type()?,
+            TokenKind::TypeOrModuleRef => self.defined_type()?,
+            TokenKind::ValueRefOrIdent => self.selection_type()?,
             _ => {
                 self.next(&[TokenKind::KwBoolean, TokenKind::KwNull, TokenKind::KwOidIri])?;
             }
         }
 
         self.end_temp_vec(Asn1Tag::Type);
-        Ok(false)
+        Ok(())
     }
 
     /// Integer type definition, including named numbers
@@ -204,12 +203,13 @@ impl<'a> Parser<'a> {
         // = external value reference
         // | value reference
 
-        if self.ty()? {
+        if self.peek(&[TokenKind::Hyphen, TokenKind::Number]).is_ok() {
             let tok = self.next(&[TokenKind::Hyphen, TokenKind::Number])?;
             if tok.kind == TokenKind::Hyphen {
                 self.next(&[TokenKind::Number])?;
             }
         } else {
+            self.ty()?;
             self.next(&[TokenKind::Colon])?;
             self.value()?;
         }
@@ -225,6 +225,46 @@ impl<'a> Parser<'a> {
         self.next(&[TokenKind::KwIdentifier])?;
 
         self.end_temp_vec(Asn1Tag::ObjectIDType);
+        Ok(())
+    }
+
+    /// Parse a reference to a previously defined type.
+    /// ```bnf
+    /// DefinedType ::=
+    ///     ExternalTypeReference
+    ///   | type_reference
+    ///   | ParameterizedType
+    ///   | ParameterizedValueSetType
+    /// ```
+    fn defined_type(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::DefinedType);
+
+        self.next(&[TokenKind::TypeOrModuleRef])?;
+        if self.peek(&[TokenKind::Dot]).is_ok() {
+            self.next(&[TokenKind::Dot])?;
+            self.next(&[TokenKind::TypeOrModuleRef])?;
+        }
+
+        if self.peek(&[TokenKind::LeftCurly]).is_ok() {
+            self.actual_parameter_list()?;
+        }
+
+        self.end_temp_vec(Asn1Tag::DefinedType);
+        Ok(())
+    }
+
+    /// Parse a selection type
+    /// ```bnf
+    /// SelectionType ::= identifier "<" Type
+    /// ```
+    fn selection_type(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::SelectionType);
+
+        self.next(&[TokenKind::ValueRefOrIdent])?;
+        self.next(&[TokenKind::Less])?;
+        self.ty()?;
+
+        self.end_temp_vec(Asn1Tag::SelectionType);
         Ok(())
     }
 }
