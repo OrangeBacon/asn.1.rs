@@ -1,9 +1,8 @@
 mod module;
 mod reference;
-mod ty;
-mod value;
 mod xml_value;
 mod parameterized;
+mod type_or_value;
 
 use crate::{
     cst::{Asn1, Asn1Tag, TreeContent},
@@ -48,18 +47,16 @@ impl<'a> Parser<'a> {
 
     /// Run the parser to produce a set of ASN.1 definitions
     pub fn run(mut self) -> Result<Asn1<'a>> {
-        //self.start_temp_vec(Asn1Tag::Root);
+        self.start_temp_vec(Asn1Tag::Root);
 
-        // while !self.lexer.is_eof() {
-        //     self.module_definition()?;
-        // }
-
-        self.ty()?;
+        while !self.lexer.is_eof() {
+            self.module_definition()?;
+        }
 
         // handle comments at the end of the file after all meaningful tokens
         let _ = self.next(&[]);
 
-        //self.end_temp_vec(Asn1Tag::Root);
+        self.end_temp_vec(Asn1Tag::Root);
         let root = self.result.len();
         self.result.push(self.temp_result[0]);
 
@@ -88,9 +85,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek multiple tokens ahead
-    // fn peek_n(&mut self, kind: &[&'static [TokenKind]]) -> Result<Token<'a>> {
-    //     self.lexer.peek_n(kind)
-    // }
+    fn peek_n(&mut self, kind: &[&'static [TokenKind]]) -> Result<Token<'a>> {
+        self.lexer.peek_n(kind)
+    }
 
     /// Start an ast tree node with the given tag to describe the node
     fn start_temp_vec(&mut self, tag: Asn1Tag) {

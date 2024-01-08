@@ -3,40 +3,6 @@ use crate::{cst::Asn1Tag, token::TokenKind};
 use super::{Parser, Result};
 
 impl<'a> Parser<'a> {
-    /// Parse a value
-    pub(in crate::parser) fn value(&mut self) -> Result<()> {
-        self.start_temp_vec(Asn1Tag::Value);
-
-        // TODO: bit string, character string, choice, embedded pdv, enumerated,
-        // external, instance of, integer, object identifier, octet string, real
-        // relative iri, relative oid, sequence, sequence of, set, set of, prefixed,
-        // time
-        // TODO: referenced value, object class field value
-
-        let tok = self.peek(&[
-            TokenKind::DoubleQuote,
-            TokenKind::KwTrue,
-            TokenKind::KwFalse,
-            TokenKind::KwNull,
-            TokenKind::Number,
-            TokenKind::Hyphen,
-            TokenKind::ValueRefOrIdent,
-            TokenKind::LeftCurly,
-        ])?;
-        match tok.kind {
-            TokenKind::Number | TokenKind::Hyphen | TokenKind::ValueRefOrIdent => {
-                self.integer_value()?
-            }
-            TokenKind::LeftCurly => self.object_identifier_value()?,
-            TokenKind::DoubleQuote => self.iri_value()?,
-            _ => {
-                self.next(&[TokenKind::KwTrue, TokenKind::KwFalse, TokenKind::KwNull])?;
-            }
-        }
-        self.end_temp_vec(Asn1Tag::Value);
-        Ok(())
-    }
-
     /// parse reference to defined value
     pub(in crate::parser) fn defined_value(&mut self) -> Result<()> {
         self.start_temp_vec(Asn1Tag::DefinedValue);
@@ -85,7 +51,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn integer_value(&mut self) -> Result<()> {
+    pub(super) fn integer_value(&mut self) -> Result<()> {
         self.start_temp_vec(Asn1Tag::IntegerValue);
 
         let tok = self.next(&[
@@ -115,7 +81,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an object identifier value
-    pub(super) fn object_identifier_value(&mut self) -> Result {
+    pub(in crate::parser) fn object_identifier_value(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::ObjectIDValue);
 
         self.next(&[TokenKind::LeftCurly])?;

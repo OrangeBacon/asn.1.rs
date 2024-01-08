@@ -1,66 +1,10 @@
 use crate::{cst::Asn1Tag, token::TokenKind};
 
-use super::{Parser, Result};
+use super::{Parser, Result, TypeOrValue};
 
 impl<'a> Parser<'a> {
-    /// Parse a type declaration.  `kind` represents the other kinds of token that
-    /// could be peeked at the start of the type definition, for error reporting
-    /// purposes.  If one of them is matched, then returns true, otherwise false.
-    pub(in crate::parser) fn ty(&mut self) -> Result {
-        // TODO: Bit string, character string, choice, date, date time, duration
-        // embedded pdv, external, instance of, integer, object class field,
-        // octet string, real, relative iri, relative oid, sequence,
-        // sequence of, set, set of, prefixed, time, time of day.
-        // TODO: type from object,
-        // value set from objects
-        // TODO: constrained type
-
-        // module ref . type ref
-        // type ref
-        // type { ... } // parameterized type
-
-        let tok = self.peek(&[
-            // builtin types
-            TokenKind::KwBoolean,
-            TokenKind::KwNull,
-            TokenKind::KwOidIri,
-            TokenKind::KwInteger,
-            TokenKind::KwEnumerated,
-            TokenKind::KwObject,
-            // reference type
-            TokenKind::TypeOrModuleRef,
-            TokenKind::ValueRefOrIdent,
-            // useful type
-            TokenKind::KwGeneralizedTime,
-            TokenKind::KwUTCTime,
-            TokenKind::KwObjectDescriptor,
-        ])?;
-
-        self.start_temp_vec(Asn1Tag::Type);
-        match tok.kind {
-            TokenKind::KwInteger => self.integer_type()?,
-            TokenKind::KwEnumerated => self.enumerated_type()?,
-            TokenKind::KwObject => self.object_identifier_type()?,
-            TokenKind::TypeOrModuleRef => self.defined_type()?,
-            TokenKind::ValueRefOrIdent => self.selection_type()?,
-            _ => {
-                self.next(&[
-                    TokenKind::KwBoolean,
-                    TokenKind::KwNull,
-                    TokenKind::KwOidIri,
-                    TokenKind::KwGeneralizedTime,
-                    TokenKind::KwUTCTime,
-                    TokenKind::KwObjectDescriptor,
-                ])?;
-            }
-        }
-
-        self.end_temp_vec(Asn1Tag::Type);
-        Ok(())
-    }
-
     /// Integer type definition, including named numbers
-    fn integer_type(&mut self) -> Result<()> {
+    pub(super) fn integer_type(&mut self) -> Result<()> {
         self.start_temp_vec(Asn1Tag::IntegerType);
 
         self.next(&[TokenKind::KwInteger])?;
@@ -86,7 +30,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an enum type declaration
-    fn enumerated_type(&mut self) -> Result<()> {
+    pub(super) fn enumerated_type(&mut self) -> Result<()> {
         self.start_temp_vec(Asn1Tag::EnumeratedType);
 
         self.next(&[TokenKind::KwEnumerated])?;
@@ -97,7 +41,13 @@ impl<'a> Parser<'a> {
         if tok.kind == TokenKind::Ellipsis {
             self.next(&[TokenKind::Ellipsis])?;
 
-            let kind = if self.exception_spec()? {
+            let spec = self.exception_spec(&[
+                TokenKind::Comma,
+                TokenKind::RightCurly,
+                TokenKind::Exclamation,
+            ])?;
+
+            let kind = if spec {
                 &[TokenKind::Comma, TokenKind::RightCurly][..]
             } else {
                 &[
@@ -201,8 +151,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a specifier that there is an un-specified constraint in the asn.1
-    /// file.  returns true if the exception spec was not empty.
-    fn exception_spec(&mut self) -> Result<bool> {
+    /// file.  Returns true if the a non-empty exception spec was parsed.
+    fn exception_spec(&mut self, subsequent: &[TokenKind]) -> Result<bool> {
         self.start_temp_vec(Asn1Tag::ExceptionSpec);
 
         if self.next(&[TokenKind::Exclamation]).is_err() {
@@ -220,16 +170,27 @@ impl<'a> Parser<'a> {
                 self.next(&[TokenKind::Number])?;
             }
         } else {
-            self.ty()?;
+            self.type_or_value(TypeOrValue {
+                is_type: true,
+                is_value: false,
+                alternative: &[],
+                subsequent: &[TokenKind::Colon],
+            })?;
+
             self.next(&[TokenKind::Colon])?;
-            self.value()?;
+            self.type_or_value(TypeOrValue {
+                is_type: false,
+                is_value: true,
+                alternative: &[],
+                subsequent,
+            })?;
         }
 
         self.end_temp_vec(Asn1Tag::ExceptionSpec);
         Ok(true)
     }
 
-    fn object_identifier_type(&mut self) -> Result {
+    pub(super) fn object_identifier_type(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::ObjectIDType);
 
         self.next(&[TokenKind::KwObject])?;
@@ -247,7 +208,7 @@ impl<'a> Parser<'a> {
     ///   | ParameterizedType
     ///   | ParameterizedValueSetType
     /// ```
-    fn defined_type(&mut self) -> Result {
+    pub(super) fn defined_type(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::DefinedType);
 
         self.next(&[TokenKind::TypeOrModuleRef])?;
@@ -268,12 +229,17 @@ impl<'a> Parser<'a> {
     /// ```bnf
     /// SelectionType ::= identifier "<" Type
     /// ```
-    fn selection_type(&mut self) -> Result {
+    pub(super) fn selection_type(&mut self, subsequent: &[TokenKind]) -> Result {
         self.start_temp_vec(Asn1Tag::SelectionType);
 
         self.next(&[TokenKind::ValueRefOrIdent])?;
         self.next(&[TokenKind::Less])?;
-        self.ty()?;
+        self.type_or_value(TypeOrValue {
+            is_type: true,
+            is_value: false,
+            alternative: &[],
+            subsequent,
+        })?;
 
         self.end_temp_vec(Asn1Tag::SelectionType);
         Ok(())

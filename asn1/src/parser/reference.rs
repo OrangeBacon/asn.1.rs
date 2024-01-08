@@ -1,4 +1,4 @@
-/*use crate::{cst::Asn1Tag, token::TokenKind};
+use crate::{cst::Asn1Tag, token::TokenKind};
 
 use super::{Parser, Result};
 
@@ -181,4 +181,4 @@ impl<'a> Parser<'a> {
         self.end_temp_vec(Asn1Tag::SelectionOption);
         Ok(())
     }
-}*/
+}

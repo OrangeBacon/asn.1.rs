@@ -42,6 +42,9 @@ pub enum Asn1Tag {
     Exports,
     Imports,
 
+    // type or value
+    TypeOrValue,
+
     // type
     Type,
     IntegerType,

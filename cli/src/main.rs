@@ -4,26 +4,24 @@ use asn1::{
 };
 
 fn main() {
-    let types = ["MyRef.Foo", "MyTypeRef", "a < INTEGER"];
+    let source = std::fs::read_to_string("test/foo.asn1").unwrap();
 
-    for source in types {
-        let lexer = Lexer::new(0, source);
+    let lexer = Lexer::new(0, &source);
 
-        let parser = Parser::new(lexer);
+    let parser = Parser::new(lexer);
 
-        match parser.run() {
-            Ok(t) => print!("{t}"),
-            Err(LexerError::Expected { kind, offset, .. }) => {
-                let at = offset
-                    .map(|o| {
-                        let s: String = source[o..].chars().take(15).collect();
-                        format!("{s:?}")
-                    })
-                    .unwrap_or("EOF".to_string());
+    match parser.run() {
+        Ok(t) => print!("{t}"),
+        Err(LexerError::Expected { kind, offset, .. }) => {
+            let at = offset
+                .map(|o| {
+                    let s: String = source[o..].chars().take(15).collect();
+                    format!("{s:?}")
+                })
+                .unwrap_or("EOF".to_string());
 
-                println!("Expected {{ kind: {kind:?}, at: {at} }}");
-            }
-            Err(e) => println!("{e:?}"),
+            println!("Expected {{ kind: {kind:?}, at: {at} }}");
         }
+        Err(e) => println!("{e:?}"),
     }
 }

@@ -1,6 +1,6 @@
-/*use crate::{cst::Asn1Tag, token::TokenKind};
+use crate::{cst::Asn1Tag, token::TokenKind};
 
-use super::{reference::SymbolListKind, ty::TypeStartKind, Parser, Result};
+use super::{reference::SymbolListKind, type_or_value::TypeOrValue, Parser, Result};
 
 impl<'a> Parser<'a> {
     /// Parse a single ASN.1 module definition
@@ -223,11 +223,26 @@ impl<'a> Parser<'a> {
             TokenKind::TypeOrModuleRef => {
                 self.start_temp_vec(Asn1Tag::TypeAssignment);
 
-                let is_assign = self.ty()?;
+                let ty = self.type_or_value(TypeOrValue {
+                    is_type: true,
+                    is_value: false,
+                    alternative: &[TokenKind::Assignment],
+                    subsequent: &[TokenKind::Assignment],
+                })?;
+
                 self.next(&[TokenKind::Assignment])?;
 
-                if is_assign {
-                    self.ty()?;
+                if ty.is_assign() {
+                    self.type_or_value(TypeOrValue {
+                        is_type: true,
+                        is_value: false,
+                        alternative: &[],
+                        subsequent: &[
+                            TokenKind::TypeOrModuleRef,
+                            TokenKind::ValueRefOrIdent,
+                            TokenKind::KwEnd,
+                        ],
+                    })?;
                 } else {
                     self.next(&[TokenKind::LeftCurly])?;
                     // TODO: element set specs
@@ -239,13 +254,27 @@ impl<'a> Parser<'a> {
             TokenKind::ValueRefOrIdent => {
                 self.start_temp_vec(Asn1Tag::ValueAssignment);
 
-                let is_assign = self.ty()?;
+                let ty = self.type_or_value(TypeOrValue {
+                    is_type: true,
+                    is_value: false,
+                    alternative: &[TokenKind::Assignment],
+                    subsequent: &[TokenKind::Assignment],
+                })?;
                 self.next(&[TokenKind::Assignment])?;
 
-                if is_assign {
+                if ty.is_assign() {
                     self.xml_typed_value()?;
                 } else {
-                    self.value()?;
+                    self.type_or_value(TypeOrValue {
+                        is_type: false,
+                        is_value: true,
+                        alternative: &[],
+                        subsequent: &[
+                            TokenKind::TypeOrModuleRef,
+                            TokenKind::ValueRefOrIdent,
+                            TokenKind::KwEnd,
+                        ],
+                    })?;
                 }
                 self.end_temp_vec(Asn1Tag::ValueAssignment)
             }
@@ -257,4 +286,3 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 }
-*/
