@@ -4,9 +4,9 @@ use super::{Parser, Result};
 
 impl<'a> Parser<'a> {
     /// Parse an XML Typed value for XML value assignment
-    pub(in crate::parser) fn xml_typed_value(&mut self) -> Result<()> {
-        self.start_temp_vec(Asn1Tag::XMLTypedValue);
-        self.start_temp_vec(Asn1Tag::XMLTag);
+    pub(super) fn xml_typed_value(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::XMLTypedValue)?;
+        self.start_temp_vec(Asn1Tag::XMLTag)?;
         self.next(&[TokenKind::Less])?;
 
         self.non_parameterized_type_name()?;
@@ -17,7 +17,7 @@ impl<'a> Parser<'a> {
         if tok.kind == TokenKind::Greater {
             self.xml_value()?;
 
-            self.start_temp_vec(Asn1Tag::XMLTag);
+            self.start_temp_vec(Asn1Tag::XMLTag)?;
             self.next(&[TokenKind::XMLEndTag])?;
             self.non_parameterized_type_name()?;
             self.next(&[TokenKind::Greater])?;
@@ -30,8 +30,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a value within a typed xml value
-    fn xml_value(&mut self) -> Result<()> {
-        self.start_temp_vec(Asn1Tag::XMLValue);
+    fn xml_value(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::XMLValue)?;
 
         // TODO: bit string, character string, choice, embedded pdv,
         // enumerated, external, instance of, iri, object identifier,
@@ -57,7 +57,7 @@ impl<'a> Parser<'a> {
                 return Ok(());
             }
             TokenKind::Less => {
-                self.start_temp_vec(Asn1Tag::XMLTag);
+                self.start_temp_vec(Asn1Tag::XMLTag)?;
                 self.next(&[TokenKind::Less])?;
 
                 let kind = &[
@@ -71,7 +71,7 @@ impl<'a> Parser<'a> {
                 } else {
                     Asn1Tag::XMLBoolean
                 };
-                self.start_temp_vec(tag);
+                self.start_temp_vec(tag)?;
 
                 self.next(kind)?;
                 self.end_temp_vec(tag);
@@ -80,7 +80,7 @@ impl<'a> Parser<'a> {
                 self.end_temp_vec(Asn1Tag::XMLTag);
             }
             TokenKind::IdentTrue | TokenKind::IdentFalse | TokenKind::XMLBoolNumber => {
-                self.start_temp_vec(Asn1Tag::XMLBoolean);
+                self.start_temp_vec(Asn1Tag::XMLBoolean)?;
                 self.next(&[
                     TokenKind::IdentTrue,
                     TokenKind::IdentFalse,
@@ -89,13 +89,13 @@ impl<'a> Parser<'a> {
                 self.end_temp_vec(Asn1Tag::XMLBoolean);
             }
             TokenKind::Hyphen => {
-                self.start_temp_vec(Asn1Tag::XMLInteger);
+                self.start_temp_vec(Asn1Tag::XMLInteger)?;
                 self.next(&[TokenKind::Hyphen])?;
                 self.next(&[TokenKind::Number])?;
                 self.end_temp_vec(Asn1Tag::XMLInteger);
             }
             TokenKind::Number | TokenKind::ValueRefOrIdent => {
-                self.start_temp_vec(Asn1Tag::XMLInteger);
+                self.start_temp_vec(Asn1Tag::XMLInteger)?;
                 self.next(&[TokenKind::Number, TokenKind::ValueRefOrIdent])?;
                 self.end_temp_vec(Asn1Tag::XMLInteger);
             }
@@ -111,8 +111,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse the type name that is at the start of an XML element
-    fn non_parameterized_type_name(&mut self) -> Result<()> {
-        self.start_temp_vec(Asn1Tag::XMLTypedValue);
+    fn non_parameterized_type_name(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::XMLTypedValue)?;
 
         // a non-parameterized type name could be an external type reference, a
         // type reference or an xml asn1 typename.  It could also be prefixed with
@@ -151,8 +151,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an internationalised resource identifier
-    fn xml_iri(&mut self) -> Result<()> {
-        self.start_temp_vec(Asn1Tag::XMLIri);
+    fn xml_iri(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::XMLIri)?;
 
         self.next(&[TokenKind::ForwardSlash])?;
         self.next(&[

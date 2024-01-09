@@ -41,6 +41,8 @@ pub enum LexerError {
         offset: usize,
         file: usize,
     },
+
+    ParserDepthExceeded,
 }
 
 pub type Result<T = (), E = LexerError> = std::result::Result<T, E>;

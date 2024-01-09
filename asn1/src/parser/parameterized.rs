@@ -8,7 +8,7 @@ impl<'a> Parser<'a> {
     /// ActualParameterList ::= "{" ActualParameter ("," ActualParameter)* "}"
     /// ```
     pub(super) fn actual_parameter_list(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::ActualParameterList);
+        self.start_temp_vec(Asn1Tag::ActualParameterList)?;
 
         self.next(&[TokenKind::LeftCurly])?;
 

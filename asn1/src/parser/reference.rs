@@ -13,7 +13,7 @@ pub(super) enum SymbolListKind {
 impl<'a> Parser<'a> {
     /// List of symbols within an import or export statement
     pub(super) fn symbol_list(&mut self, next: SymbolListKind) -> Result {
-        self.start_temp_vec(Asn1Tag::SymbolList);
+        self.start_temp_vec(Asn1Tag::SymbolList)?;
 
         let kind = match next {
             SymbolListKind::Imports => &[TokenKind::Comma, TokenKind::KwFrom],
@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
 
     /// Reference or parameterized reference.
     fn symbol(&mut self, next: SymbolListKind) -> Result {
-        self.start_temp_vec(Asn1Tag::Symbol);
+        self.start_temp_vec(Asn1Tag::Symbol)?;
 
         self.reference()?;
 
@@ -59,7 +59,7 @@ impl<'a> Parser<'a> {
 
     /// Either type or value reference
     fn reference(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::Reference);
+        self.start_temp_vec(Asn1Tag::Reference)?;
 
         // object references all parse as a type reference, so this is all that
         // needs to be specified here
@@ -71,7 +71,7 @@ impl<'a> Parser<'a> {
 
     /// Parse the references within an import statement
     pub(super) fn symbols_imported(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::SymbolsFromModuleList);
+        self.start_temp_vec(Asn1Tag::SymbolsFromModuleList)?;
 
         loop {
             let tok = self.peek(&[
@@ -92,7 +92,7 @@ impl<'a> Parser<'a> {
 
     /// Parse a single section within an import statement
     fn symbols_from_module(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::SymbolsFromModule);
+        self.start_temp_vec(Asn1Tag::SymbolsFromModule)?;
 
         self.symbol_list(SymbolListKind::Imports)?;
         self.next(&[TokenKind::KwFrom])?;
@@ -134,7 +134,7 @@ impl<'a> Parser<'a> {
     /// symbol from module.  The semicolons and with sections are not part of this
     /// global module reference and will be parsed after this function returns.
     fn global_module_reference(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::GlobalModuleReference);
+        self.start_temp_vec(Asn1Tag::GlobalModuleReference)?;
 
         self.next(&[TokenKind::TypeOrModuleRef])?;
 
@@ -173,7 +173,7 @@ impl<'a> Parser<'a> {
 
     /// Parse `with successors` or `with descendants`
     fn selection_option(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::SelectionOption);
+        self.start_temp_vec(Asn1Tag::SelectionOption)?;
 
         self.next(&[TokenKind::KwWith])?;
         self.next(&[TokenKind::CtxKwSuccessors, TokenKind::CtxKwDescendants])?;

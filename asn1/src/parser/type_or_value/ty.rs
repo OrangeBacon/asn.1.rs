@@ -4,8 +4,8 @@ use super::{Parser, Result, TypeOrValue};
 
 impl<'a> Parser<'a> {
     /// Integer type definition, including named numbers
-    pub(super) fn integer_type(&mut self) -> Result<()> {
-        self.start_temp_vec(Asn1Tag::IntegerType);
+    pub(super) fn integer_type(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::IntegerType)?;
 
         self.next(&[TokenKind::KwInteger])?;
 
@@ -30,8 +30,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an enum type declaration
-    pub(super) fn enumerated_type(&mut self) -> Result<()> {
-        self.start_temp_vec(Asn1Tag::EnumeratedType);
+    pub(super) fn enumerated_type(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::EnumeratedType)?;
 
         self.next(&[TokenKind::KwEnumerated])?;
         self.next(&[TokenKind::LeftCurly])?;
@@ -73,8 +73,8 @@ impl<'a> Parser<'a> {
     /// The list of items on the inside of an enum, is item "Enumeration" in the
     /// specification.  If first is true will also break out of the loop if there
     /// is an ellipsis, not just a curly brace.
-    fn enum_item_list(&mut self, first: bool) -> Result<()> {
-        self.start_temp_vec(Asn1Tag::EnumItemList);
+    fn enum_item_list(&mut self, first: bool) -> Result {
+        self.start_temp_vec(Asn1Tag::EnumItemList)?;
 
         loop {
             self.named_number(true)?;
@@ -100,13 +100,13 @@ impl<'a> Parser<'a> {
     /// An integer value with a name, `hello(5)`.  If `is_enum`, then it will
     /// also allow returning just an identifier, without the parenthesized
     /// value.
-    fn named_number(&mut self, is_enum: bool) -> Result<()> {
+    fn named_number(&mut self, is_enum: bool) -> Result {
         let tag = if is_enum {
             Asn1Tag::EnumItem
         } else {
             Asn1Tag::NamedNumber
         };
-        self.start_temp_vec(tag);
+        self.start_temp_vec(tag)?;
 
         self.next(&[TokenKind::ValueRefOrIdent])?;
 
@@ -153,7 +153,7 @@ impl<'a> Parser<'a> {
     /// Parse a specifier that there is an un-specified constraint in the asn.1
     /// file.  Returns true if the a non-empty exception spec was parsed.
     fn exception_spec(&mut self, subsequent: &[TokenKind]) -> Result<bool> {
-        self.start_temp_vec(Asn1Tag::ExceptionSpec);
+        self.start_temp_vec(Asn1Tag::ExceptionSpec)?;
 
         if self.next(&[TokenKind::Exclamation]).is_err() {
             self.end_temp_vec(Asn1Tag::ExceptionSpec);
@@ -191,7 +191,7 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn object_identifier_type(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::ObjectIDType);
+        self.start_temp_vec(Asn1Tag::ObjectIDType)?;
 
         self.next(&[TokenKind::KwObject])?;
         self.next(&[TokenKind::KwIdentifier])?;
@@ -209,7 +209,7 @@ impl<'a> Parser<'a> {
     ///   | ParameterizedValueSetType
     /// ```
     pub(super) fn defined_type(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::DefinedType);
+        self.start_temp_vec(Asn1Tag::DefinedType)?;
 
         self.next(&[TokenKind::TypeOrModuleRef])?;
         if self.peek(&[TokenKind::Dot]).is_ok() {
@@ -230,7 +230,7 @@ impl<'a> Parser<'a> {
     /// SelectionType ::= identifier "<" Type
     /// ```
     pub(super) fn selection_type(&mut self, subsequent: &[TokenKind]) -> Result {
-        self.start_temp_vec(Asn1Tag::SelectionType);
+        self.start_temp_vec(Asn1Tag::SelectionType)?;
 
         self.next(&[TokenKind::ValueRefOrIdent])?;
         self.next(&[TokenKind::Less])?;

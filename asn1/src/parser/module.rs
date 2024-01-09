@@ -5,7 +5,7 @@ use super::{reference::SymbolListKind, type_or_value::TypeOrValue, Parser, Resul
 impl<'a> Parser<'a> {
     /// Parse a single ASN.1 module definition
     pub(super) fn module_definition(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::ModuleDefinition);
+        self.start_temp_vec(Asn1Tag::ModuleDefinition)?;
 
         self.module_identifier()?;
         self.next(&[TokenKind::KwDefinitions])?;
@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
 
     /// Identifier at the start of a module
     fn module_identifier(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::ModuleIdentifier);
+        self.start_temp_vec(Asn1Tag::ModuleIdentifier)?;
 
         self.next(&[TokenKind::TypeOrModuleRef])?;
 
@@ -53,7 +53,7 @@ impl<'a> Parser<'a> {
     }
 
     fn definitive_oid(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::DefinitiveOID);
+        self.start_temp_vec(Asn1Tag::DefinitiveOID)?;
         self.next(&[TokenKind::LeftCurly])?;
 
         let mut kind = &[TokenKind::ValueRefOrIdent, TokenKind::Number][..];
@@ -83,7 +83,7 @@ impl<'a> Parser<'a> {
 
     /// The bit between the `DEFINITIONS` keyword and the assignment
     fn module_defaults(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::ModuleDefaults);
+        self.start_temp_vec(Asn1Tag::ModuleDefaults)?;
 
         self.encoding_reference_default()?;
         self.tag_default()?;
@@ -94,7 +94,7 @@ impl<'a> Parser<'a> {
     }
 
     fn encoding_reference_default(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::EncodingReferenceDefault);
+        self.start_temp_vec(Asn1Tag::EncodingReferenceDefault)?;
         self.peek(&[
             TokenKind::EncodingReference,
             TokenKind::KwExplicit,
@@ -111,7 +111,7 @@ impl<'a> Parser<'a> {
     }
 
     fn tag_default(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::TagDefault);
+        self.start_temp_vec(Asn1Tag::TagDefault)?;
         self.peek(&[
             TokenKind::KwExplicit,
             TokenKind::KwImplicit,
@@ -134,7 +134,7 @@ impl<'a> Parser<'a> {
     }
 
     fn extension_default(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::ExtensionDefault);
+        self.start_temp_vec(Asn1Tag::ExtensionDefault)?;
         self.peek(&[TokenKind::KwExtensibility, TokenKind::Assignment])?;
         if self.next(&[TokenKind::KwExtensibility]).is_ok() {
             self.next(&[TokenKind::KwImplied])?;
@@ -156,7 +156,7 @@ impl<'a> Parser<'a> {
         if tok.kind != TokenKind::KwExports {
             return Ok(());
         }
-        self.start_temp_vec(Asn1Tag::Exports);
+        self.start_temp_vec(Asn1Tag::Exports)?;
 
         self.next(&[TokenKind::KwExports])?;
         let tok = self.peek(&[
@@ -189,7 +189,7 @@ impl<'a> Parser<'a> {
         if tok.kind != TokenKind::KwImports {
             return Ok(());
         }
-        self.start_temp_vec(Asn1Tag::Imports);
+        self.start_temp_vec(Asn1Tag::Imports)?;
 
         self.next(&[TokenKind::KwImports])?;
         self.symbols_imported()?;
@@ -202,7 +202,7 @@ impl<'a> Parser<'a> {
 
     /// Parse a single assignment to a name
     fn assignment(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::Assignment);
+        self.start_temp_vec(Asn1Tag::Assignment)?;
 
         let name = self.next(&[
             TokenKind::TypeOrModuleRef,
@@ -221,7 +221,7 @@ impl<'a> Parser<'a> {
                 return Ok(());
             }
             TokenKind::TypeOrModuleRef => {
-                self.start_temp_vec(Asn1Tag::TypeAssignment);
+                self.start_temp_vec(Asn1Tag::TypeAssignment)?;
 
                 let ty = self.type_or_value(TypeOrValue {
                     is_type: true,
@@ -252,7 +252,7 @@ impl<'a> Parser<'a> {
                 self.end_temp_vec(Asn1Tag::TypeAssignment);
             }
             TokenKind::ValueRefOrIdent => {
-                self.start_temp_vec(Asn1Tag::ValueAssignment);
+                self.start_temp_vec(Asn1Tag::ValueAssignment)?;
 
                 let ty = self.type_or_value(TypeOrValue {
                     is_type: true,

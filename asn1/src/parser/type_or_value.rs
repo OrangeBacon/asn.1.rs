@@ -117,7 +117,7 @@ impl<'a> Parser<'a> {
         match tok.kind {
             // either
             TokenKind::KwNull if expecting.is_type || expecting.is_value => {
-                self.start_temp_vec(ambiguous_tag);
+                self.start_temp_vec(ambiguous_tag)?;
                 parse_kind = TypeOrValueResult::Ambiguous;
                 self.next(&[TokenKind::KwNull])?;
             }
@@ -126,37 +126,37 @@ impl<'a> Parser<'a> {
             TokenKind::Number | TokenKind::Hyphen | TokenKind::ValueRefOrIdent
                 if expecting.is_value =>
             {
-                parse_kind = self.start_value();
+                parse_kind = self.start_value()?;
                 self.integer_value()?
             }
             TokenKind::LeftCurly if expecting.is_value => {
-                parse_kind = self.start_value();
+                parse_kind = self.start_value()?;
                 self.object_identifier_value()?;
             }
             TokenKind::DoubleQuote if expecting.is_value => {
-                parse_kind = self.start_value();
+                parse_kind = self.start_value()?;
                 self.iri_value()?;
             }
             TokenKind::KwTrue | TokenKind::KwFalse if expecting.is_value => {
-                parse_kind = self.start_value();
+                parse_kind = self.start_value()?;
                 self.next(Vec::from([tok.kind]).leak())?;
             }
 
             // types
             TokenKind::KwInteger if expecting.is_type => {
-                parse_kind = self.start_type();
+                parse_kind = self.start_type()?;
                 self.integer_type()?;
             }
             TokenKind::KwEnumerated if expecting.is_type => {
-                parse_kind = self.start_type();
+                parse_kind = self.start_type()?;
                 self.enumerated_type()?;
             }
             TokenKind::KwObject if expecting.is_type => {
-                parse_kind = self.start_type();
+                parse_kind = self.start_type()?;
                 self.object_identifier_type()?
             }
             TokenKind::TypeOrModuleRef if expecting.is_type => {
-                parse_kind = self.start_type();
+                parse_kind = self.start_type()?;
                 self.defined_type()?
             }
 
@@ -168,7 +168,7 @@ impl<'a> Parser<'a> {
             | TokenKind::KwObjectDescriptor
                 if expecting.is_type =>
             {
-                parse_kind = self.start_type();
+                parse_kind = self.start_type()?;
                 self.next(Vec::from([tok.kind]).leak())?;
             }
             _ => {
@@ -187,15 +187,15 @@ impl<'a> Parser<'a> {
     }
 
     /// Start a temporary vector for a type declaration and return result::type
-    fn start_type(&mut self) -> TypeOrValueResult {
-        self.start_temp_vec(Asn1Tag::Type);
-        TypeOrValueResult::Type
+    fn start_type(&mut self) -> Result<TypeOrValueResult> {
+        self.start_temp_vec(Asn1Tag::Type)?;
+        Ok(TypeOrValueResult::Type)
     }
 
     /// Start a temporary vector for a value declaration and return result::value
-    fn start_value(&mut self) -> TypeOrValueResult {
-        self.start_temp_vec(Asn1Tag::Value);
-        TypeOrValueResult::Value
+    fn start_value(&mut self) -> Result<TypeOrValueResult> {
+        self.start_temp_vec(Asn1Tag::Value)?;
+        Ok(TypeOrValueResult::Value)
     }
 }
 

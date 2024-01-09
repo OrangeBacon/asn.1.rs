@@ -1,12 +1,12 @@
 mod module;
-mod reference;
-mod xml_value;
 mod parameterized;
+mod reference;
 mod type_or_value;
+mod xml_value;
 
 use crate::{
     cst::{Asn1, Asn1Tag, TreeContent},
-    lexer::{Lexer, Result},
+    lexer::{Lexer, LexerError, Result},
     token::{Token, TokenKind},
 };
 
@@ -22,8 +22,11 @@ pub struct Parser<'a> {
     /// Temporary storage used when making the tree
     temp_result: Vec<TreeContent<'a>>,
 
-    /// data to finish constructing a partial cst in error cases
+    /// Data to finish constructing a partial cst in error cases
     error_nodes: Vec<TempVec>,
+
+    /// Current recursion depth of the parser, as measured by start temp vec.
+    depth: usize,
 }
 
 /// Helper for constructing cst tree nodes from the temp_result array in the error
@@ -42,12 +45,13 @@ impl<'a> Parser<'a> {
             result: vec![],
             temp_result: vec![],
             error_nodes: vec![],
+            depth: 0,
         }
     }
 
     /// Run the parser to produce a set of ASN.1 definitions
     pub fn run(mut self) -> Result<Asn1<'a>> {
-        self.start_temp_vec(Asn1Tag::Root);
+        self.start_temp_vec(Asn1Tag::Root)?;
 
         while !self.lexer.is_eof() {
             self.module_definition()?;
@@ -90,11 +94,18 @@ impl<'a> Parser<'a> {
     }
 
     /// Start an ast tree node with the given tag to describe the node
-    fn start_temp_vec(&mut self, tag: Asn1Tag) {
+    fn start_temp_vec(&mut self, tag: Asn1Tag) -> Result {
+        // TODO: make this an actual parameter, not a magic number I picked randomly
+        if self.depth >= 100 {
+            return Err(LexerError::ParserDepthExceeded);
+        }
+
         self.error_nodes.push(TempVec {
             tag,
             offset: self.temp_result.len(),
-        })
+        });
+
+        Ok(())
     }
 
     /// End the most recent temporary vec.

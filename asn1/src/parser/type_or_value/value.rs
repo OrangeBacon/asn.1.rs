@@ -4,8 +4,8 @@ use super::{Parser, Result};
 
 impl<'a> Parser<'a> {
     /// parse reference to defined value
-    pub(in crate::parser) fn defined_value(&mut self) -> Result<()> {
-        self.start_temp_vec(Asn1Tag::DefinedValue);
+    pub(in crate::parser) fn defined_value(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::DefinedValue)?;
 
         // TODO: parameterized value
 
@@ -21,8 +21,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an internationalised resource identifier
-    pub(in crate::parser) fn iri_value(&mut self) -> Result<()> {
-        self.start_temp_vec(Asn1Tag::IriValue);
+    pub(in crate::parser) fn iri_value(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::IriValue)?;
 
         self.next(&[TokenKind::DoubleQuote])?;
 
@@ -51,8 +51,8 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    pub(super) fn integer_value(&mut self) -> Result<()> {
-        self.start_temp_vec(Asn1Tag::IntegerValue);
+    pub(super) fn integer_value(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::IntegerValue)?;
 
         let tok = self.next(&[
             TokenKind::Number,
@@ -69,8 +69,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a reference to an external value
-    fn external_value_reference(&mut self) -> Result<()> {
-        self.start_temp_vec(Asn1Tag::ExternalValueReference);
+    fn external_value_reference(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::ExternalValueReference)?;
 
         self.next(&[TokenKind::TypeOrModuleRef])?;
         self.next(&[TokenKind::Dot])?;
@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
 
     /// Parse an object identifier value
     pub(in crate::parser) fn object_identifier_value(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::ObjectIDValue);
+        self.start_temp_vec(Asn1Tag::ObjectIDValue)?;
 
         self.next(&[TokenKind::LeftCurly])?;
 
@@ -125,7 +125,7 @@ impl<'a> Parser<'a> {
     /// option and the value reference part of defined value never matches in
     /// this function.
     fn object_id_component(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::ObjectIDComponent);
+        self.start_temp_vec(Asn1Tag::ObjectIDComponent)?;
 
         let tok = self.peek(&[
             TokenKind::ValueRefOrIdent,
