@@ -88,11 +88,6 @@ impl<'a> Parser<'a> {
         self.lexer.peek(kind)
     }
 
-    /// Peek multiple tokens ahead
-    fn peek_n(&mut self, kind: &[&'static [TokenKind]]) -> Result<Token<'a>> {
-        self.lexer.peek_n(kind)
-    }
-
     /// Start an ast tree node with the given tag to describe the node
     fn start_temp_vec(&mut self, tag: Asn1Tag) -> Result {
         // TODO: make this an actual parameter, not a magic number I picked randomly

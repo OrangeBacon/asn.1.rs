@@ -231,41 +231,6 @@ impl<'a> Lexer<'a> {
         })
     }
 
-    /// Peek multiple tokens ahead and return the furthest ahead one
-    pub fn peek_n(&mut self, kind: &[&'static [TokenKind]]) -> Result<Token<'a>> {
-        let Some((&tail, head)) = kind.split_last() else {
-            let &(offset, _) = self.chars.peek(0).ok_or(LexerError::Expected {
-                kind: &[],
-                offset: None,
-                file: self.file,
-            })?;
-
-            return Err(LexerError::Expected {
-                kind: &[],
-                offset: Some(offset),
-                file: self.file,
-            })
-        };
-
-        let comment_count = self.comments.len();
-        let chars = self.chars.clone();
-
-        for &kind in head {
-            if let Err(e) = self.next(kind) {
-                self.comments.truncate(comment_count);
-                self.chars = chars;
-                return Err(e);
-            }
-        }
-
-        let ret = self.peek(tail);
-
-        self.comments.truncate(comment_count);
-        self.chars = chars;
-
-        ret
-    }
-
     /// Peeks a token of the given kind (see peek()), then advances the source
     /// text past the token.  Might also return a comment token instead.
     pub fn next(&mut self, kind: &'static [TokenKind]) -> Result<Token<'a>> {

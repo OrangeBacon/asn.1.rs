@@ -89,7 +89,6 @@ impl<'a> Parser<'a> {
         loop {
             self.object_id_component()?;
             let tok = self.peek(&[
-                TokenKind::ValueRefOrIdent,
                 TokenKind::Number,
                 TokenKind::ValueRefOrIdent,
                 TokenKind::TypeOrModuleRef,
