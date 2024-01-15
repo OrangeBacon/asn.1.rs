@@ -33,6 +33,7 @@ pub enum Asn1Tag {
     ModuleIdentifier,
     ModuleDefaults,
     DefinitiveOID,
+    DefinitiveOIDComponent,
     EncodingReferenceDefault,
     TagDefault,
     ExtensionDefault,

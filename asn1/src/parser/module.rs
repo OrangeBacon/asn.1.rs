@@ -21,7 +21,12 @@ impl<'a> Parser<'a> {
         loop {
             self.assignment()?;
 
-            if self.peek(&[TokenKind::KwEnd]).is_ok() {
+            let tok = self.peek(&[
+                TokenKind::TypeOrModuleRef,
+                TokenKind::ValueRefOrIdent,
+                TokenKind::KwEnd,
+            ])?;
+            if tok.kind == TokenKind::KwEnd {
                 self.next(&[TokenKind::KwEnd])?;
                 break;
             }
@@ -57,28 +62,43 @@ impl<'a> Parser<'a> {
         self.start_temp_vec(Asn1Tag::DefinitiveOID)?;
         self.next(&[TokenKind::LeftCurly])?;
 
-        let mut kind = &[TokenKind::ValueRefOrIdent, TokenKind::Number][..];
-
         loop {
-            let tok = self.next(kind)?;
-            if tok.kind == TokenKind::RightCurly {
-                break;
-            }
-
-            if tok.kind == TokenKind::ValueRefOrIdent && self.next(&[TokenKind::LeftParen]).is_ok()
-            {
-                self.next(&[TokenKind::Number])?;
-                self.next(&[TokenKind::RightParen])?;
-            }
-
-            kind = &[
+            self.definitive_oid_component()?;
+            let tok = self.peek(&[
                 TokenKind::ValueRefOrIdent,
                 TokenKind::Number,
                 TokenKind::RightCurly,
-            ];
+            ])?;
+            if tok.kind == TokenKind::RightCurly {
+                self.next(&[TokenKind::RightCurly])?;
+                break;
+            }
         }
 
         self.end_temp_vec(Asn1Tag::DefinitiveOID);
+        Ok(())
+    }
+
+    fn definitive_oid_component(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::DefinitiveOIDComponent)?;
+
+        let tok = self.next(&[TokenKind::ValueRefOrIdent, TokenKind::Number])?;
+
+        if tok.kind == TokenKind::ValueRefOrIdent {
+            let tok = self.peek(&[
+                TokenKind::LeftParen,
+                TokenKind::ValueRefOrIdent,
+                TokenKind::Number,
+                TokenKind::RightCurly,
+            ])?;
+            if tok.kind == TokenKind::LeftParen {
+                self.next(&[TokenKind::LeftParen])?;
+                self.next(&[TokenKind::Number])?;
+                self.next(&[TokenKind::RightParen])?;
+            }
+        }
+
+        self.end_temp_vec(Asn1Tag::DefinitiveOIDComponent);
         Ok(())
     }
 
@@ -98,7 +118,7 @@ impl<'a> Parser<'a> {
     fn encoding_reference_default(&mut self) -> Result {
         // TODO: enforce all uppercase constraint on the type or module ref
         self.start_temp_vec(Asn1Tag::EncodingReferenceDefault)?;
-        self.peek(&[
+        let tok = self.peek(&[
             TokenKind::TypeOrModuleRef,
             TokenKind::KwExplicit,
             TokenKind::KwImplicit,
@@ -106,7 +126,8 @@ impl<'a> Parser<'a> {
             TokenKind::KwExtensibility,
             TokenKind::Assignment,
         ])?;
-        if self.next(&[TokenKind::TypeOrModuleRef]).is_ok() {
+        if tok.kind == TokenKind::TypeOrModuleRef {
+            self.next(&[TokenKind::TypeOrModuleRef])?;
             self.next(&[TokenKind::KwInstructions])?;
         }
         self.end_temp_vec(Asn1Tag::EncodingReferenceDefault);
@@ -115,21 +136,22 @@ impl<'a> Parser<'a> {
 
     fn tag_default(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::TagDefault)?;
-        self.peek(&[
+        let tok = self.peek(&[
             TokenKind::KwExplicit,
             TokenKind::KwImplicit,
             TokenKind::KwAutomatic,
             TokenKind::KwExtensibility,
             TokenKind::Assignment,
         ])?;
-        if self
-            .next(&[
+        if matches!(
+            tok.kind,
+            TokenKind::KwExplicit | TokenKind::KwImplicit | TokenKind::KwAutomatic
+        ) {
+            self.next(&[
                 TokenKind::KwExplicit,
                 TokenKind::KwImplicit,
                 TokenKind::KwAutomatic,
-            ])
-            .is_ok()
-        {
+            ])?;
             self.next(&[TokenKind::KwTags])?;
         }
         self.end_temp_vec(Asn1Tag::TagDefault);
@@ -138,8 +160,9 @@ impl<'a> Parser<'a> {
 
     fn extension_default(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::ExtensionDefault)?;
-        self.peek(&[TokenKind::KwExtensibility, TokenKind::Assignment])?;
-        if self.next(&[TokenKind::KwExtensibility]).is_ok() {
+        let tok = self.peek(&[TokenKind::KwExtensibility, TokenKind::Assignment])?;
+        if tok.kind == TokenKind::KwExtensibility {
+            self.next(&[TokenKind::KwExtensibility])?;
             self.next(&[TokenKind::KwImplied])?;
         }
         self.end_temp_vec(Asn1Tag::ExtensionDefault);
