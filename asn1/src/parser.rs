@@ -72,12 +72,13 @@ impl<'a> Parser<'a> {
 
     /// Get the next token that is not a comment directly from the lexer.
     fn next(&mut self, kind: &'static [TokenKind]) -> Result<Token<'a>> {
+        self.peek(kind)?;
+
         loop {
-            let tok = self.lexer.next(kind)?;
+            let tok = self.lexer.next_token()?;
             self.temp_result.push(TreeContent::Token(tok));
 
-            if tok.kind == TokenKind::SingleComment || tok.kind == TokenKind::MultiComment {
-            } else {
+            if tok.kind != TokenKind::SingleComment && tok.kind != TokenKind::MultiComment {
                 return Ok(tok);
             }
         }
@@ -85,7 +86,17 @@ impl<'a> Parser<'a> {
 
     /// Peek a token without consuming it
     fn peek(&mut self, kind: &'static [TokenKind]) -> Result<Token<'a>> {
-        self.lexer.peek(kind)
+        let peek = self.lexer.peek()?;
+
+        if kind.contains(&peek.kind) {
+            Ok(peek)
+        } else {
+            Err(LexerError::Expected {
+                kind,
+                offset: peek.offset,
+                file: peek.file,
+            })
+        }
     }
 
     /// Start an ast tree node with the given tag to describe the node

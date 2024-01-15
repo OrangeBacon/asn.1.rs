@@ -36,13 +36,10 @@ pub enum TokenKind {
     // Compound tokens
     ValueRefOrIdent,
     TypeOrModuleRef,
-    EncodingReference,
     IntegerUnicodeLabel,
     NonIntegerUnicodeLabel,
     Number,
     XMLAsn1TypeName,
-    IdentTrue,
-    IdentFalse,
     XMLBoolNumber,
     CString,
 

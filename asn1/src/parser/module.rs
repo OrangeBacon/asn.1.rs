@@ -21,7 +21,8 @@ impl<'a> Parser<'a> {
         loop {
             self.assignment()?;
 
-            if self.next(&[TokenKind::KwEnd]).is_ok() {
+            if self.peek(&[TokenKind::KwEnd]).is_ok() {
+                self.next(&[TokenKind::KwEnd])?;
                 break;
             }
         }
@@ -93,17 +94,19 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    /// Parse an encoding reference specifier.
     fn encoding_reference_default(&mut self) -> Result {
+        // TODO: enforce all uppercase constraint on the type or module ref
         self.start_temp_vec(Asn1Tag::EncodingReferenceDefault)?;
         self.peek(&[
-            TokenKind::EncodingReference,
+            TokenKind::TypeOrModuleRef,
             TokenKind::KwExplicit,
             TokenKind::KwImplicit,
             TokenKind::KwAutomatic,
             TokenKind::KwExtensibility,
             TokenKind::Assignment,
         ])?;
-        if self.next(&[TokenKind::EncodingReference]).is_ok() {
+        if self.next(&[TokenKind::TypeOrModuleRef]).is_ok() {
             self.next(&[TokenKind::KwInstructions])?;
         }
         self.end_temp_vec(Asn1Tag::EncodingReferenceDefault);
@@ -263,7 +266,8 @@ impl<'a> Parser<'a> {
                 self.next(&[TokenKind::Assignment])?;
 
                 if ty.is_assign() {
-                    self.xml_typed_value()?;
+                    // TODO: XML value parsing
+                    todo!("XML value")
                 } else {
                     self.type_or_value(TypeOrValue {
                         is_type: false,
@@ -278,7 +282,7 @@ impl<'a> Parser<'a> {
                 }
                 self.end_temp_vec(Asn1Tag::ValueAssignment)
             }
-            _ => panic!("try consume error"),
+            a => panic!("try consume error {a:?}"),
         }
 
         self.end_temp_vec(Asn1Tag::Assignment);
