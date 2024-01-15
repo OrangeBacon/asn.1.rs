@@ -20,37 +20,6 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    /// Parse an internationalised resource identifier
-    pub(in crate::parser) fn iri_value(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::IriValue)?;
-
-        self.next(&[TokenKind::DoubleQuote])?;
-
-        self.next(&[TokenKind::ForwardSlash])?;
-        self.next(&[
-            TokenKind::IntegerUnicodeLabel,
-            TokenKind::NonIntegerUnicodeLabel,
-        ])?;
-
-        loop {
-            let next = self.peek(&[TokenKind::DoubleQuote, TokenKind::ForwardSlash])?;
-            if next.kind == TokenKind::DoubleQuote {
-                break;
-            }
-            self.next(&[TokenKind::ForwardSlash])?;
-            self.next(&[
-                TokenKind::IntegerUnicodeLabel,
-                TokenKind::NonIntegerUnicodeLabel,
-            ])?;
-        }
-
-        self.next(&[TokenKind::DoubleQuote])?;
-
-        self.end_temp_vec(Asn1Tag::IriValue);
-
-        Ok(())
-    }
-
     pub(super) fn integer_value(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::IntegerValue)?;
 

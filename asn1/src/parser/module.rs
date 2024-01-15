@@ -42,9 +42,9 @@ impl<'a> Parser<'a> {
         if tok.kind == TokenKind::LeftCurly {
             self.definitive_oid()?;
 
-            let tok = self.peek(&[TokenKind::DoubleQuote, TokenKind::KwDefinitions])?;
-            if tok.kind == TokenKind::DoubleQuote {
-                self.iri_value()?;
+            let tok = self.peek(&[TokenKind::CString, TokenKind::KwDefinitions])?;
+            if tok.kind == TokenKind::CString {
+                self.next(&[TokenKind::CString])?;
             }
         }
 

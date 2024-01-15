@@ -58,7 +58,7 @@ const TYPE_START: &[TokenKind] = &[
 ];
 
 const VALUE_START: &[TokenKind] = &[
-    TokenKind::DoubleQuote,
+    TokenKind::CString,
     TokenKind::KwTrue,
     TokenKind::KwFalse,
     TokenKind::KwNull,
@@ -133,9 +133,9 @@ impl<'a> Parser<'a> {
                 parse_kind = self.start_value()?;
                 self.object_identifier_value()?;
             }
-            TokenKind::DoubleQuote if expecting.is_value => {
+            TokenKind::CString if expecting.is_value => {
                 parse_kind = self.start_value()?;
-                self.iri_value()?;
+                self.next(&[TokenKind::CString])?;
             }
             TokenKind::KwTrue | TokenKind::KwFalse if expecting.is_value => {
                 parse_kind = self.start_value()?;

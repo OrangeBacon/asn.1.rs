@@ -20,7 +20,6 @@ pub enum TokenKind {
     Hyphen,
     Colon,
     Equals,
-    DoubleQuote,
     SemiColon,
     At,
     Pipe,
@@ -45,6 +44,7 @@ pub enum TokenKind {
     IdentTrue,
     IdentFalse,
     XMLBoolNumber,
+    CString,
 
     // Keywords
     // "ABSENT",
@@ -137,10 +137,6 @@ pub enum TokenKind {
     // "VideotexString",
     // "VisibleString",
     KwWith,
-
-    // Contextual keywords
-    CtxKwSuccessors,
-    CtxKwDescendants,
 }
 
 /// Data relating to a single lexed token

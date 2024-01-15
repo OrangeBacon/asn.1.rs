@@ -107,7 +107,6 @@ impl<'a> Lexer<'a> {
                 TokenKind::Hyphen if c == '-' || c == '\u{2011}' => self.simple_token(kind, offset),
                 TokenKind::Colon if c == ':' => self.simple_token(kind, offset),
                 TokenKind::Equals if c == '=' => self.simple_token(kind, offset),
-                TokenKind::DoubleQuote if c == '"' => self.simple_token(kind, offset),
                 TokenKind::SemiColon if c == ';' => self.simple_token(kind, offset),
                 TokenKind::At if c == '@' => self.simple_token(kind, offset),
                 TokenKind::Pipe if c == '|' => self.simple_token(kind, offset),
@@ -162,6 +161,7 @@ impl<'a> Lexer<'a> {
 
                     Some(Token { kind, ..ident })
                 }
+                TokenKind::CString => self.c_string(c, offset),
 
                 TokenKind::IntegerUnicodeLabel => self.integer_unicode_label(c, offset),
                 TokenKind::NonIntegerUnicodeLabel => self.non_integer_unicode_label(c, offset),
@@ -198,13 +198,6 @@ impl<'a> Lexer<'a> {
                         kind: TokenKind::XMLBoolNumber,
                         ..t
                     }),
-
-                TokenKind::CtxKwSuccessors => {
-                    self.contextual_keyword(c, offset, "SUCCESSORS", TokenKind::CtxKwSuccessors)
-                }
-                TokenKind::CtxKwDescendants => {
-                    self.contextual_keyword(c, offset, "DESCENDANTS", TokenKind::CtxKwDescendants)
-                }
 
                 _ if c.is_ascii_alphabetic() => {
                     let ident = self.identifier(c, offset);
@@ -541,25 +534,35 @@ impl<'a> Lexer<'a> {
         })
     }
 
-    /// Parse an identifier as a contextual keyword
-    fn contextual_keyword(
-        &mut self,
-        first: char,
-        offset: usize,
-        value: &str,
-        kind: TokenKind,
-    ) -> Option<Token<'a>> {
-        if !first.is_ascii_alphabetic() {
+    /// Parse a character string literal
+    fn c_string(&mut self, first: char, offset: usize) -> Option<Token<'a>> {
+        if first != '"' {
             return None;
         }
 
-        let tok = self.identifier(first, offset);
+        let value = &self.source[offset..];
+        let mut len = 1;
 
-        if tok.value == value {
-            Some(Token { kind, ..tok })
-        } else {
-            None
+        while let Some(&(_, ch)) = self.chars.peek(len) {
+            len += ch.len_utf8();
+
+            if ch == '"' {
+                if matches!(self.chars.peek(len), Some(&(_, '"'))) {
+                    len += 1;
+                } else {
+                    break;
+                }
+            }
         }
+
+        let value = &value[..len];
+
+        Some(Token {
+            kind: TokenKind::CString,
+            value,
+            offset,
+            file: self.file,
+        })
     }
 }
 
