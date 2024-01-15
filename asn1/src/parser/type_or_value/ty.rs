@@ -1,19 +1,21 @@
 use crate::{cst::Asn1Tag, token::TokenKind};
 
-use super::{Parser, Result, TypeOrValue};
+use super::{Parser, Result, TypeOrValue, TypeOrValueResult};
 
 impl<'a> Parser<'a> {
     /// Integer type definition, including named numbers
-    pub(super) fn integer_type(&mut self) -> Result {
+    pub(super) fn integer_type(&mut self, subsequent: &[TokenKind]) -> Result {
         self.start_temp_vec(Asn1Tag::IntegerType)?;
 
         self.next(&[TokenKind::KwInteger])?;
 
-        // TODO: add expected `{` after integer type to anything parsed after
-        // an integer type definition, but a pain to put it inside the parser as
-        // a check would have to be added after every type parse location
+        let mut kind = subsequent.to_vec();
+        kind.push(TokenKind::LeftCurly);
 
-        if self.next(&[TokenKind::LeftCurly]).is_ok() {
+        let tok = self.peek(kind)?;
+        if tok.kind == TokenKind::LeftCurly {
+            self.next(&[TokenKind::LeftCurly])?;
+
             loop {
                 self.named_number(false)?;
 
@@ -155,28 +157,33 @@ impl<'a> Parser<'a> {
     fn exception_spec(&mut self, subsequent: &[TokenKind]) -> Result<bool> {
         self.start_temp_vec(Asn1Tag::ExceptionSpec)?;
 
-        if self.next(&[TokenKind::Exclamation]).is_err() {
+        let mut kind = subsequent.to_vec();
+        kind.push(TokenKind::Exclamation);
+
+        let tok = self.peek(kind)?;
+        if tok.kind != TokenKind::Exclamation {
             self.end_temp_vec(Asn1Tag::ExceptionSpec);
             return Ok(false);
         }
+        self.next(&[TokenKind::Exclamation])?;
 
         // TODO: Defined value option
         // = external value reference
         // | value reference
 
-        if self.peek(&[TokenKind::Hyphen, TokenKind::Number]).is_ok() {
+        let res = self.type_or_value(TypeOrValue {
+            is_type: true,
+            is_value: false,
+            alternative: &[TokenKind::Hyphen, TokenKind::Number],
+            subsequent: &[TokenKind::Colon],
+        })?;
+
+        if matches!(res, TypeOrValueResult::Alternate(_)) {
             let tok = self.next(&[TokenKind::Hyphen, TokenKind::Number])?;
             if tok.kind == TokenKind::Hyphen {
                 self.next(&[TokenKind::Number])?;
             }
         } else {
-            self.type_or_value(TypeOrValue {
-                is_type: true,
-                is_value: false,
-                alternative: &[],
-                subsequent: &[TokenKind::Colon],
-            })?;
-
             self.next(&[TokenKind::Colon])?;
             self.type_or_value(TypeOrValue {
                 is_type: false,
@@ -208,16 +215,24 @@ impl<'a> Parser<'a> {
     ///   | ParameterizedType
     ///   | ParameterizedValueSetType
     /// ```
-    pub(super) fn defined_type(&mut self) -> Result {
+    pub(super) fn defined_type(&mut self, subsequent: &[TokenKind]) -> Result {
         self.start_temp_vec(Asn1Tag::DefinedType)?;
 
+        let mut kind = subsequent.to_vec();
+        kind.push(TokenKind::Dot);
+
         self.next(&[TokenKind::TypeOrModuleRef])?;
-        if self.peek(&[TokenKind::Dot]).is_ok() {
+        let tok = self.peek(kind)?;
+        if tok.kind == TokenKind::Dot {
             self.next(&[TokenKind::Dot])?;
             self.next(&[TokenKind::TypeOrModuleRef])?;
         }
 
-        if self.peek(&[TokenKind::LeftCurly]).is_ok() {
+        let mut kind = subsequent.to_vec();
+        kind.push(TokenKind::LeftCurly);
+
+        let tok = self.peek(kind)?;
+        if tok.kind == TokenKind::LeftCurly {
             self.actual_parameter_list()?;
         }
 

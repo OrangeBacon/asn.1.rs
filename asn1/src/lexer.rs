@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     token::{self, Token, TokenKind},
-    util::{Peek, Peekable},
+    util::{CowVec, Peek, Peekable},
 };
 
 /// State for converting a source string into a token stream
@@ -28,11 +28,11 @@ pub struct Lexer<'a> {
     identifier: Option<(usize, Token<'a>)>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LexerError {
     /// Unable to lex one of the token kinds at a given offset into a file
     Expected {
-        kind: &'static [TokenKind],
+        kind: CowVec<TokenKind>,
         offset: usize,
         file: usize,
     },

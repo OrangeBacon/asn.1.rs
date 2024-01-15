@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, ops::Deref};
 
 /// Iterator extension trait for peekable iterators
 pub trait Peek: Iterator
@@ -49,5 +49,53 @@ impl<I: Iterator> Peekable<I> {
         }
 
         Some(&self.cache[n])
+    }
+}
+
+/// Version of std's cow specialised for slices
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum CowVec<T: 'static> {
+    Borrowed(&'static [T]),
+    Owned(Vec<T>),
+}
+
+impl<T> From<Vec<T>> for CowVec<T> {
+    fn from(value: Vec<T>) -> Self {
+        Self::Owned(value)
+    }
+}
+
+impl<T> From<&'static [T]> for CowVec<T> {
+    fn from(value: &'static [T]) -> Self {
+        Self::Borrowed(value)
+    }
+}
+
+impl<T> From<&'static mut [T]> for CowVec<T> {
+    fn from(value: &'static mut [T]) -> Self {
+        Self::Borrowed(value)
+    }
+}
+
+impl<const N: usize, T> From<&'static [T; N]> for CowVec<T> {
+    fn from(value: &'static [T; N]) -> Self {
+        Self::Borrowed(value)
+    }
+}
+
+impl<const N: usize, T> From<&'static mut [T; N]> for CowVec<T> {
+    fn from(value: &'static mut [T; N]) -> Self {
+        Self::Borrowed(value)
+    }
+}
+
+impl<T> Deref for CowVec<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            CowVec::Borrowed(b) => b,
+            CowVec::Owned(o) => o,
+        }
     }
 }

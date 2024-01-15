@@ -72,25 +72,27 @@ impl<'a> Parser<'a> {
     pub(super) fn symbols_imported(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::SymbolsFromModuleList)?;
 
+        let kinds = &[
+            TokenKind::TypeOrModuleRef,
+            TokenKind::ValueRefOrIdent,
+            TokenKind::SemiColon,
+            TokenKind::Comma,
+            TokenKind::KwFrom,
+            TokenKind::KwWith,
+            TokenKind::Dot,
+            TokenKind::Number,
+            TokenKind::LeftCurly,
+            TokenKind::RightCurly,
+            TokenKind::LeftParen,
+            TokenKind::RightParen,
+        ];
+
         loop {
-            let tok = self.peek(&[
-                TokenKind::TypeOrModuleRef,
-                TokenKind::ValueRefOrIdent,
-                TokenKind::SemiColon,
-                TokenKind::Comma,
-                TokenKind::KwFrom,
-                TokenKind::KwWith,
-                TokenKind::Dot,
-                TokenKind::Number,
-                TokenKind::LeftCurly,
-                TokenKind::RightCurly,
-                TokenKind::LeftParen,
-                TokenKind::RightParen,
-            ])?;
+            let tok = self.peek(kinds)?;
             if tok.kind == TokenKind::SemiColon {
                 break;
             }
-            self.next(Vec::from([tok.kind]).leak())?;
+            self.next(kinds)?;
         }
 
         self.end_temp_vec(Asn1Tag::SymbolsFromModuleList);

@@ -8,6 +8,7 @@ use crate::{
     cst::{Asn1, Asn1Tag, TreeContent},
     lexer::{Lexer, LexerError, Result},
     token::{Token, TokenKind},
+    util::CowVec,
 };
 
 /// Parser for ASN.1 definition files
@@ -71,7 +72,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Get the next token that is not a comment directly from the lexer.
-    fn next(&mut self, kind: &'static [TokenKind]) -> Result<Token<'a>> {
+    fn next(&mut self, kind: impl Into<CowVec<TokenKind>>) -> Result<Token<'a>> {
         self.peek(kind)?;
 
         loop {
@@ -85,7 +86,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek a token without consuming it
-    fn peek(&mut self, kind: &'static [TokenKind]) -> Result<Token<'a>> {
+    fn peek(&mut self, kind: impl Into<CowVec<TokenKind>>) -> Result<Token<'a>> {
+        let kind = kind.into();
+
         let peek = self.lexer.peek()?;
 
         if kind.contains(&peek.kind) {

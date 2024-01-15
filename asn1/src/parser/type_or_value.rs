@@ -82,8 +82,6 @@ impl<'a> Parser<'a> {
         // sequence of, set, set of, prefixed, time, time of day, type from object,
         // value set from objects, constrained type, parameterized type
 
-        // TODO: remove all calls to leak
-
         let kind = match (expecting.is_type, expecting.is_value) {
             (true, true) => both_start(),
             (true, false) => TYPE_START,
@@ -107,7 +105,7 @@ impl<'a> Parser<'a> {
         let mut kind = kind.to_owned();
         kind.extend(expecting.alternative);
 
-        let tok = self.peek(kind.leak())?;
+        let tok = self.peek(kind)?;
 
         let parse_kind;
 
@@ -139,13 +137,13 @@ impl<'a> Parser<'a> {
             }
             TokenKind::KwTrue | TokenKind::KwFalse if expecting.is_value => {
                 parse_kind = self.start_value()?;
-                self.next(Vec::from([tok.kind]).leak())?;
+                self.next(&[TokenKind::KwTrue, TokenKind::KwFalse])?;
             }
 
             // types
             TokenKind::KwInteger if expecting.is_type => {
                 parse_kind = self.start_type()?;
-                self.integer_type()?;
+                self.integer_type(expecting.subsequent)?;
             }
             TokenKind::KwEnumerated if expecting.is_type => {
                 parse_kind = self.start_type()?;
@@ -157,7 +155,7 @@ impl<'a> Parser<'a> {
             }
             TokenKind::TypeOrModuleRef if expecting.is_type => {
                 parse_kind = self.start_type()?;
-                self.defined_type()?
+                self.defined_type(expecting.subsequent)?
             }
 
             TokenKind::KwBoolean
@@ -169,10 +167,17 @@ impl<'a> Parser<'a> {
                 if expecting.is_type =>
             {
                 parse_kind = self.start_type()?;
-                self.next(Vec::from([tok.kind]).leak())?;
+                self.next(&[
+                    TokenKind::KwBoolean,
+                    TokenKind::KwNull,
+                    TokenKind::KwOidIri,
+                    TokenKind::KwGeneralizedTime,
+                    TokenKind::KwUTCTime,
+                    TokenKind::KwObjectDescriptor,
+                ])?;
             }
             _ => {
-                self.peek(expecting.alternative.to_owned().leak())?;
+                self.peek(expecting.alternative.to_owned())?;
                 return Ok(TypeOrValueResult::Alternate(tok.kind));
             }
         }
