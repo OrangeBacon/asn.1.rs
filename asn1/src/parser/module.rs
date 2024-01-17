@@ -251,9 +251,9 @@ impl<'a> Parser<'a> {
 
                 let ty = self.type_or_value(TypeOrValue {
                     is_type: true,
-                    is_value: false,
                     alternative: &[TokenKind::Assignment],
                     subsequent: &[TokenKind::Assignment],
+                    ..Default::default()
                 })?;
 
                 self.next(&[TokenKind::Assignment])?;
@@ -261,13 +261,12 @@ impl<'a> Parser<'a> {
                 if ty.is_assign() {
                     self.type_or_value(TypeOrValue {
                         is_type: true,
-                        is_value: false,
-                        alternative: &[],
                         subsequent: &[
                             TokenKind::TypeOrModuleRef,
                             TokenKind::ValueRefOrIdent,
                             TokenKind::KwEnd,
                         ],
+                        ..Default::default()
                     })?;
                 } else {
                     self.next(&[TokenKind::LeftCurly])?;
@@ -282,9 +281,9 @@ impl<'a> Parser<'a> {
 
                 let ty = self.type_or_value(TypeOrValue {
                     is_type: true,
-                    is_value: false,
                     alternative: &[TokenKind::Assignment],
                     subsequent: &[TokenKind::Assignment],
+                    ..Default::default()
                 })?;
                 self.next(&[TokenKind::Assignment])?;
 
@@ -293,14 +292,13 @@ impl<'a> Parser<'a> {
                     todo!("XML value")
                 } else {
                     self.type_or_value(TypeOrValue {
-                        is_type: false,
                         is_value: true,
-                        alternative: &[],
                         subsequent: &[
                             TokenKind::TypeOrModuleRef,
                             TokenKind::ValueRefOrIdent,
                             TokenKind::KwEnd,
                         ],
+                        ..Default::default()
                     })?;
                 }
                 self.end_temp_vec(Asn1Tag::ValueAssignment)

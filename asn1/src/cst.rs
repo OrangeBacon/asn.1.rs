@@ -55,7 +55,7 @@ pub enum Asn1Tag {
     ExceptionSpec,
     NamedNumber,
     ObjectIDType,
-    DefinedType,
+    Defined,
     SelectionType,
 
     // value

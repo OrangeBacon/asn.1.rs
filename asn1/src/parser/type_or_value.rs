@@ -1,7 +1,7 @@
 mod ty;
 mod value;
 
-use std::sync::OnceLock;
+use std::{collections::HashSet, sync::OnceLock};
 
 use crate::{cst::Asn1Tag, token::TokenKind};
 
@@ -16,11 +16,19 @@ pub(super) struct TypeOrValue<'a> {
     /// If true, accept a value declaration
     pub is_value: bool,
 
+    /// If true accept a defined value
+    pub is_defined_value: bool,
+
     /// Alternative tokens that could appear instead of a type or value
     pub alternative: &'a [TokenKind],
 
     /// The tokens that are permissible after a type or value has finished parsing
     pub subsequent: &'a [TokenKind],
+
+    /// The tokens that are permissible after a defined value has finished parsing.
+    /// This overrides `subsequent` in the case that is_defined_value is true
+    /// and a defined value is being matched.
+    pub defined_subsequent: &'a [TokenKind],
 }
 
 /// What was parsed by the type or value parser
@@ -64,8 +72,10 @@ const VALUE_START: &[TokenKind] = &[
     TokenKind::KwNull,
     TokenKind::Number,
     TokenKind::Hyphen,
-    TokenKind::ValueRefOrIdent,
     TokenKind::LeftCurly,
+    // referenced value
+    TokenKind::TypeOrModuleRef,
+    TokenKind::ValueRefOrIdent,
 ];
 
 impl<'a> Parser<'a> {
@@ -86,20 +96,13 @@ impl<'a> Parser<'a> {
             (true, true) => both_start(),
             (true, false) => TYPE_START,
             (false, true) => VALUE_START,
-
-            // should not reach this case as this function should never be called
-            // to parse neither a type nor a value, so pick a default value
-            (false, false) => &[],
-        };
-
-        let ambiguous_tag = match (expecting.is_type, expecting.is_value) {
-            (true, true) => Asn1Tag::TypeOrValue,
-            (true, false) => Asn1Tag::Type,
-            (false, true) => Asn1Tag::Value,
-
-            // should not reach this case as this function should never be called
-            // to parse neither a type nor a value, so pick a default value
-            (false, false) => Asn1Tag::TypeOrValue,
+            (false, false) => {
+                if expecting.is_defined_value {
+                    &[TokenKind::TypeOrModuleRef, TokenKind::ValueRefOrIdent][..]
+                } else {
+                    &[]
+                }
+            }
         };
 
         let mut kind = kind.to_owned();
@@ -107,55 +110,79 @@ impl<'a> Parser<'a> {
 
         let tok = self.peek(kind)?;
 
-        let parse_kind;
-
         // TODO: distinguish between integer ident and selection ident
         // TokenKind::ValueRefOrIdent => self.selection_type(expecting.subsequent)?,
 
-        match tok.kind {
+        Ok(match tok.kind {
             // either
             TokenKind::KwNull if expecting.is_type || expecting.is_value => {
-                self.start_temp_vec(ambiguous_tag)?;
-                parse_kind = TypeOrValueResult::Ambiguous;
+                let tag = if expecting.is_type && expecting.is_value {
+                    Asn1Tag::TypeOrValue
+                } else if expecting.is_type {
+                    Asn1Tag::Type
+                } else {
+                    Asn1Tag::Value
+                };
+                self.start_temp_vec(tag)?;
                 self.next(&[TokenKind::KwNull])?;
+                self.end_temp_vec(tag);
+                TypeOrValueResult::Ambiguous
+            }
+            TokenKind::TypeOrModuleRef
+                if expecting.is_type || expecting.is_value || expecting.is_defined_value =>
+            {
+                self.start_temp_vec(Asn1Tag::TypeOrValue)?;
+                let res = self.defined(expecting)?;
+                self.end_temp_vec(Asn1Tag::TypeOrValue);
+                res
             }
 
             // values
             TokenKind::Number | TokenKind::Hyphen | TokenKind::ValueRefOrIdent
                 if expecting.is_value =>
             {
-                parse_kind = self.start_value()?;
-                self.integer_value()?
+                self.start_temp_vec(Asn1Tag::Value)?;
+                self.integer_value()?;
+                self.end_temp_vec(Asn1Tag::Value);
+                TypeOrValueResult::Value
             }
             TokenKind::LeftCurly if expecting.is_value => {
-                parse_kind = self.start_value()?;
+                self.start_temp_vec(Asn1Tag::Value)?;
                 self.object_identifier_value()?;
+                self.end_temp_vec(Asn1Tag::Value);
+                TypeOrValueResult::Value
             }
             TokenKind::CString if expecting.is_value => {
-                parse_kind = self.start_value()?;
+                self.start_temp_vec(Asn1Tag::Value)?;
                 self.next(&[TokenKind::CString])?;
+                self.end_temp_vec(Asn1Tag::Value);
+                TypeOrValueResult::Value
             }
             TokenKind::KwTrue | TokenKind::KwFalse if expecting.is_value => {
-                parse_kind = self.start_value()?;
+                self.start_temp_vec(Asn1Tag::Value)?;
                 self.next(&[TokenKind::KwTrue, TokenKind::KwFalse])?;
+                self.end_temp_vec(Asn1Tag::Value);
+                TypeOrValueResult::Value
             }
 
             // types
             TokenKind::KwInteger if expecting.is_type => {
-                parse_kind = self.start_type()?;
+                self.start_temp_vec(Asn1Tag::Type)?;
                 self.integer_type(expecting.subsequent)?;
+                self.end_temp_vec(Asn1Tag::Type);
+                TypeOrValueResult::Type
             }
             TokenKind::KwEnumerated if expecting.is_type => {
-                parse_kind = self.start_type()?;
+                self.start_temp_vec(Asn1Tag::Type)?;
                 self.enumerated_type()?;
+                self.end_temp_vec(Asn1Tag::Type);
+                TypeOrValueResult::Type
             }
             TokenKind::KwObject if expecting.is_type => {
-                parse_kind = self.start_type()?;
-                self.object_identifier_type()?
-            }
-            TokenKind::TypeOrModuleRef if expecting.is_type => {
-                parse_kind = self.start_type()?;
-                self.defined_type(expecting.subsequent)?
+                self.start_temp_vec(Asn1Tag::Type)?;
+                self.object_identifier_type()?;
+                self.end_temp_vec(Asn1Tag::Type);
+                TypeOrValueResult::Type
             }
 
             TokenKind::KwBoolean
@@ -166,7 +193,7 @@ impl<'a> Parser<'a> {
             | TokenKind::KwObjectDescriptor
                 if expecting.is_type =>
             {
-                parse_kind = self.start_type()?;
+                self.start_temp_vec(Asn1Tag::Type)?;
                 self.next(&[
                     TokenKind::KwBoolean,
                     TokenKind::KwNull,
@@ -175,32 +202,81 @@ impl<'a> Parser<'a> {
                     TokenKind::KwUTCTime,
                     TokenKind::KwObjectDescriptor,
                 ])?;
+                self.end_temp_vec(Asn1Tag::Type);
+                TypeOrValueResult::Type
             }
             _ => {
                 self.peek(expecting.alternative.to_owned())?;
-                return Ok(TypeOrValueResult::Alternate(tok.kind));
+                TypeOrValueResult::Alternate(tok.kind)
             }
+        })
+    }
+
+    /// Parse a reference to a previously defined type or value.
+    /// ```bnf
+    /// DefinedType ::=
+    ///     ExternalTypeReference
+    ///   | type_reference
+    ///   | ParameterizedType
+    ///   | ParameterizedValueSetType
+    ///
+    /// DefinedValue ::=
+    ///     ExternalValueReference
+    ///   | value_reference
+    ///   | ParameterizedValue
+    /// ```
+    fn defined(&mut self, expecting: TypeOrValue) -> Result<TypeOrValueResult> {
+        self.start_temp_vec(Asn1Tag::Defined)?;
+
+        let start_kind = match (
+            expecting.is_type,
+            expecting.is_value || expecting.is_defined_value,
+        ) {
+            (true, false) => &[TokenKind::TypeOrModuleRef][..],
+            (true, true) => &[TokenKind::TypeOrModuleRef, TokenKind::ValueRefOrIdent],
+            (false, true) => &[TokenKind::TypeOrModuleRef, TokenKind::ValueRefOrIdent],
+            (false, false) => &[],
+        };
+        let start_tok = self.next(start_kind)?;
+
+        let mut ret;
+
+        if start_tok.kind == TokenKind::TypeOrModuleRef {
+            ret = TypeOrValueResult::Type;
+
+            let tok = if expecting.is_type {
+                let mut kind = expecting.subsequent.to_vec();
+                kind.push(TokenKind::Dot);
+                kind.push(TokenKind::LeftCurly);
+                self.peek(kind)?
+            } else {
+                self.peek(&[TokenKind::Dot])?
+            };
+
+            if tok.kind == TokenKind::Dot {
+                self.next(&[TokenKind::Dot])?;
+                if self.next(start_kind)?.kind == TokenKind::ValueRefOrIdent {
+                    ret = TypeOrValueResult::Value;
+                }
+            }
+        } else {
+            ret = TypeOrValueResult::Value
         }
 
-        self.end_temp_vec(match parse_kind {
-            TypeOrValueResult::Type => Asn1Tag::Type,
-            TypeOrValueResult::Value => Asn1Tag::Value,
-            TypeOrValueResult::Ambiguous | TypeOrValueResult::Alternate(_) => ambiguous_tag,
-        });
+        let mut kind = if ret == TypeOrValueResult::Value && expecting.is_defined_value {
+            expecting.defined_subsequent.to_vec()
+        } else {
+            expecting.subsequent.to_vec()
+        };
+        kind.push(TokenKind::LeftCurly);
 
-        Ok(parse_kind)
-    }
+        let tok = self.peek(kind)?;
+        if tok.kind == TokenKind::LeftCurly {
+            self.actual_parameter_list()?;
+        }
 
-    /// Start a temporary vector for a type declaration and return result::type
-    fn start_type(&mut self) -> Result<TypeOrValueResult> {
-        self.start_temp_vec(Asn1Tag::Type)?;
-        Ok(TypeOrValueResult::Type)
-    }
-
-    /// Start a temporary vector for a value declaration and return result::value
-    fn start_value(&mut self) -> Result<TypeOrValueResult> {
-        self.start_temp_vec(Asn1Tag::Value)?;
-        Ok(TypeOrValueResult::Value)
+        self.end_temp_vec(Asn1Tag::Defined);
+        Ok(ret)
     }
 }
 
@@ -215,5 +291,13 @@ impl TypeOrValueResult {
 /// is not possible without transmute fuckery i'd rather avoid, even if it works.
 fn both_start() -> &'static [TokenKind] {
     static BOTH_START: OnceLock<Vec<TokenKind>> = OnceLock::new();
-    BOTH_START.get_or_init(|| TYPE_START.iter().chain(VALUE_START).copied().collect())
+    BOTH_START.get_or_init(|| {
+        TYPE_START
+            .iter()
+            .chain(VALUE_START)
+            .copied()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect()
+    })
 }

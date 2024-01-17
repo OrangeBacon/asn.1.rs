@@ -61,4 +61,8 @@ MyModule DEFINITIONS ::= BEGIN IMPORTS a, b FROM A A.a WITH SUCCESSORS c, d FROM
 
 TestModule2 DEFINITIONS ::= BEGIN
     Test BOOLEAN ::= {}
+    foo TestModule2.Test ::= TestModule2.foo
+    bar ENUMERATED {
+        a(5), b, c(7), ... !TestModule2.a, z(3)
+    } ::= a
 END -- hi --

@@ -167,15 +167,13 @@ impl<'a> Parser<'a> {
         }
         self.next(&[TokenKind::Exclamation])?;
 
-        // TODO: Defined value option
-        // = external value reference
-        // | value reference
-
         let res = self.type_or_value(TypeOrValue {
             is_type: true,
-            is_value: false,
+            is_defined_value: true,
             alternative: &[TokenKind::Hyphen, TokenKind::Number],
             subsequent: &[TokenKind::Colon],
+            defined_subsequent: subsequent,
+            ..Default::default()
         })?;
 
         if matches!(res, TypeOrValueResult::Alternate(_)) {
@@ -183,13 +181,12 @@ impl<'a> Parser<'a> {
             if tok.kind == TokenKind::Hyphen {
                 self.next(&[TokenKind::Number])?;
             }
-        } else {
+        } else if res != TypeOrValueResult::Value {
             self.next(&[TokenKind::Colon])?;
             self.type_or_value(TypeOrValue {
-                is_type: false,
                 is_value: true,
-                alternative: &[],
                 subsequent,
+                ..Default::default()
             })?;
         }
 
@@ -207,39 +204,6 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    /// Parse a reference to a previously defined type.
-    /// ```bnf
-    /// DefinedType ::=
-    ///     ExternalTypeReference
-    ///   | type_reference
-    ///   | ParameterizedType
-    ///   | ParameterizedValueSetType
-    /// ```
-    pub(super) fn defined_type(&mut self, subsequent: &[TokenKind]) -> Result {
-        self.start_temp_vec(Asn1Tag::DefinedType)?;
-
-        let mut kind = subsequent.to_vec();
-        kind.push(TokenKind::Dot);
-
-        self.next(&[TokenKind::TypeOrModuleRef])?;
-        let tok = self.peek(kind)?;
-        if tok.kind == TokenKind::Dot {
-            self.next(&[TokenKind::Dot])?;
-            self.next(&[TokenKind::TypeOrModuleRef])?;
-        }
-
-        let mut kind = subsequent.to_vec();
-        kind.push(TokenKind::LeftCurly);
-
-        let tok = self.peek(kind)?;
-        if tok.kind == TokenKind::LeftCurly {
-            self.actual_parameter_list()?;
-        }
-
-        self.end_temp_vec(Asn1Tag::DefinedType);
-        Ok(())
-    }
-
     /// Parse a selection type
     /// ```bnf
     /// SelectionType ::= identifier "<" Type
@@ -251,9 +215,8 @@ impl<'a> Parser<'a> {
         self.next(&[TokenKind::Less])?;
         self.type_or_value(TypeOrValue {
             is_type: true,
-            is_value: false,
-            alternative: &[],
             subsequent,
+            ..Default::default()
         })?;
 
         self.end_temp_vec(Asn1Tag::SelectionType);
