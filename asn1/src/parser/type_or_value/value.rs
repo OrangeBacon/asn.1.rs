@@ -23,11 +23,7 @@ impl<'a> Parser<'a> {
     pub(super) fn integer_value(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::IntegerValue)?;
 
-        let tok = self.next(&[
-            TokenKind::Number,
-            TokenKind::Hyphen,
-            TokenKind::ValueRefOrIdent,
-        ])?;
+        let tok = self.next(&[TokenKind::Number, TokenKind::Hyphen])?;
 
         if tok.kind == TokenKind::Hyphen {
             self.next(&[TokenKind::Number])?;
@@ -83,10 +79,6 @@ impl<'a> Parser<'a> {
     /// | ident(number)
     /// | ident(defined value)
     /// | defined value
-    ///
-    /// Defined value =
-    /// | value reference
-    /// | module reference . value reference
     ///
     /// Ident and value reference are the same token, therefore if one of them
     /// matches it could be ambiguous, so we assume it always takes the ident

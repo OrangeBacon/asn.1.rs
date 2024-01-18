@@ -65,4 +65,6 @@ TestModule2 DEFINITIONS ::= BEGIN
     bar ENUMERATED {
         a(5), b, c(7), ... !TestModule2.a, z(3)
     } ::= a
+    ThisType ::= a < b < INTEGER
+    val ThisType ::= a
 END -- hi --

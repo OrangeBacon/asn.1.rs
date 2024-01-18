@@ -4,6 +4,10 @@ ASN.1 parser written in rust.
 
 # Standards
 - ITU-T X.680 (02/2021) Information technology - Abstract Syntax Notation One (ASN.1): Specification of basic notation
+- ITU-T X.681 (02/2021) Information technology - Abstract Syntax Notation One (ASN.1): Information object
+specification
+- ITU-T X.682 (02/2021) Information technology - Abstract Syntax Notation One (ASN.1): Constraint specification
+- ITU-T X.683 (02/2021) Information technology - Abstract Syntax Notation One (ASN.1): Parameterization of ASN.1 specifications
 
 ## Secondary References
 - ITU-T X.660 (07/2011) Information technology – Procedures for the operation of object identifier registration authorities: General procedures and top arcs of the international object identifier tree

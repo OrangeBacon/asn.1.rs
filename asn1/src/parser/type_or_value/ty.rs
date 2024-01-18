@@ -204,14 +204,14 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    /// Parse a selection type
+    /// Parse a selection type.  Assumes that the identifier has already been
+    /// consumed earlier in the parser.
     /// ```bnf
     /// SelectionType ::= identifier "<" Type
     /// ```
     pub(super) fn selection_type(&mut self, subsequent: &[TokenKind]) -> Result {
         self.start_temp_vec(Asn1Tag::SelectionType)?;
 
-        self.next(&[TokenKind::ValueRefOrIdent])?;
         self.next(&[TokenKind::Less])?;
         self.type_or_value(TypeOrValue {
             is_type: true,
