@@ -63,6 +63,7 @@ pub enum Asn1Tag {
     IntegerValue,
     BracedValue,
     ChoiceValue,
+    ContainingValue,
 
     // xml value
     XMLTypedValue,

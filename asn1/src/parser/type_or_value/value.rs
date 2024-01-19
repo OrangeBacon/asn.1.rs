@@ -63,4 +63,20 @@ impl<'a> Parser<'a> {
         self.end_temp_vec(Asn1Tag::ChoiceValue);
         Ok(())
     }
+
+    /// Parse the `CONTAINING Value` options within bit string and octet string
+    pub(super) fn containing_value(&mut self, subsequent: &[TokenKind]) -> Result {
+        self.start_temp_vec(Asn1Tag::ContainingValue)?;
+
+        self.next(&[TokenKind::KwContaining])?;
+
+        self.type_or_value(TypeOrValue {
+            is_value: true,
+            subsequent,
+            ..Default::default()
+        })?;
+
+        self.end_temp_vec(Asn1Tag::ContainingValue);
+        Ok(())
+    }
 }

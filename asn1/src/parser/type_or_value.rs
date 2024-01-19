@@ -73,6 +73,8 @@ const VALUE_START: &[TokenKind] = &[
     TokenKind::Number,
     TokenKind::Hyphen,
     TokenKind::LeftCurly,
+    TokenKind::BHString,
+    TokenKind::KwContaining,
     // referenced value
     TokenKind::TypeOrModuleRef,
     TokenKind::ValueRefOrIdent,
@@ -81,8 +83,7 @@ const VALUE_START: &[TokenKind] = &[
 impl<'a> Parser<'a> {
     /// Parse either a type or a value declaration
     pub(super) fn type_or_value(&mut self, expecting: TypeOrValue) -> Result<TypeOrValueResult> {
-        // TODO value: bit string, character string, instance of,
-        // octet string, real, time, value from object, object class field value
+        // TODO value: instance of, real, time, value from object, object class field value
 
         // TODO type: Bit string, character string, choice, date, date time, duration
         // embedded pdv, external, instance of, object class field,
@@ -165,6 +166,18 @@ impl<'a> Parser<'a> {
             TokenKind::KwTrue | TokenKind::KwFalse if expecting.is_value => {
                 self.start_temp_vec(Asn1Tag::Value)?;
                 self.next(&[TokenKind::KwTrue, TokenKind::KwFalse])?;
+                self.end_temp_vec(Asn1Tag::Value);
+                TypeOrValueResult::Value
+            }
+            TokenKind::BHString if expecting.is_value => {
+                self.start_temp_vec(Asn1Tag::Value)?;
+                self.next(&[TokenKind::BHString])?;
+                self.end_temp_vec(Asn1Tag::Value);
+                TypeOrValueResult::Value
+            }
+            TokenKind::KwContaining if expecting.is_value => {
+                self.start_temp_vec(Asn1Tag::Value)?;
+                self.containing_value(expecting.subsequent)?;
                 self.end_temp_vec(Asn1Tag::Value);
                 TypeOrValueResult::Value
             }

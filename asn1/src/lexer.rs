@@ -52,6 +52,16 @@ pub enum LexerError {
         file: usize,
     },
 
+    NonTerminatedString {
+        start_offset: usize,
+        file: usize,
+    },
+
+    NonTerminatedBHString {
+        start_offset: usize,
+        file: usize,
+    },
+
     ParserDepthExceeded,
 }
 
@@ -132,7 +142,8 @@ impl<'a> Lexer<'a> {
 
             'a'..='z' | 'A'..='Z' => self.identifier(c, offset),
 
-            '"' => self.c_string(offset),
+            '"' => self.c_string(offset)?,
+            '\'' => self.bh_string(offset)?,
 
             '0'..='9' => self.number(offset),
 
@@ -386,7 +397,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Parse a character string literal
-    fn c_string(&mut self, offset: usize) -> Token<'a> {
+    fn c_string(&mut self, offset: usize) -> Result<Token<'a>> {
         let value = &self.source[offset..];
         let mut len = 1;
 
@@ -403,13 +414,56 @@ impl<'a> Lexer<'a> {
         }
 
         let value = &value[..len];
+        if !value.ends_with('"') {
+            return Err(LexerError::NonTerminatedString {
+                start_offset: offset,
+                file: self.file,
+            });
+        }
 
-        Token {
+        Ok(Token {
             kind: TokenKind::CString,
             value,
             offset,
             file: self.file,
+        })
+    }
+
+    /// Parse either a b_string or an h_string (binary string or hexadecimal string)
+    fn bh_string(&mut self, offset: usize) -> Result<Token<'a>> {
+        let value = &self.source[offset..];
+        let mut len = 1;
+
+        while let Some(&(_, ch)) = self.chars.peek(len) {
+            len += ch.len_utf8();
+
+            if ch == '\'' {
+                break;
+            }
         }
+
+        // 'b' or 'h' suffix
+        if let Some(&(_, ch)) = self.chars.peek(len) {
+            len += ch.len_utf8();
+        }
+
+        // validate the end of the string now, but the content of the string is
+        // ignored here, so must be checked later.
+
+        let value = &value[..len];
+        if !value.ends_with("'B") && !value.ends_with("'H") {
+            return Err(LexerError::NonTerminatedBHString {
+                start_offset: offset,
+                file: self.file,
+            });
+        }
+
+        Ok(Token {
+            kind: TokenKind::BHString,
+            value,
+            offset,
+            file: self.file,
+        })
     }
 }
 

@@ -42,6 +42,7 @@ pub enum TokenKind {
     XMLAsn1TypeName,
     XMLBoolNumber,
     CString,
+    BHString,
 
     // Keywords
     // "ABSENT",
@@ -60,7 +61,7 @@ pub enum TokenKind {
     // "COMPONENT",
     // "COMPONENTS",
     // "CONSTRAINED",
-    // "CONTAINING",
+    KwContaining,
     // "DATE",
     // "DATE-TIME",
     // "DEFAULT",
@@ -198,7 +199,7 @@ impl TokenBuffer {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 27] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 28] = [
     // "ABSENT",
     // "ABSTRACT-SYNTAX",
     ("ALL", TokenKind::KwAll),
@@ -215,7 +216,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 27] = [
     // "COMPONENT",
     // "COMPONENTS",
     // "CONSTRAINED",
-    // "CONTAINING",
+    ("CONTAINING", TokenKind::KwContaining),
     // "DATE",
     // "DATE-TIME",
     // "DEFAULT",
