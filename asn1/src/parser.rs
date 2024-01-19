@@ -91,7 +91,7 @@ impl<'a> Parser<'a> {
 
         let peek = self.lexer.peek()?;
 
-        if kind.contains(&peek.kind) {
+        if kind.contains(&peek.kind) || kind.is_empty() {
             Ok(peek)
         } else {
             Err(LexerError::Expected {

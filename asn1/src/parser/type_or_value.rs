@@ -154,7 +154,7 @@ impl<'a> Parser<'a> {
             }
             TokenKind::LeftCurly if expecting.is_value => {
                 self.start_temp_vec(Asn1Tag::Value)?;
-                self.object_identifier_value()?;
+                self.braced_value()?;
                 self.end_temp_vec(Asn1Tag::Value);
                 TypeOrValueResult::Value
             }
@@ -302,7 +302,6 @@ impl<'a> Parser<'a> {
             expecting.subsequent.to_vec()
         };
         kind.push(TokenKind::LeftCurly);
-        dbg!(expecting);
         if expecting.is_type {
             kind.push(TokenKind::Less);
         }

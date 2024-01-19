@@ -3,23 +3,6 @@ use crate::{cst::Asn1Tag, token::TokenKind};
 use super::{Parser, Result};
 
 impl<'a> Parser<'a> {
-    /// parse reference to defined value
-    pub(in crate::parser) fn defined_value(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::DefinedValue)?;
-
-        // TODO: parameterized value
-
-        let tok = self.peek(&[TokenKind::ValueRefOrIdent, TokenKind::TypeOrModuleRef])?;
-        if tok.kind == TokenKind::TypeOrModuleRef {
-            self.external_value_reference()?;
-        } else {
-            self.next(&[TokenKind::ValueRefOrIdent])?;
-        }
-
-        self.end_temp_vec(Asn1Tag::DefinedValue);
-        Ok(())
-    }
-
     pub(super) fn integer_value(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::IntegerValue)?;
 
@@ -33,103 +16,31 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    /// Parse a reference to an external value
-    fn external_value_reference(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::ExternalValueReference)?;
-
-        self.next(&[TokenKind::TypeOrModuleRef])?;
-        self.next(&[TokenKind::Dot])?;
-        self.next(&[TokenKind::ValueRefOrIdent])?;
-
-        self.end_temp_vec(Asn1Tag::ExternalValueReference);
-        Ok(())
-    }
-
-    /// Parse an object identifier value
-    pub(in crate::parser) fn object_identifier_value(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::ObjectIDValue)?;
+    /// Parse a value starting and ending with curly braces.  Many different types
+    /// have values between curly braces, where the correct parse cannot be
+    /// determined until the type is known.  This is especially the case where
+    /// class objects with custom syntax are defined.  Therefore, this parser will
+    /// parse all matching values as the same flat list of tokens, to then be
+    /// re-parsed later depending on the type of the value.
+    pub(super) fn braced_value(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::BracedValue)?;
 
         self.next(&[TokenKind::LeftCurly])?;
 
+        let mut depth = 1;
         loop {
-            self.object_id_component()?;
-            let tok = self.peek(&[
-                TokenKind::Number,
-                TokenKind::ValueRefOrIdent,
-                TokenKind::TypeOrModuleRef,
-                TokenKind::RightCurly,
-            ])?;
+            let tok = self.next(&[])?;
             if tok.kind == TokenKind::RightCurly {
+                depth -= 1;
+            } else if tok.kind == TokenKind::LeftCurly {
+                depth += 1;
+            }
+            if depth == 0 {
                 break;
             }
         }
 
-        self.next(&[TokenKind::RightCurly])?;
-
-        self.end_temp_vec(Asn1Tag::ObjectIDValue);
-        Ok(())
-    }
-
-    /// parse a single object ID component, assuming the next token is not a
-    /// closing curly brace.
-    ///
-    /// Object ID component =
-    /// | ident
-    /// | number
-    /// | ident(number)
-    /// | ident(defined value)
-    /// | defined value
-    ///
-    /// Ident and value reference are the same token, therefore if one of them
-    /// matches it could be ambiguous, so we assume it always takes the ident
-    /// option and the value reference part of defined value never matches in
-    /// this function.
-    fn object_id_component(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::ObjectIDComponent)?;
-
-        let tok = self.peek(&[
-            TokenKind::ValueRefOrIdent,
-            TokenKind::Number,
-            TokenKind::ValueRefOrIdent,
-            TokenKind::TypeOrModuleRef,
-            TokenKind::RightCurly,
-        ])?;
-
-        match tok.kind {
-            TokenKind::Number => {
-                self.next(&[TokenKind::Number])?;
-            }
-            TokenKind::TypeOrModuleRef => {
-                self.defined_value()?;
-            }
-            _ => {
-                self.next(&[TokenKind::ValueRefOrIdent])?;
-                let tok = self.peek(&[
-                    TokenKind::LeftParen,
-                    TokenKind::ValueRefOrIdent,
-                    TokenKind::Number,
-                    TokenKind::ValueRefOrIdent,
-                    TokenKind::TypeOrModuleRef,
-                    TokenKind::RightCurly,
-                ])?;
-                if tok.kind == TokenKind::LeftParen {
-                    self.next(&[TokenKind::LeftParen])?;
-                    let tok = self.peek(&[
-                        TokenKind::TypeOrModuleRef,
-                        TokenKind::ValueRefOrIdent,
-                        TokenKind::Number,
-                    ])?;
-                    if tok.kind == TokenKind::Number {
-                        self.next(&[TokenKind::Number])?;
-                    } else {
-                        self.defined_value()?;
-                    }
-                    self.next(&[TokenKind::RightParen])?;
-                }
-            }
-        }
-
-        self.end_temp_vec(Asn1Tag::ObjectIDComponent);
+        self.end_temp_vec(Asn1Tag::BracedValue);
         Ok(())
     }
 }

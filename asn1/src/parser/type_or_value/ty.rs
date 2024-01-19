@@ -129,21 +129,22 @@ impl<'a> Parser<'a> {
         }
         self.next(&[TokenKind::LeftParen])?;
 
-        let tok = self.peek(&[
-            TokenKind::Number,
-            TokenKind::Hyphen,
-            TokenKind::ValueRefOrIdent,
-            TokenKind::TypeOrModuleRef,
-        ])?;
-        match tok.kind {
-            TokenKind::Number => {
+        let tok = self.type_or_value(TypeOrValue {
+            is_defined_value: true,
+            alternative: &[TokenKind::Number, TokenKind::Hyphen],
+            defined_subsequent: &[TokenKind::RightParen],
+            ..Default::default()
+        })?;
+
+        match tok {
+            TypeOrValueResult::Alternate(TokenKind::Number) => {
                 self.next(&[TokenKind::Number])?;
             }
-            TokenKind::Hyphen => {
+            TypeOrValueResult::Alternate(TokenKind::Hyphen) => {
                 self.next(&[TokenKind::Hyphen])?;
                 self.next(&[TokenKind::Number])?;
             }
-            _ => self.defined_value()?,
+            _ => (),
         }
 
         self.next(&[TokenKind::RightParen])?;

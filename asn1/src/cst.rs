@@ -45,6 +45,7 @@ pub enum Asn1Tag {
 
     // type or value
     TypeOrValue,
+    Defined,
 
     // type
     Type,
@@ -55,17 +56,12 @@ pub enum Asn1Tag {
     ExceptionSpec,
     NamedNumber,
     ObjectIDType,
-    Defined,
     SelectionType,
 
     // value
     Value,
-    DefinedValue,
     IntegerValue,
-    IriValue,
-    ExternalValueReference,
-    ObjectIDValue,
-    ObjectIDComponent,
+    BracedValue,
 
     // xml value
     XMLTypedValue,
