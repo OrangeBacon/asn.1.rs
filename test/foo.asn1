@@ -66,5 +66,5 @@ TestModule2 DEFINITIONS ::= BEGIN
         a(5), b, c(7), ... !TestModule2.a, z(3)
     } ::= a
     ThisType ::= a < b < INTEGER
-    val ThisType ::= a
+    val ThisType ::= a : {5,6}
 END -- hi --

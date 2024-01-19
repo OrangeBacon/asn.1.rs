@@ -1,6 +1,6 @@
 use crate::{cst::Asn1Tag, token::TokenKind};
 
-use super::{Parser, Result};
+use super::{Parser, Result, TypeOrValue};
 
 impl<'a> Parser<'a> {
     pub(super) fn integer_value(&mut self) -> Result {
@@ -41,6 +41,26 @@ impl<'a> Parser<'a> {
         }
 
         self.end_temp_vec(Asn1Tag::BracedValue);
+        Ok(())
+    }
+
+    /// Parse the value of a choice type, assuming that the initial identifier
+    /// has already been matched.
+    /// ```asn1
+    /// ChoiceValue ::= identifier ':' Value
+    /// ```
+    pub(super) fn choice_value(&mut self, subsequent: &[TokenKind]) -> Result {
+        self.start_temp_vec(Asn1Tag::ChoiceValue)?;
+
+        self.next(&[TokenKind::Colon])?;
+
+        self.type_or_value(TypeOrValue {
+            is_value: true,
+            subsequent,
+            ..Default::default()
+        })?;
+
+        self.end_temp_vec(Asn1Tag::ChoiceValue);
         Ok(())
     }
 }

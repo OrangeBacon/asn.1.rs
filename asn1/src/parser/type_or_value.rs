@@ -81,10 +81,8 @@ const VALUE_START: &[TokenKind] = &[
 impl<'a> Parser<'a> {
     /// Parse either a type or a value declaration
     pub(super) fn type_or_value(&mut self, expecting: TypeOrValue) -> Result<TypeOrValueResult> {
-        // TODO value: bit string, character string, choice, embedded pdv,
-        // external, instance of, object identifier, octet string, real
-        // relative iri, relative oid, sequence, sequence of, set, set of, prefixed,
-        // time, value from object, object class field value
+        // TODO value: bit string, character string, instance of,
+        // octet string, real, time, value from object, object class field value
 
         // TODO type: Bit string, character string, choice, date, date time, duration
         // embedded pdv, external, instance of, object class field,
@@ -289,6 +287,7 @@ impl<'a> Parser<'a> {
     /// DefinedValue ::= value_reference | ParameterizedValue
     /// IntegerValue ::= identifier
     /// EnumeratedValue ::= identifier
+    /// ChoiceValue ::= identifier ':' Value
     /// SelectionType ::= identifier "<" Type
     /// ```
     /// `IntegerValue`, `EnumeratedValue` and the first option of `DefinedValue`
@@ -301,7 +300,13 @@ impl<'a> Parser<'a> {
         } else {
             expecting.subsequent.to_vec()
         };
-        kind.push(TokenKind::LeftCurly);
+
+        if expecting.is_value {
+            kind.push(TokenKind::Colon);
+        }
+        if expecting.is_value || expecting.is_defined_value {
+            kind.push(TokenKind::LeftCurly);
+        }
         if expecting.is_type {
             kind.push(TokenKind::Less);
         }
@@ -312,6 +317,8 @@ impl<'a> Parser<'a> {
             self.actual_parameter_list()?;
         } else if tok.kind == TokenKind::Less {
             self.selection_type(expecting.subsequent)?;
+        } else if tok.kind == TokenKind::Colon {
+            self.choice_value(expecting.subsequent)?;
         }
 
         Ok(TypeOrValueResult::Ambiguous)
