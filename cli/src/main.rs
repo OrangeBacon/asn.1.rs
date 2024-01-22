@@ -19,10 +19,13 @@ fn main() {
 
     match parser.run() {
         Ok(t) => print!("{t}"),
-        Err(ParserError::Expected { kind, offset, .. }) => {
+        Err(
+            ref err @ (ParserError::Expected { offset, .. }
+            | ParserError::TypeValueError { offset, .. }),
+        ) => {
             let at: String = source[offset..].chars().take(15).collect();
 
-            println!("Expected {{ kind: {kind:?}, at: {at:?} }}");
+            println!("{err:?} = {at:?}");
         }
         Err(e) => println!("{e:?}"),
     }

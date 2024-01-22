@@ -99,3 +99,22 @@ impl<T> Deref for CowVec<T> {
         }
     }
 }
+
+impl<T> Default for CowVec<T> {
+    fn default() -> Self {
+        Self::Borrowed(&[])
+    }
+}
+
+impl<T: Copy> CowVec<T> {
+    /// Append a new vec to this vec, consuming both.
+    pub fn append(self, value: impl Into<Self>) -> Self {
+        let value = value.into();
+
+        if self.is_empty() {
+            value
+        } else {
+            CowVec::Owned(self.iter().chain(&*value).copied().collect())
+        }
+    }
+}

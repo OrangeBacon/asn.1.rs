@@ -1,35 +1,16 @@
+mod builder;
 mod ty;
 mod value;
 
-use std::{collections::HashSet, sync::OnceLock};
+use crate::{
+    cst::Asn1Tag,
+    parser::{Parser, Result},
+    token::TokenKind,
+};
 
-use crate::{cst::Asn1Tag, token::TokenKind};
+pub use self::builder::{TypeOrValue, TypeOrValueOwned, TypeOrValueRef};
 
-use super::{Parser, Result};
-
-/// Information to instruct how a type or a value should be parsed
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub(super) struct TypeOrValue<'a> {
-    /// If true, accept a type declaration
-    pub is_type: bool,
-
-    /// If true, accept a value declaration
-    pub is_value: bool,
-
-    /// If true accept a defined value
-    pub is_defined_value: bool,
-
-    /// Alternative tokens that could appear instead of a type or value
-    pub alternative: &'a [TokenKind],
-
-    /// The tokens that are permissible after a type or value has finished parsing
-    pub subsequent: &'a [TokenKind],
-
-    /// The tokens that are permissible after a defined value has finished parsing.
-    /// This overrides `subsequent` in the case that is_defined_value is true
-    /// and a defined value is being matched.
-    pub defined_subsequent: &'a [TokenKind],
-}
+use super::ParserError;
 
 /// What was parsed by the type or value parser
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -48,41 +29,9 @@ pub(super) enum TypeOrValueResult {
     Alternate(TokenKind),
 }
 
-const TYPE_START: &[TokenKind] = &[
-    // builtin types
-    TokenKind::KwBoolean,
-    TokenKind::KwNull,
-    TokenKind::KwOidIri,
-    TokenKind::KwInteger,
-    TokenKind::KwEnumerated,
-    TokenKind::KwObject,
-    // reference type
-    TokenKind::TypeOrModuleRef,
-    TokenKind::ValueRefOrIdent,
-    // useful type
-    TokenKind::KwGeneralizedTime,
-    TokenKind::KwUTCTime,
-    TokenKind::KwObjectDescriptor,
-];
-
-const VALUE_START: &[TokenKind] = &[
-    TokenKind::CString,
-    TokenKind::KwTrue,
-    TokenKind::KwFalse,
-    TokenKind::KwNull,
-    TokenKind::Number,
-    TokenKind::Hyphen,
-    TokenKind::LeftCurly,
-    TokenKind::BHString,
-    TokenKind::KwContaining,
-    // referenced value
-    TokenKind::TypeOrModuleRef,
-    TokenKind::ValueRefOrIdent,
-];
-
 impl<'a> Parser<'a> {
     /// Parse either a type or a value declaration
-    pub(super) fn type_or_value(&mut self, expecting: TypeOrValue) -> Result<TypeOrValueResult> {
+    pub(super) fn type_or_value(&mut self, expecting: TypeOrValueRef) -> Result<TypeOrValueResult> {
         // TODO value: instance of, real, time, value from object, object class field value
 
         // TODO type: Bit string, character string, choice, date, date time, duration
@@ -91,23 +40,7 @@ impl<'a> Parser<'a> {
         // sequence of, set, set of, prefixed, time, time of day, type from object,
         // value set from objects, constrained type
 
-        let kind = match (expecting.is_type, expecting.is_value) {
-            (true, true) => both_start(),
-            (true, false) => TYPE_START,
-            (false, true) => VALUE_START,
-            (false, false) => {
-                if expecting.is_defined_value {
-                    &[TokenKind::TypeOrModuleRef, TokenKind::ValueRefOrIdent][..]
-                } else {
-                    &[]
-                }
-            }
-        };
-
-        let mut kind = kind.to_owned();
-        kind.extend(expecting.alternative);
-
-        let tok = self.peek(kind)?;
+        let tok = self.peek(&[])?;
 
         Ok(match tok.kind {
             // either
@@ -124,17 +57,13 @@ impl<'a> Parser<'a> {
                 self.end_temp_vec(tag);
                 TypeOrValueResult::Ambiguous
             }
-            TokenKind::TypeOrModuleRef
-                if expecting.is_type || expecting.is_value || expecting.is_defined_value =>
-            {
+            TokenKind::TypeOrModuleRef if expecting.is_type || expecting.is_defined_value => {
                 self.start_temp_vec(Asn1Tag::TypeOrValue)?;
                 let res = self.defined(expecting)?;
                 self.end_temp_vec(Asn1Tag::TypeOrValue);
                 res
             }
-            TokenKind::ValueRefOrIdent
-                if expecting.is_type || expecting.is_value || expecting.is_defined_value =>
-            {
+            TokenKind::ValueRefOrIdent if expecting.is_type || expecting.is_defined_value => {
                 self.start_temp_vec(Asn1Tag::TypeOrValue)?;
                 let res = self.ident_type_value(expecting)?;
                 self.end_temp_vec(Asn1Tag::TypeOrValue);
@@ -219,9 +148,16 @@ impl<'a> Parser<'a> {
                 self.end_temp_vec(Asn1Tag::Type);
                 TypeOrValueResult::Type
             }
-            _ => {
+            kind if expecting.alternative.contains(&kind) => {
                 self.peek(expecting.alternative.to_owned())?;
                 TypeOrValueResult::Alternate(tok.kind)
+            }
+            _ => {
+                return Err(ParserError::TypeValueError {
+                    expecting: expecting.to_owned(),
+                    offset: tok.offset,
+                    file: tok.file,
+                });
             }
         })
     }
@@ -242,7 +178,7 @@ impl<'a> Parser<'a> {
     /// This function only works where the first token is a type reference,
     /// therefore cannot take into account a value reference or a parametrised
     /// value reference.
-    fn defined(&mut self, expecting: TypeOrValue) -> Result<TypeOrValueResult> {
+    fn defined(&mut self, expecting: TypeOrValueRef) -> Result<TypeOrValueResult> {
         self.start_temp_vec(Asn1Tag::Defined)?;
 
         self.next(&[TokenKind::TypeOrModuleRef])?;
@@ -261,10 +197,7 @@ impl<'a> Parser<'a> {
         if tok.kind == TokenKind::Dot {
             self.next(&[TokenKind::Dot])?;
 
-            let kind = match (
-                expecting.is_type,
-                expecting.is_value | expecting.is_defined_value,
-            ) {
+            let kind = match (expecting.is_type, expecting.is_defined_value) {
                 (true, true) => &[TokenKind::ValueRefOrIdent, TokenKind::TypeOrModuleRef][..],
                 (true, false) => &[TokenKind::TypeOrModuleRef],
                 (false, true) => &[TokenKind::ValueRefOrIdent],
@@ -302,7 +235,7 @@ impl<'a> Parser<'a> {
     /// ```
     /// `IntegerValue`, `EnumeratedValue` and the first option of `DefinedValue`
     /// are all identical to the parser so will be distinguished later.
-    fn ident_type_value(&mut self, expecting: TypeOrValue) -> Result<TypeOrValueResult> {
+    fn ident_type_value(&mut self, expecting: TypeOrValueRef) -> Result<TypeOrValueResult> {
         self.next(&[TokenKind::ValueRefOrIdent])?;
 
         let mut kind = if expecting.is_defined_value {
@@ -340,19 +273,4 @@ impl TypeOrValueResult {
     pub fn is_assign(self) -> bool {
         self == TypeOrValueResult::Alternate(TokenKind::Assignment)
     }
-}
-
-/// Concatenate the type and value start arrays at runtime as const array concat
-/// is not possible without transmute fuckery i'd rather avoid, even if it works.
-fn both_start() -> &'static [TokenKind] {
-    static BOTH_START: OnceLock<Vec<TokenKind>> = OnceLock::new();
-    BOTH_START.get_or_init(|| {
-        TYPE_START
-            .iter()
-            .chain(VALUE_START)
-            .copied()
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect()
-    })
 }
