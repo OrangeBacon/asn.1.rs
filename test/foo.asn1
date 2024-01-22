@@ -67,5 +67,5 @@ TestModule2 DEFINITIONS ::= BEGIN
     } ::= a
     ThisType ::= a < b < INTEGER
     val ThisType ::= a : '011001'B
-    val2 Ty ::= CONTAINING 5
+    val2 Ty ::= CONTAINING INTEGER {a(5)} : BOOLEAN : a
 END -- hi --

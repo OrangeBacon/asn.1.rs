@@ -32,7 +32,7 @@ pub(super) enum TypeOrValueResult {
 impl<'a> Parser<'a> {
     /// Parse either a type or a value declaration
     pub(super) fn type_or_value(&mut self, expecting: TypeOrValueRef) -> Result<TypeOrValueResult> {
-        // TODO value: instance of, real, time, value from object, object class field value
+        // TODO value: real, value from object
 
         // TODO type: Bit string, character string, choice, date, date time, duration
         // embedded pdv, external, instance of, object class field,
@@ -109,32 +109,34 @@ impl<'a> Parser<'a> {
             }
 
             // types
-            TokenKind::KwInteger if expecting.is_type => {
+            TokenKind::KwInteger if expecting.is_type || expecting.is_value => {
                 self.start_temp_vec(Asn1Tag::Type)?;
-                self.integer_type(expecting.subsequent)?;
+                self.integer_type(&expecting.type_subsequent())?;
+                self.open_type_field_value(expecting)?;
                 self.end_temp_vec(Asn1Tag::Type);
                 TypeOrValueResult::Type
             }
-            TokenKind::KwEnumerated if expecting.is_type => {
+            TokenKind::KwEnumerated if expecting.is_type || expecting.is_value => {
                 self.start_temp_vec(Asn1Tag::Type)?;
                 self.enumerated_type()?;
+                self.open_type_field_value(expecting)?;
                 self.end_temp_vec(Asn1Tag::Type);
                 TypeOrValueResult::Type
             }
-            TokenKind::KwObject if expecting.is_type => {
+            TokenKind::KwObject if expecting.is_type || expecting.is_value => {
                 self.start_temp_vec(Asn1Tag::Type)?;
                 self.object_identifier_type()?;
+                self.open_type_field_value(expecting)?;
                 self.end_temp_vec(Asn1Tag::Type);
                 TypeOrValueResult::Type
             }
-
             TokenKind::KwBoolean
             | TokenKind::KwNull
             | TokenKind::KwOidIri
             | TokenKind::KwGeneralizedTime
             | TokenKind::KwUTCTime
             | TokenKind::KwObjectDescriptor
-                if expecting.is_type =>
+                if expecting.is_type || expecting.is_value =>
             {
                 self.start_temp_vec(Asn1Tag::Type)?;
                 self.next(&[
@@ -145,9 +147,11 @@ impl<'a> Parser<'a> {
                     TokenKind::KwUTCTime,
                     TokenKind::KwObjectDescriptor,
                 ])?;
+                self.open_type_field_value(expecting)?;
                 self.end_temp_vec(Asn1Tag::Type);
                 TypeOrValueResult::Type
             }
+
             kind if expecting.alternative.contains(&kind) => {
                 self.peek(expecting.alternative.to_owned())?;
                 TypeOrValueResult::Alternate(tok.kind)

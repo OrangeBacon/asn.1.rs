@@ -85,6 +85,7 @@ impl TypeOrValueBuilder {
 }
 
 impl TypeOrValueRef<'_> {
+    /// Convert this command into an owned command using `Vec` instead of slice
     pub fn to_owned(self) -> TypeOrValueOwned {
         TypeOrValue {
             is_type: self.is_type,
@@ -93,6 +94,19 @@ impl TypeOrValueRef<'_> {
             alternative: self.alternative.to_vec(),
             subsequent: self.subsequent.to_vec(),
             defined_subsequent: self.defined_subsequent.to_vec(),
+        }
+    }
+
+    /// Get all possible tokens that can come after a type is parsed
+    pub fn type_subsequent(&self) -> CowVec<TokenKind> {
+        if self.is_type && self.is_value {
+            let mut v = self.subsequent.to_vec();
+            v.push(TokenKind::Colon);
+            v.into()
+        } else if self.is_type {
+            self.subsequent.to_vec().into()
+        } else {
+            (&[TokenKind::Colon]).into()
         }
     }
 }

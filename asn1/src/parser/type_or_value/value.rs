@@ -1,6 +1,6 @@
 use crate::{cst::Asn1Tag, token::TokenKind};
 
-use super::{Parser, Result, TypeOrValue};
+use super::{Parser, Result, TypeOrValue, TypeOrValueRef};
 
 impl<'a> Parser<'a> {
     pub(super) fn integer_value(&mut self) -> Result {
@@ -77,6 +77,30 @@ impl<'a> Parser<'a> {
         })?;
 
         self.end_temp_vec(Asn1Tag::ContainingValue);
+        Ok(())
+    }
+
+    /// Parse `Type : Value` syntax, starting with the colon
+    pub(super) fn open_type_field_value(&mut self, expecting: TypeOrValueRef) -> Result {
+        if !expecting.is_value {
+            return Ok(());
+        }
+
+        let mut kind = expecting.subsequent.to_vec();
+        kind.push(TokenKind::Colon);
+        let tok = self.peek(kind)?;
+        if tok.kind != TokenKind::Colon {
+            return Ok(());
+        }
+
+        self.start_temp_vec(Asn1Tag::OpenTypeFieldValue)?;
+
+        self.next(&[TokenKind::Colon])?;
+        TypeOrValue::builder()
+            .value(expecting.subsequent.to_vec())
+            .parse(self)?;
+
+        self.end_temp_vec(Asn1Tag::OpenTypeFieldValue);
         Ok(())
     }
 }
