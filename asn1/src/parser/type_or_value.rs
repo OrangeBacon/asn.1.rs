@@ -109,9 +109,6 @@ impl<'a> Parser<'a> {
 
         let tok = self.peek(kind)?;
 
-        // TODO: distinguish between integer ident and selection ident
-        // TokenKind::ValueRefOrIdent => self.selection_type(expecting.subsequent)?,
-
         Ok(match tok.kind {
             // either
             TokenKind::KwNull if expecting.is_type || expecting.is_value => {

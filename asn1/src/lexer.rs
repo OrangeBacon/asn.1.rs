@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     token::{self, Token, TokenKind},
-    util::{CowVec, Peek, Peekable},
+    util::{Peek, Peekable},
 };
 
 /// State for converting a source string into a token stream
@@ -19,7 +19,7 @@ pub struct Lexer<'a> {
     source: &'a str,
 
     /// File ID to use for all returned tokens
-    file: usize,
+    pub(crate) file: usize,
 
     /// List of comment tokens not returned yet
     comments: VecDeque<Token<'a>>,
@@ -30,39 +30,24 @@ pub struct Lexer<'a> {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LexerError {
-    /// Unable to lex one of the token kinds at a given offset into a file
-    Expected {
-        kind: CowVec<TokenKind>,
-        offset: usize,
-        file: usize,
-    },
-
+    /// Unexpected character within the input file
     UnexpectedCharacter {
         ch: char,
         file: usize,
         offset: usize,
     },
 
-    EndOfFile {
-        file: usize,
-    },
+    /// End of file reached when trying to get a token
+    EndOfFile { file: usize },
 
-    NonTerminatedComment {
-        offset: usize,
-        file: usize,
-    },
+    /// Reached end of file while parsing a multi-line comment
+    NonTerminatedComment { offset: usize, file: usize },
 
-    NonTerminatedString {
-        start_offset: usize,
-        file: usize,
-    },
+    /// Reached end of file while parsing a character string
+    NonTerminatedString { start_offset: usize, file: usize },
 
-    NonTerminatedBHString {
-        start_offset: usize,
-        file: usize,
-    },
-
-    ParserDepthExceeded,
+    /// Reached end of file while parsing a binary or hexadecimal string
+    NonTerminatedBHString { start_offset: usize, file: usize },
 }
 
 pub type Result<T = (), E = LexerError> = std::result::Result<T, E>;
@@ -78,6 +63,15 @@ impl<'a> Lexer<'a> {
             comments: VecDeque::new(),
             identifier: None,
         }
+    }
+
+    /// Get the current character offset.  Might be inaccurate due to comment
+    /// tokens possibly having been consumed or not.
+    pub fn offset(&mut self) -> usize {
+        self.chars
+            .peek(0)
+            .map(|(o, _)| *o)
+            .unwrap_or(self.source.len())
     }
 
     /// Return the next token from the source. If there are no more characters

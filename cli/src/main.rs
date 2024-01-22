@@ -1,6 +1,6 @@
 use asn1::{
-    lexer::{Lexer, LexerError},
-    parser::Parser,
+    lexer::Lexer,
+    parser::{Parser, ParserError},
 };
 
 fn main() {
@@ -19,7 +19,7 @@ fn main() {
 
     match parser.run() {
         Ok(t) => print!("{t}"),
-        Err(LexerError::Expected { kind, offset, .. }) => {
+        Err(ParserError::Expected { kind, offset, .. }) => {
             let at: String = source[offset..].chars().take(15).collect();
 
             println!("Expected {{ kind: {kind:?}, at: {at:?} }}");

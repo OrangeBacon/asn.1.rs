@@ -1,3 +1,4 @@
+mod error;
 mod module;
 mod parameterized;
 mod reference;
@@ -6,10 +7,12 @@ mod xml_value;
 
 use crate::{
     cst::{Asn1, Asn1Tag, TreeContent},
-    lexer::{Lexer, LexerError, Result},
+    lexer::Lexer,
     token::{Token, TokenKind},
     util::CowVec,
 };
+
+pub use self::error::{ParserError, Result};
 
 /// Parser for ASN.1 definition files
 #[derive(Debug, Clone)]
@@ -71,7 +74,8 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// Get the next token that is not a comment directly from the lexer.
+    /// Consume a token of the given kind or return an error.  Ignores any comment tokens.
+    /// If an empty list is given, returns any token.
     fn next(&mut self, kind: impl Into<CowVec<TokenKind>>) -> Result<Token<'a>> {
         self.peek(kind)?;
 
@@ -85,7 +89,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Peek a token without consuming it
+    /// Peek a token without consuming it or return an error if the token is not
+    /// of one of the provided kinds. If an empty list is given, returns any token.
     fn peek(&mut self, kind: impl Into<CowVec<TokenKind>>) -> Result<Token<'a>> {
         let kind = kind.into();
 
@@ -94,7 +99,7 @@ impl<'a> Parser<'a> {
         if kind.contains(&peek.kind) || kind.is_empty() {
             Ok(peek)
         } else {
-            Err(LexerError::Expected {
+            Err(ParserError::Expected {
                 kind,
                 offset: peek.offset,
                 file: peek.file,
@@ -106,7 +111,10 @@ impl<'a> Parser<'a> {
     fn start_temp_vec(&mut self, tag: Asn1Tag) -> Result {
         // TODO: make this an actual parameter, not a magic number I picked randomly
         if self.depth >= 100 {
-            return Err(LexerError::ParserDepthExceeded);
+            return Err(ParserError::ParserDepthExceeded {
+                offset: self.lexer.offset(),
+                file: self.lexer.file,
+            });
         }
 
         self.error_nodes.push(TempVec {
