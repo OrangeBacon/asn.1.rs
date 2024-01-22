@@ -94,8 +94,8 @@ pub enum TokenKind {
     // "ISO646String",
     // "MAX",
     // "MIN",
-    // "MINUS-INFINITY",
-    // "NOT-A-NUMBER",
+    KwMinusInfinity,
+    KwNotANumber,
     KwNull,
     // "NumericString",
     KwObject,
@@ -106,7 +106,7 @@ pub enum TokenKind {
     // "OPTIONAL",
     // "PATTERN",
     // "PDV",
-    // "PLUS-INFINITY",
+    KwPlusInfinity,
     // "PRESENT",
     // "PrintableString",
     // "PRIVATE",
@@ -199,7 +199,7 @@ impl TokenBuffer {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 28] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 31] = [
     // "ABSENT",
     // "ABSTRACT-SYNTAX",
     ("ALL", TokenKind::KwAll),
@@ -249,8 +249,8 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 28] = [
     // "ISO646String",
     // "MAX",
     // "MIN",
-    // "MINUS-INFINITY",
-    // "NOT-A-NUMBER",
+    ("MINUS-INFINITY", TokenKind::KwMinusInfinity),
+    ("NOT-A-NUMBER", TokenKind::KwNotANumber),
     ("NULL", TokenKind::KwNull),
     // "NumericString",
     ("OBJECT", TokenKind::KwObject),
@@ -261,7 +261,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 28] = [
     // "OPTIONAL",
     // "PATTERN",
     // "PDV",
-    // "PLUS-INFINITY",
+    ("PLUS-INFINITY", TokenKind::KwPlusInfinity),
     // "PRESENT",
     // "PrintableString",
     // "PRIVATE",

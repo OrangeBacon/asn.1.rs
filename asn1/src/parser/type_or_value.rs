@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
             // values
             TokenKind::Number | TokenKind::Hyphen if expecting.is_value => {
                 self.start_temp_vec(Asn1Tag::Value)?;
-                self.integer_value()?;
+                self.number_value()?;
                 self.end_temp_vec(Asn1Tag::Value);
                 TypeOrValueResult::Value
             }
@@ -83,27 +83,31 @@ impl<'a> Parser<'a> {
                 self.end_temp_vec(Asn1Tag::Value);
                 TypeOrValueResult::Value
             }
-            TokenKind::CString if expecting.is_value => {
-                self.start_temp_vec(Asn1Tag::Value)?;
-                self.next(&[TokenKind::CString])?;
-                self.end_temp_vec(Asn1Tag::Value);
-                TypeOrValueResult::Value
-            }
-            TokenKind::KwTrue | TokenKind::KwFalse if expecting.is_value => {
-                self.start_temp_vec(Asn1Tag::Value)?;
-                self.next(&[TokenKind::KwTrue, TokenKind::KwFalse])?;
-                self.end_temp_vec(Asn1Tag::Value);
-                TypeOrValueResult::Value
-            }
-            TokenKind::BHString if expecting.is_value => {
-                self.start_temp_vec(Asn1Tag::Value)?;
-                self.next(&[TokenKind::BHString])?;
-                self.end_temp_vec(Asn1Tag::Value);
-                TypeOrValueResult::Value
-            }
             TokenKind::KwContaining if expecting.is_value => {
                 self.start_temp_vec(Asn1Tag::Value)?;
                 self.containing_value(expecting.subsequent)?;
+                self.end_temp_vec(Asn1Tag::Value);
+                TypeOrValueResult::Value
+            }
+            TokenKind::CString
+            | TokenKind::KwTrue
+            | TokenKind::KwFalse
+            | TokenKind::BHString
+            | TokenKind::KwPlusInfinity
+            | TokenKind::KwNotANumber
+            | TokenKind::KwMinusInfinity
+                if expecting.is_value =>
+            {
+                self.start_temp_vec(Asn1Tag::Value)?;
+                self.next(&[
+                    TokenKind::CString,
+                    TokenKind::KwTrue,
+                    TokenKind::KwFalse,
+                    TokenKind::BHString,
+                    TokenKind::KwPlusInfinity,
+                    TokenKind::KwNotANumber,
+                    TokenKind::KwMinusInfinity,
+                ])?;
                 self.end_temp_vec(Asn1Tag::Value);
                 TypeOrValueResult::Value
             }

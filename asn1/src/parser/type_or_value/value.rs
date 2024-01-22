@@ -3,8 +3,9 @@ use crate::{cst::Asn1Tag, token::TokenKind};
 use super::{Parser, Result, TypeOrValue, TypeOrValueRef};
 
 impl<'a> Parser<'a> {
-    pub(super) fn integer_value(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::IntegerValue)?;
+    /// Parse a numeric value, either integer or real (floating point)
+    pub(super) fn number_value(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::NumberValue)?;
 
         let tok = self.next(&[TokenKind::Number, TokenKind::Hyphen])?;
 
@@ -12,7 +13,7 @@ impl<'a> Parser<'a> {
             self.next(&[TokenKind::Number])?;
         }
 
-        self.end_temp_vec(Asn1Tag::IntegerValue);
+        self.end_temp_vec(Asn1Tag::NumberValue);
         Ok(())
     }
 

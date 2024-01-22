@@ -368,7 +368,35 @@ impl<'a> Lexer<'a> {
     /// Parse a number ([1-9][0-9]*)|0
     fn number(&mut self, offset: usize) -> Token<'a> {
         let value = &self.source[offset..];
-        let mut len = 1;
+
+        let mut len = self.digits(0);
+
+        if let Some(&(_, '.')) = self.chars.peek(len) {
+            len += 1;
+            len = self.digits(len);
+        }
+
+        if let Some(&(_, 'e' | 'E')) = self.chars.peek(len) {
+            len += 1;
+            if let Some(&(_, ch @ ('+' | '-' | '\u{2011}'))) = self.chars.peek(len) {
+                len += ch.len_utf8();
+            }
+            len = self.digits(len);
+        }
+
+        let value = &value[..len];
+
+        Token {
+            kind: TokenKind::Number,
+            value,
+            offset,
+            file: self.file,
+        }
+    }
+
+    /// Parse digits 0-9.  Returns the new offset after the parsed digits.
+    fn digits(&mut self, offset: usize) -> usize {
+        let mut len = offset;
         while let Some(&(_, ch)) = self.chars.peek(len) {
             if !ch.is_ascii_digit() {
                 break;
@@ -377,17 +405,7 @@ impl<'a> Lexer<'a> {
             len += 1;
         }
 
-        let value = &value[..len];
-        // TODO: if value.starts_with('0') && len > 1 {
-        //     return None;
-        // }
-
-        Token {
-            kind: TokenKind::Number,
-            value,
-            offset,
-            file: self.file,
-        }
+        len
     }
 
     /// Parse a character string literal

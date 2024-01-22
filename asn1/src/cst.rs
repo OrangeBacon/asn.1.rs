@@ -60,7 +60,7 @@ pub enum Asn1Tag {
 
     // value
     Value,
-    IntegerValue,
+    NumberValue,
     BracedValue,
     ChoiceValue,
     ContainingValue,
