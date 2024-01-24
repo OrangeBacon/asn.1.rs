@@ -57,6 +57,9 @@ pub enum Asn1Tag {
     NamedNumber,
     ObjectIDType,
     SelectionType,
+    BitStringType,
+    OctetStringType,
+    CharacterStringType,
 
     // value
     NumberValue,

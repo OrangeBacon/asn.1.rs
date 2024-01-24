@@ -1,6 +1,6 @@
 use crate::{cst::Asn1Tag, token::TokenKind};
 
-use super::{Parser, Result, TypeOrValue, TypeOrValueResult};
+use super::{Parser, Result, TypeOrValue};
 
 impl<'a> Parser<'a> {
     /// Integer type definition, including named numbers
@@ -135,21 +135,10 @@ impl<'a> Parser<'a> {
         }
         self.next(&[TokenKind::LeftParen])?;
 
-        let tok = self.type_or_value(TypeOrValue {
-            alternative: &[TokenKind::Number, TokenKind::Hyphen],
+        self.type_or_value(TypeOrValue {
+            alternative: &[],
             subsequent: &[TokenKind::RightParen],
         })?;
-
-        match tok {
-            TypeOrValueResult::Alternate(TokenKind::Number) => {
-                self.next(&[TokenKind::Number])?;
-            }
-            TypeOrValueResult::Alternate(TokenKind::Hyphen) => {
-                self.next(&[TokenKind::Hyphen])?;
-                self.next(&[TokenKind::Number])?;
-            }
-            _ => (),
-        }
 
         self.next(&[TokenKind::RightParen])?;
 
@@ -211,6 +200,64 @@ impl<'a> Parser<'a> {
         })?;
 
         self.end_temp_vec(Asn1Tag::SelectionType);
+        Ok(())
+    }
+
+    /// Bit string type definition
+    pub(super) fn bit_string_type(&mut self, expecting: TypeOrValue) -> Result {
+        self.start_temp_vec(Asn1Tag::BitStringType)?;
+
+        self.next(&[TokenKind::KwBit])?;
+        self.next(&[TokenKind::KwString])?;
+
+        let mut kind = expecting.subsequent.to_vec();
+        kind.push(TokenKind::LeftCurly);
+        kind.push(TokenKind::Colon);
+
+        let tok = self.peek(kind)?;
+        if tok.kind == TokenKind::LeftCurly {
+            self.next(&[TokenKind::LeftCurly])?;
+
+            loop {
+                self.named_number(false)?;
+
+                let tok = self.next(&[TokenKind::Comma, TokenKind::RightCurly])?;
+
+                if tok.kind == TokenKind::RightCurly {
+                    break;
+                }
+            }
+        }
+
+        self.end_temp_vec(Asn1Tag::BitStringType);
+
+        self.open_type_field_value(expecting)?;
+        Ok(())
+    }
+
+    /// Parse `OCTET STRING` keywords
+    pub(super) fn octet_string_type(&mut self, expecting: TypeOrValue) -> Result {
+        self.start_temp_vec(Asn1Tag::OctetStringType)?;
+
+        self.next(&[TokenKind::KwOctet])?;
+        self.next(&[TokenKind::KwString])?;
+
+        self.end_temp_vec(Asn1Tag::OctetStringType);
+
+        self.open_type_field_value(expecting)?;
+        Ok(())
+    }
+
+    /// Parse `CHARACTER STRING` keywords
+    pub(super) fn character_string_type(&mut self, expecting: TypeOrValue) -> Result {
+        self.start_temp_vec(Asn1Tag::OctetStringType)?;
+
+        self.next(&[TokenKind::KwCharacter])?;
+        self.next(&[TokenKind::KwString])?;
+
+        self.end_temp_vec(Asn1Tag::OctetStringType);
+
+        self.open_type_field_value(expecting)?;
         Ok(())
     }
 }
