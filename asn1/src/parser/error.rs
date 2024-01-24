@@ -1,7 +1,5 @@
 use crate::{lexer::LexerError, token::TokenKind, util::CowVec};
 
-use super::type_or_value::TypeOrValueOwned;
-
 /// Any error that can be emitted by the parser
 #[derive(Debug, Clone)]
 pub enum ParserError {
@@ -20,7 +18,8 @@ pub enum ParserError {
 
     /// An error occurred while trying to parse the given type or value command
     TypeValueError {
-        expecting: TypeOrValueOwned,
+        subsequent: Vec<TokenKind>,
+        alternative: Vec<TokenKind>,
         offset: usize,
         file: usize,
     },

@@ -4,13 +4,14 @@ use super::{Parser, Result, TypeOrValue, TypeOrValueResult};
 
 impl<'a> Parser<'a> {
     /// Integer type definition, including named numbers
-    pub(super) fn integer_type(&mut self, subsequent: &[TokenKind]) -> Result {
+    pub(super) fn integer_type(&mut self, expecting: TypeOrValue) -> Result {
         self.start_temp_vec(Asn1Tag::IntegerType)?;
 
         self.next(&[TokenKind::KwInteger])?;
 
-        let mut kind = subsequent.to_vec();
+        let mut kind = expecting.subsequent.to_vec();
         kind.push(TokenKind::LeftCurly);
+        kind.push(TokenKind::Colon);
 
         let tok = self.peek(kind)?;
         if tok.kind == TokenKind::LeftCurly {
@@ -28,11 +29,13 @@ impl<'a> Parser<'a> {
         }
 
         self.end_temp_vec(Asn1Tag::IntegerType);
+
+        self.open_type_field_value(expecting)?;
         Ok(())
     }
 
     /// Parse an enum type declaration
-    pub(super) fn enumerated_type(&mut self) -> Result {
+    pub(super) fn enumerated_type(&mut self, expecting: TypeOrValue) -> Result {
         self.start_temp_vec(Asn1Tag::EnumeratedType)?;
 
         self.next(&[TokenKind::KwEnumerated])?;
@@ -69,6 +72,9 @@ impl<'a> Parser<'a> {
         self.next(&[TokenKind::RightCurly])?;
 
         self.end_temp_vec(Asn1Tag::EnumeratedType);
+
+        self.open_type_field_value(expecting)?;
+
         Ok(())
     }
 
@@ -130,10 +136,8 @@ impl<'a> Parser<'a> {
         self.next(&[TokenKind::LeftParen])?;
 
         let tok = self.type_or_value(TypeOrValue {
-            is_defined_value: true,
             alternative: &[TokenKind::Number, TokenKind::Hyphen],
-            defined_subsequent: &[TokenKind::RightParen],
-            ..Default::default()
+            subsequent: &[TokenKind::RightParen],
         })?;
 
         match tok {
@@ -154,7 +158,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a specifier that there is an un-specified constraint in the asn.1
-    /// file.  Returns true if the a non-empty exception spec was parsed.
+    /// file.  Returns true if the a non-empty exception spec was parsed.  All
+    /// elements of the exception spec count as types or values, so check for the
+    /// valid ones later.
     fn exception_spec(&mut self, subsequent: &[TokenKind]) -> Result<bool> {
         self.start_temp_vec(Asn1Tag::ExceptionSpec)?;
 
@@ -168,40 +174,25 @@ impl<'a> Parser<'a> {
         }
         self.next(&[TokenKind::Exclamation])?;
 
-        let res = self.type_or_value(TypeOrValue {
-            is_type: true,
-            is_defined_value: true,
-            alternative: &[TokenKind::Hyphen, TokenKind::Number],
-            subsequent: &[TokenKind::Colon],
-            defined_subsequent: subsequent,
-            ..Default::default()
+        self.type_or_value(TypeOrValue {
+            subsequent,
+            alternative: &[],
         })?;
-
-        if matches!(res, TypeOrValueResult::Alternate(_)) {
-            let tok = self.next(&[TokenKind::Hyphen, TokenKind::Number])?;
-            if tok.kind == TokenKind::Hyphen {
-                self.next(&[TokenKind::Number])?;
-            }
-        } else if res != TypeOrValueResult::Value {
-            self.next(&[TokenKind::Colon])?;
-            self.type_or_value(TypeOrValue {
-                is_value: true,
-                subsequent,
-                ..Default::default()
-            })?;
-        }
 
         self.end_temp_vec(Asn1Tag::ExceptionSpec);
         Ok(true)
     }
 
-    pub(super) fn object_identifier_type(&mut self) -> Result {
+    /// Parse `OBJECT IDENTIFIER` keywords
+    pub(super) fn object_identifier_type(&mut self, expecting: TypeOrValue) -> Result {
         self.start_temp_vec(Asn1Tag::ObjectIDType)?;
 
         self.next(&[TokenKind::KwObject])?;
         self.next(&[TokenKind::KwIdentifier])?;
 
         self.end_temp_vec(Asn1Tag::ObjectIDType);
+
+        self.open_type_field_value(expecting)?;
         Ok(())
     }
 
@@ -215,9 +206,8 @@ impl<'a> Parser<'a> {
 
         self.next(&[TokenKind::Less])?;
         self.type_or_value(TypeOrValue {
-            is_type: true,
             subsequent,
-            ..Default::default()
+            alternative: &[],
         })?;
 
         self.end_temp_vec(Asn1Tag::SelectionType);

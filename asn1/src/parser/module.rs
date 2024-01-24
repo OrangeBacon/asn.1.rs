@@ -241,29 +241,25 @@ impl<'a> Parser<'a> {
         // TODO: Parameterized assignment
 
         match name.kind {
-            TokenKind::KwEnd => {
-                // shouldn't get here but oh well, end is in the list so that
-                // better expected lines can be generated
-                return Ok(());
-            }
             TokenKind::TypeOrModuleRef => {
                 self.start_temp_vec(Asn1Tag::TypeAssignment)?;
 
-                let ty = TypeOrValue::builder()
-                    .ty(&[TokenKind::Assignment])
-                    .alternate(&[TokenKind::Assignment])
-                    .parse(self)?;
+                let ty = self.type_or_value(TypeOrValue {
+                    alternative: &[TokenKind::Assignment],
+                    subsequent: &[TokenKind::Assignment],
+                })?;
 
                 self.next(&[TokenKind::Assignment])?;
 
                 if ty.is_assign() {
-                    TypeOrValue::builder()
-                        .ty(&[
+                    self.type_or_value(TypeOrValue {
+                        alternative: &[],
+                        subsequent: &[
                             TokenKind::TypeOrModuleRef,
                             TokenKind::ValueRefOrIdent,
                             TokenKind::KwEnd,
-                        ])
-                        .parse(self)?;
+                        ],
+                    })?;
                 } else {
                     self.next(&[TokenKind::LeftCurly])?;
                     // TODO: element set specs
@@ -275,27 +271,28 @@ impl<'a> Parser<'a> {
             TokenKind::ValueRefOrIdent => {
                 self.start_temp_vec(Asn1Tag::ValueAssignment)?;
 
-                let ty = TypeOrValue::builder()
-                    .ty(&[TokenKind::Assignment])
-                    .alternate(&[TokenKind::Assignment])
-                    .parse(self)?;
+                let ty = self.type_or_value(TypeOrValue {
+                    alternative: &[TokenKind::Assignment],
+                    subsequent: &[TokenKind::Assignment],
+                })?;
                 self.next(&[TokenKind::Assignment])?;
 
                 if ty.is_assign() {
                     // TODO: XML value parsing
                     todo!("XML value")
                 } else {
-                    TypeOrValue::builder()
-                        .value(&[
+                    self.type_or_value(TypeOrValue {
+                        alternative: &[],
+                        subsequent: &[
                             TokenKind::TypeOrModuleRef,
                             TokenKind::ValueRefOrIdent,
                             TokenKind::KwEnd,
-                        ])
-                        .parse(self)?;
+                        ],
+                    })?;
                 }
                 self.end_temp_vec(Asn1Tag::ValueAssignment)
             }
-            a => panic!("try consume error {a:?}"),
+            _ => (),
         }
 
         self.end_temp_vec(Asn1Tag::Assignment);

@@ -1,6 +1,6 @@
 use crate::{cst::Asn1Tag, token::TokenKind};
 
-use super::{Parser, Result, TypeOrValue, TypeOrValueRef};
+use super::{Parser, Result, TypeOrValue};
 
 impl<'a> Parser<'a> {
     /// Parse a numeric value, either integer or real (floating point)
@@ -56,9 +56,8 @@ impl<'a> Parser<'a> {
         self.next(&[TokenKind::Colon])?;
 
         self.type_or_value(TypeOrValue {
-            is_value: true,
             subsequent,
-            ..Default::default()
+            alternative: &[],
         })?;
 
         self.end_temp_vec(Asn1Tag::ChoiceValue);
@@ -72,9 +71,8 @@ impl<'a> Parser<'a> {
         self.next(&[TokenKind::KwContaining])?;
 
         self.type_or_value(TypeOrValue {
-            is_value: true,
             subsequent,
-            ..Default::default()
+            alternative: &[],
         })?;
 
         self.end_temp_vec(Asn1Tag::ContainingValue);
@@ -82,11 +80,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse `Type : Value` syntax, starting with the colon
-    pub(super) fn open_type_field_value(&mut self, expecting: TypeOrValueRef) -> Result {
-        if !expecting.is_value {
-            return Ok(());
-        }
-
+    pub(super) fn open_type_field_value(&mut self, expecting: TypeOrValue) -> Result {
         let mut kind = expecting.subsequent.to_vec();
         kind.push(TokenKind::Colon);
         let tok = self.peek(kind)?;
@@ -97,9 +91,10 @@ impl<'a> Parser<'a> {
         self.start_temp_vec(Asn1Tag::OpenTypeFieldValue)?;
 
         self.next(&[TokenKind::Colon])?;
-        TypeOrValue::builder()
-            .value(expecting.subsequent.to_vec())
-            .parse(self)?;
+        self.type_or_value(TypeOrValue {
+            subsequent: expecting.subsequent,
+            alternative: &[],
+        })?;
 
         self.end_temp_vec(Asn1Tag::OpenTypeFieldValue);
         Ok(())
