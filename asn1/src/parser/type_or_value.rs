@@ -31,18 +31,15 @@ pub(super) enum TypeOrValueResult {
 impl<'a> Parser<'a> {
     /// Parse either a type or a value declaration
     pub(super) fn type_or_value(&mut self, expecting: TypeOrValue) -> Result<TypeOrValueResult> {
-        // TODO value: real, value from object
-
         // TODO type: Bit string, character string, choice, date, date time, duration
         // embedded pdv, external, instance of, object class field,
         // octet string, real, relative iri, relative oid, sequence,
-        // sequence of, set, set of, prefixed, time, time of day, type from object,
-        // value set from objects, constrained type
+        // sequence of, set, set of, prefixed, time, time of day, constrained type
 
         let tok = self.peek(&[])?;
 
         if expecting.alternative.contains(&tok.kind) {
-            return Ok(TypeOrValueResult::Alternate(tok.kind))
+            return Ok(TypeOrValueResult::Alternate(tok.kind));
         }
 
         self.start_temp_vec(Asn1Tag::TypeOrValue)?;
@@ -129,15 +126,31 @@ impl<'a> Parser<'a> {
         if tok.kind == TokenKind::Dot {
             self.next(&[TokenKind::Dot])?;
 
-            self.next(&[TokenKind::ValueRefOrIdent, TokenKind::TypeOrModuleRef])?;
+            let tok = self.peek(&[
+                TokenKind::ValueRefOrIdent,
+                TokenKind::TypeOrModuleRef,
+                TokenKind::Field,
+            ])?;
+            if tok.kind != TokenKind::Field {
+                self.next(&[])?;
+            }
         }
 
         let mut kind = expecting.subsequent.to_vec();
+        kind.push(TokenKind::Dot);
         kind.push(TokenKind::LeftCurly);
-
         let tok = self.peek(kind)?;
+
         if tok.kind == TokenKind::LeftCurly {
             self.actual_parameter_list()?;
+        }
+
+        let mut kind = expecting.subsequent.to_vec();
+        kind.push(TokenKind::Dot);
+
+        let tok = self.peek(kind)?;
+        if tok.kind == TokenKind::Dot {
+            self.field(expecting.subsequent)?;
         }
 
         self.end_temp_vec(Asn1Tag::Defined);
@@ -163,19 +176,47 @@ impl<'a> Parser<'a> {
         kind.push(TokenKind::Colon);
         kind.push(TokenKind::LeftCurly);
         kind.push(TokenKind::Less);
+        kind.push(TokenKind::Dot);
 
         let tok = self.peek(kind)?;
 
-        if tok.kind == TokenKind::LeftCurly {
-            self.actual_parameter_list()?;
-        } else if tok.kind == TokenKind::Less {
-            self.selection_type(expecting.subsequent)?;
-        } else if tok.kind == TokenKind::Colon {
-            self.choice_value(expecting.subsequent)?;
+        match tok.kind {
+            TokenKind::LeftCurly => {
+                self.actual_parameter_list()?;
+                let mut kind = expecting.subsequent.to_vec();
+                kind.push(TokenKind::Dot);
+                if self.peek(kind)?.kind == TokenKind::Dot {
+                    self.field(expecting.subsequent)?;
+                }
+            }
+            TokenKind::Less => self.selection_type(expecting.subsequent)?,
+            TokenKind::Colon => self.choice_value(expecting.subsequent)?,
+            TokenKind::Dot => self.field(expecting.subsequent)?,
+            _ => (),
         }
 
         self.end_temp_vec(Asn1Tag::Defined);
 
+        Ok(())
+    }
+
+    /// Parse object field names
+    /// `("." Field)+`
+    fn field(&mut self, subsequent: &[TokenKind]) -> Result {
+        self.start_temp_vec(Asn1Tag::FieldNames)?;
+
+        loop {
+            self.next(&[TokenKind::Dot])?;
+            self.next(&[TokenKind::Field])?;
+
+            let mut kind = subsequent.to_vec();
+            kind.push(TokenKind::Dot);
+            if self.peek(kind)?.kind != TokenKind::Dot {
+                break;
+            }
+        }
+
+        self.end_temp_vec(Asn1Tag::FieldNames);
         Ok(())
     }
 }

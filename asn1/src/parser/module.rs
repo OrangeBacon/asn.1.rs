@@ -116,7 +116,6 @@ impl<'a> Parser<'a> {
 
     /// Parse an encoding reference specifier.
     fn encoding_reference_default(&mut self) -> Result {
-        // TODO: enforce all uppercase constraint on the type or module ref
         self.start_temp_vec(Asn1Tag::EncodingReferenceDefault)?;
         let tok = self.peek(&[
             TokenKind::TypeOrModuleRef,

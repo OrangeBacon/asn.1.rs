@@ -46,9 +46,9 @@ pub enum Asn1Tag {
     // type or value
     TypeOrValue,
     Defined,
+    FieldNames,
 
     // type
-    Type,
     IntegerType,
     EnumeratedType,
     EnumItemList,
@@ -59,7 +59,6 @@ pub enum Asn1Tag {
     SelectionType,
 
     // value
-    Value,
     NumberValue,
     BracedValue,
     ChoiceValue,

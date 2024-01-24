@@ -69,4 +69,5 @@ TestModule2 DEFINITIONS ::= BEGIN
     val ThisType ::= a : '011001'B
     val2 Ty ::= CONTAINING INTEGER {a(5)} : BOOLEAN : a
     val3 INTEGER ::= -5.6e-7
+    Val4 ::= Module.obj.&hello.&world
 END -- hi --

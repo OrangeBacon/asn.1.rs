@@ -23,9 +23,6 @@ pub struct Lexer<'a> {
 
     /// List of comment tokens not returned yet
     comments: VecDeque<Token<'a>>,
-
-    /// A cached identifier lexed at a given offset.
-    identifier: Option<(usize, Token<'a>)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -44,10 +41,13 @@ pub enum LexerError {
     NonTerminatedComment { offset: usize, file: usize },
 
     /// Reached end of file while parsing a character string
-    NonTerminatedString { start_offset: usize, file: usize },
+    NonTerminatedString { offset: usize, file: usize },
 
     /// Reached end of file while parsing a binary or hexadecimal string
-    NonTerminatedBHString { start_offset: usize, file: usize },
+    NonTerminatedBHString { offset: usize, file: usize },
+
+    /// No identifier found after an `&`
+    MissingFieldName { offset: usize, file: usize },
 }
 
 pub type Result<T = (), E = LexerError> = std::result::Result<T, E>;
@@ -61,7 +61,6 @@ impl<'a> Lexer<'a> {
             source,
             file,
             comments: VecDeque::new(),
-            identifier: None,
         }
     }
 
@@ -134,6 +133,7 @@ impl<'a> Lexer<'a> {
 
             '.' => self.multi_token(TokenKind::Dot, TokenKind::Ellipsis, offset, "..."),
 
+            '&' => self.field(offset)?,
             'a'..='z' | 'A'..='Z' => self.identifier(c, offset),
 
             '"' => self.c_string(offset)?,
@@ -318,13 +318,6 @@ impl<'a> Lexer<'a> {
     /// or module reference.  Does not consume the identifier, len characters must
     /// be skipped after the identifier is parsed if the identifier is used.
     fn identifier(&mut self, first: char, offset: usize) -> Token<'a> {
-        // cache to speed up matching against a lot of different key words
-        if let Some((o, ident)) = self.identifier {
-            if o == offset {
-                return ident;
-            }
-        }
-
         let value = &self.source[offset..];
 
         let mut len = 1;
@@ -428,7 +421,7 @@ impl<'a> Lexer<'a> {
         let value = &value[..len];
         if !value.ends_with('"') {
             return Err(LexerError::NonTerminatedString {
-                start_offset: offset,
+                offset,
                 file: self.file,
             });
         }
@@ -465,7 +458,7 @@ impl<'a> Lexer<'a> {
         let value = &value[..len];
         if !value.ends_with("'B") && !value.ends_with("'H") {
             return Err(LexerError::NonTerminatedBHString {
-                start_offset: offset,
+                offset,
                 file: self.file,
             });
         }
@@ -475,6 +468,21 @@ impl<'a> Lexer<'a> {
             value,
             offset,
             file: self.file,
+        })
+    }
+
+    /// Parse an object field reference `&name`
+    fn field(&mut self, offset: usize) -> Result<Token<'a>> {
+        let Some(&(_, ch)) = self.chars.peek(1) else {
+            return Err(LexerError::MissingFieldName { offset, file: self.file });
+        };
+
+        // ident doesn't check the first character, so this will consume the `&`
+        let ident = self.identifier(ch, offset);
+
+        Ok(Token {
+            kind: TokenKind::Field,
+            ..ident
         })
     }
 }

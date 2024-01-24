@@ -43,6 +43,7 @@ pub enum TokenKind {
     XMLBoolNumber,
     CString,
     BHString,
+    Field,
 
     // Keywords
     // "ABSENT",
