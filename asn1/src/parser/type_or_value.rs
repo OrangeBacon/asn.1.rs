@@ -31,10 +31,8 @@ pub(super) enum TypeOrValueResult {
 impl<'a> Parser<'a> {
     /// Parse either a type or a value declaration
     pub(super) fn type_or_value(&mut self, expecting: TypeOrValue) -> Result<TypeOrValueResult> {
-        // TODO type: Bit string, character string, choice, date, date time, duration
-        // embedded pdv, external, instance of, object class field,
-        // octet string, real, relative iri, relative oid, sequence,
-        // sequence of, set, set of, prefixed, time, time of day, constrained type
+        // TODO type: Bit string, character string, choice, embedded pdv, instance of,
+        // object class field, octet string, sequence, sequence of, set, set of, prefixed, constrained type
 
         let tok = self.peek(&[])?;
 
@@ -78,7 +76,29 @@ impl<'a> Parser<'a> {
             | TokenKind::KwOidIri
             | TokenKind::KwGeneralizedTime
             | TokenKind::KwUTCTime
-            | TokenKind::KwObjectDescriptor => {
+            | TokenKind::KwObjectDescriptor
+            | TokenKind::KwReal
+            | TokenKind::KwRelativeOid
+            | TokenKind::KwRelativeOidIri
+            | TokenKind::KwExternal
+            | TokenKind::KwTime
+            | TokenKind::KwDate
+            | TokenKind::KwTimeOfDay
+            | TokenKind::KwDateTime
+            | TokenKind::KwDuration
+            | TokenKind::KwBmpString
+            | TokenKind::KwGeneralString
+            | TokenKind::KwGraphicString
+            | TokenKind::KwIA5String
+            | TokenKind::KwISO64String
+            | TokenKind::KwNumericString
+            | TokenKind::KwPrintableString
+            | TokenKind::KwTeletexString
+            | TokenKind::KwT61String
+            | TokenKind::KwUniversalString
+            | TokenKind::KwUTF8String
+            | TokenKind::KwVideotexString
+            | TokenKind::KwVisibleString => {
                 self.next(&[])?;
                 self.open_type_field_value(expecting)?;
             }
