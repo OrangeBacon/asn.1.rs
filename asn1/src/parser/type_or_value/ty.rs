@@ -302,4 +302,17 @@ impl<'a> Parser<'a> {
         self.open_type_field_value(expecting)?;
         Ok(())
     }
+
+    /// Parse `EMBEDDED PDV` keywords
+    pub(super) fn embedded_pdv_type(&mut self, expecting: TypeOrValue) -> Result {
+        self.start_temp_vec(Asn1Tag::EmbeddedPDVType)?;
+
+        self.next(&[TokenKind::KwEmbedded])?;
+        self.next(&[TokenKind::KwPDV])?;
+
+        self.end_temp_vec(Asn1Tag::EmbeddedPDVType);
+
+        self.open_type_field_value(expecting)?;
+        Ok(())
+    }
 }

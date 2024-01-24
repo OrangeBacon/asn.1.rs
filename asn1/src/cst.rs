@@ -62,6 +62,7 @@ pub enum Asn1Tag {
     CharacterStringType,
     ObjectFields,
     InstanceOfType,
+    EmbeddedPDVType,
 
     // value
     NumberValue,

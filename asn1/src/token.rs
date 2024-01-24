@@ -68,7 +68,7 @@ pub enum TokenKind {
     // "DEFAULT",
     KwDefinitions,
     KwDuration,
-    // "EMBEDDED",
+    KwEmbedded,
     // "ENCODED",
     // "ENCODING-CONTROL",
     KwEnd,
@@ -107,7 +107,7 @@ pub enum TokenKind {
     KwOidIri,
     // "OPTIONAL",
     // "PATTERN",
-    // "PDV",
+    KwPDV,
     KwPlusInfinity,
     // "PRESENT",
     KwPrintableString,
@@ -158,7 +158,7 @@ pub struct Token<'a> {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 61] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 63] = [
     // "ABSENT",
     ("ABSTRACT-SYNTAX", TokenKind::KwAbstractSyntax),
     ("ALL", TokenKind::KwAll),
@@ -181,7 +181,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 61] = [
     // "DEFAULT",
     ("DEFINITIONS", TokenKind::KwDefinitions),
     ("DURATION", TokenKind::KwDuration),
-    // "EMBEDDED",
+    ("EMBEDDED",TokenKind::KwEmbedded),
     // "ENCODED",
     // "ENCODING-CONTROL",
     ("END", TokenKind::KwEnd),
@@ -220,7 +220,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 61] = [
     ("OID-IRI", TokenKind::KwOidIri),
     // "OPTIONAL",
     // "PATTERN",
-    // "PDV",
+    ("PDV",TokenKind::KwPDV),
     ("PLUS-INFINITY", TokenKind::KwPlusInfinity),
     // "PRESENT",
     ("PrintableString", TokenKind::KwPrintableString),
