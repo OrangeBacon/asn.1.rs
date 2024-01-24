@@ -260,4 +260,46 @@ impl<'a> Parser<'a> {
         self.open_type_field_value(expecting)?;
         Ok(())
     }
+
+    /// Parse `ABSTRACT-SYNTAX` or `TYPE-IDENTIFIER` keywords and field names
+    pub(super) fn object_fields(&mut self, expecting: TypeOrValue) -> Result {
+        self.start_temp_vec(Asn1Tag::ObjectFields)?;
+
+        self.next(&[TokenKind::KwAbstractSyntax, TokenKind::KwTypeIdentifier])?;
+
+        let mut kind = expecting.subsequent.to_vec();
+        kind.push(TokenKind::Dot);
+        kind.push(TokenKind::Colon);
+        let tok = self.peek(kind)?;
+        if tok.kind == TokenKind::Dot {
+            let mut kind = expecting.subsequent.to_vec();
+            kind.push(TokenKind::Colon);
+            self.field(&kind)?;
+        }
+
+        self.end_temp_vec(Asn1Tag::ObjectFields);
+
+        self.open_type_field_value(expecting)?;
+        Ok(())
+    }
+
+    /// Parse the `INSTANCE OF DefinedObject` type
+    pub(super) fn instance_of_type(&mut self, expecting: TypeOrValue) -> Result {
+        self.start_temp_vec(Asn1Tag::InstanceOfType)?;
+
+        self.next(&[TokenKind::KwInstance])?;
+        self.next(&[TokenKind::KwOf])?;
+
+        let mut kind = expecting.subsequent.to_vec();
+        kind.push(TokenKind::Colon);
+        self.type_or_value(TypeOrValue {
+            alternative: &[],
+            subsequent: &kind,
+        })?;
+
+        self.end_temp_vec(Asn1Tag::InstanceOfType);
+
+        self.open_type_field_value(expecting)?;
+        Ok(())
+    }
 }

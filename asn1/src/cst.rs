@@ -60,6 +60,8 @@ pub enum Asn1Tag {
     BitStringType,
     OctetStringType,
     CharacterStringType,
+    ObjectFields,
+    InstanceOfType,
 
     // value
     NumberValue,

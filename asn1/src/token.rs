@@ -47,7 +47,7 @@ pub enum TokenKind {
 
     // Keywords
     // "ABSENT",
-    // "ABSTRACT-SYNTAX",
+    KwAbstractSyntax,
     KwAll,
     // "APPLICATION",
     KwAutomatic,
@@ -89,7 +89,7 @@ pub enum TokenKind {
     KwImplied,
     KwImports,
     // "INCLUDES",
-    // "INSTANCE",
+    KwInstance,
     KwInstructions,
     KwInteger,
     // "INTERSECTION",
@@ -103,7 +103,7 @@ pub enum TokenKind {
     KwObject,
     KwObjectDescriptor,
     KwOctet,
-    // "OF",
+    KwOf,
     KwOidIri,
     // "OPTIONAL",
     // "PATTERN",
@@ -127,7 +127,7 @@ pub enum TokenKind {
     KwTime,
     KwTimeOfDay,
     KwTrue,
-    // "TYPE-IDENTIFIER",
+    KwTypeIdentifier,
     // "UNION",
     // "UNIQUE",
     // "UNIVERSAL",
@@ -158,9 +158,9 @@ pub struct Token<'a> {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 57] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 61] = [
     // "ABSENT",
-    // "ABSTRACT-SYNTAX",
+    ("ABSTRACT-SYNTAX", TokenKind::KwAbstractSyntax),
     ("ALL", TokenKind::KwAll),
     // "APPLICATION",
     ("AUTOMATIC", TokenKind::KwAutomatic),
@@ -202,7 +202,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 57] = [
     ("IMPLIED", TokenKind::KwImplied),
     ("IMPORTS", TokenKind::KwImports),
     // "INCLUDES",
-    // "INSTANCE",
+    ("INSTANCE", TokenKind::KwInstance),
     ("INSTRUCTIONS", TokenKind::KwInstructions),
     ("INTEGER", TokenKind::KwInteger),
     // "INTERSECTION",
@@ -215,8 +215,8 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 57] = [
     ("NumericString", TokenKind::KwNumericString),
     ("OBJECT", TokenKind::KwObject),
     ("ObjectDescriptor", TokenKind::KwObjectDescriptor),
-    ("OCTET",TokenKind::KwOctet),
-    // "OF",
+    ("OCTET", TokenKind::KwOctet),
+    ("OF", TokenKind::KwOf),
     ("OID-IRI", TokenKind::KwOidIri),
     // "OPTIONAL",
     // "PATTERN",
@@ -240,7 +240,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 57] = [
     ("TIME", TokenKind::KwTime),
     ("TIME-OF-DAY", TokenKind::KwTimeOfDay),
     ("TRUE", TokenKind::KwTrue),
-    // "TYPE-IDENTIFIER",
+    ("TYPE-IDENTIFIER", TokenKind::KwTypeIdentifier),
     // "UNION",
     // "UNIQUE",
     // "UNIVERSAL",

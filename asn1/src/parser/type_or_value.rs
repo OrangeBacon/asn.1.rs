@@ -31,8 +31,7 @@ pub(super) enum TypeOrValueResult {
 impl<'a> Parser<'a> {
     /// Parse either a type or a value declaration
     pub(super) fn type_or_value(&mut self, expecting: TypeOrValue) -> Result<TypeOrValueResult> {
-        // TODO type: choice, embedded pdv, instance of,
-        // object class field, sequence, sequence of, set, set of, prefixed, constrained type
+        // TODO type: choice, embedded pdv, sequence, sequence of, set, set of, prefixed, constrained type
 
         let tok = self.peek(&[])?;
 
@@ -68,6 +67,11 @@ impl<'a> Parser<'a> {
             TokenKind::KwBit => self.bit_string_type(expecting)?,
             TokenKind::KwOctet => self.octet_string_type(expecting)?,
             TokenKind::KwCharacter => self.character_string_type(expecting)?,
+            TokenKind::KwInstance => self.instance_of_type(expecting)?,
+
+            TokenKind::KwAbstractSyntax | TokenKind::KwTypeIdentifier => {
+                self.object_fields(expecting)?
+            }
 
             TokenKind::KwBoolean
             | TokenKind::KwNull
