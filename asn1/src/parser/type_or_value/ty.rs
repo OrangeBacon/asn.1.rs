@@ -1,6 +1,6 @@
 use crate::{cst::Asn1Tag, token::TokenKind};
 
-use super::{Parser, Result, TypeOrValue};
+use super::{Parser, Result, TypeOrValue, TypeOrValueResult};
 
 impl<'a> Parser<'a> {
     /// Integer type definition, including named numbers
@@ -311,6 +311,39 @@ impl<'a> Parser<'a> {
         self.next(&[TokenKind::KwPDV])?;
 
         self.end_temp_vec(Asn1Tag::EmbeddedPDVType);
+
+        self.open_type_field_value(expecting)?;
+        Ok(())
+    }
+
+    /// Parse a prefixed type
+    /// `"[" encoding* "]" (IMPLICIT|EXPLICIT)? Type`.  Does not interpret the
+    /// inside of the square brackets and just skips to the next closing one as
+    /// neither `[` nor `]` can appear inside.
+    pub(super) fn prefix_type(&mut self, expecting: TypeOrValue) -> Result {
+        self.start_temp_vec(Asn1Tag::PrefixType)?;
+
+        self.next(&[TokenKind::LeftSquare])?;
+        loop {
+            let tok = self.next(&[])?;
+            if tok.kind == TokenKind::RightSquare {
+                break;
+            }
+        }
+
+        let ty = self.type_or_value(TypeOrValue {
+            alternative: &[TokenKind::KwExplicit, TokenKind::KwImplicit],
+            subsequent: expecting.subsequent,
+        })?;
+        if matches!(ty, TypeOrValueResult::Alternate(_)) {
+            self.next(&[TokenKind::KwExplicit, TokenKind::KwImplicit])?;
+            self.type_or_value(TypeOrValue {
+                alternative: &[],
+                subsequent: expecting.subsequent,
+            })?;
+        }
+
+        self.end_temp_vec(Asn1Tag::PrefixType);
 
         self.open_type_field_value(expecting)?;
         Ok(())

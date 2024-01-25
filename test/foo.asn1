@@ -72,8 +72,8 @@ TestModule2 DEFINITIONS ::= BEGIN
     Val4 ::= Module.obj.&hello.&world
     Ty1 ::= BIT STRING
     Ty2 ::= BIT STRING {a(5), b(A.b)}
-    Ty3 ::= OCTET STRING
+    Ty3 ::= [XER: UNIVERSAL 5] IMPLICIT OCTET STRING
     Ty4 ::= TYPE-IDENTIFIER.&test : ABSTRACT-SYNTAX : 4
-    Ty5 ::= INSTANCE OF ABSTRACT-SYNTAX
-    Ty6 ::= EMBEDDED PDV
+    Ty5 ::= [stuff and things] INSTANCE OF ABSTRACT-SYNTAX
+    Ty6 ::= [hello 678 "hi"] EXPLICIT EMBEDDED PDV
 END -- hi --
