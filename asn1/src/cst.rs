@@ -42,6 +42,8 @@ pub enum Asn1Tag {
     ValueAssignment,
     Exports,
     Imports,
+    EncodingControl,
+    EncodingControlSection,
 
     // type or value
     TypeOrValue,

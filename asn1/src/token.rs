@@ -67,7 +67,7 @@ pub enum TokenKind {
     KwDuration,
     KwEmbedded,
     // "ENCODED",
-    // "ENCODING-CONTROL",
+    KwEncodingControl,
     KwEnd,
     KwEnumerated,
     // "EXCEPT",
@@ -155,7 +155,7 @@ pub struct Token<'a> {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 66] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 67] = [
     // "ABSENT",
     ("ABSTRACT-SYNTAX", TokenKind::KwAbstractSyntax),
     ("ALL", TokenKind::KwAll),
@@ -180,7 +180,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 66] = [
     ("DURATION", TokenKind::KwDuration),
     ("EMBEDDED", TokenKind::KwEmbedded),
     // "ENCODED",
-    // "ENCODING-CONTROL",
+    ("ENCODING-CONTROL",TokenKind::KwEncodingControl),
     ("END", TokenKind::KwEnd),
     ("ENUMERATED", TokenKind::KwEnumerated),
     // "EXCEPT",

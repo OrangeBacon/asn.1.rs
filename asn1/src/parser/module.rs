@@ -25,14 +25,19 @@ impl<'a> Parser<'a> {
                 TokenKind::TypeOrModuleRef,
                 TokenKind::ValueRefOrIdent,
                 TokenKind::KwEnd,
+                TokenKind::KwEncodingControl,
             ])?;
-            if tok.kind == TokenKind::KwEnd {
-                self.next(&[TokenKind::KwEnd])?;
+            if tok.kind == TokenKind::KwEnd || tok.kind == TokenKind::KwEncodingControl {
                 break;
             }
         }
 
-        // TODO: encoding control sections
+        let tok = self.peek(&[TokenKind::KwEnd, TokenKind::KwEncodingControl])?;
+        if tok.kind == TokenKind::KwEncodingControl {
+            self.encoding_control()?;
+        }
+
+        self.next(&[TokenKind::KwEnd])?;
 
         self.end_temp_vec(Asn1Tag::ModuleDefinition);
         Ok(())
@@ -58,6 +63,9 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    /// Object identifier after the name of a module
+    /// - no local variables in scope
+    /// - we know it must be an OID so don't just parse it as a braced value
     fn definitive_oid(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::DefinitiveOID)?;
         self.next(&[TokenKind::LeftCurly])?;
@@ -79,6 +87,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    /// Single component of the object identifier after the name of a module
     fn definitive_oid_component(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::DefinitiveOIDComponent)?;
 
@@ -133,6 +142,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    /// Parse `EXPLICIT TAGS` or `IMPLICIT TAGS` or `AUTOMATIC TAGS` or none
     fn tag_default(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::TagDefault)?;
         let tok = self.peek(&[
@@ -157,6 +167,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    /// Parse `EXTENSIBILITY IMPLIED` or none
     fn extension_default(&mut self) -> Result {
         self.start_temp_vec(Asn1Tag::ExtensionDefault)?;
         let tok = self.peek(&[TokenKind::KwExtensibility, TokenKind::Assignment])?;
@@ -203,7 +214,7 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    /// Parse the list of imported symbols
+    /// Parse the list of imported symbols by skipping over everything
     fn imports(&mut self) -> Result {
         let tok = self.peek(&[
             TokenKind::KwImports,
@@ -233,6 +244,7 @@ impl<'a> Parser<'a> {
             TokenKind::TypeOrModuleRef,
             TokenKind::ValueRefOrIdent,
             TokenKind::KwEnd,
+            TokenKind::KwEncodingControl,
         ])?;
 
         // TODO: Object class assignment
@@ -257,6 +269,7 @@ impl<'a> Parser<'a> {
                             TokenKind::TypeOrModuleRef,
                             TokenKind::ValueRefOrIdent,
                             TokenKind::KwEnd,
+                            TokenKind::KwEncodingControl,
                         ],
                     })?;
                 } else {
@@ -285,6 +298,7 @@ impl<'a> Parser<'a> {
                             TokenKind::TypeOrModuleRef,
                             TokenKind::ValueRefOrIdent,
                             TokenKind::KwEnd,
+                            TokenKind::KwEncodingControl,
                         ],
                     })?;
                 }
@@ -295,6 +309,41 @@ impl<'a> Parser<'a> {
 
         self.end_temp_vec(Asn1Tag::Assignment);
 
+        Ok(())
+    }
+
+    /// Parse a list of encoding control sections
+    fn encoding_control(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::EncodingControl)?;
+
+        loop {
+            self.encoding_control_section()?;
+
+            let tok = self.peek(&[TokenKind::KwEncodingControl, TokenKind::KwEnd])?;
+            if tok.kind == TokenKind::KwEnd {
+                break;
+            }
+        }
+
+        self.end_temp_vec(Asn1Tag::EncodingControl);
+        Ok(())
+    }
+
+    /// Parse the inside of a single encoding control section
+    fn encoding_control_section(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::EncodingControlSection)?;
+
+        self.next(&[TokenKind::KwEncodingControl])?;
+
+        loop {
+            let tok = self.peek(&[])?;
+            if tok.kind == TokenKind::KwEnd || tok.kind == TokenKind::KwEncodingControl {
+                break;
+            }
+            self.next(&[])?;
+        }
+
+        self.end_temp_vec(Asn1Tag::EncodingControlSection);
         Ok(())
     }
 }
