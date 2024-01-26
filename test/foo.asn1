@@ -19,11 +19,11 @@ EXTENSIBILITY IMPLIED ::= BEGIN
     MyInt ::= INTEGER { a(-5), b(Module.num) }
     a INTEGER ::= a -- comment
     b INTEGER --comment2--::= -3
-    /*a ::= <INTEGER/>
+    a ::= <INTEGER/>
     b ::= <Hello></Hello>
     c ::= <World><true/></World>
     d ::= <Foo>-5</Foo>
-    e ::= <I>/a/b</I>*/
+    e ::= <I>/a/b</I>
     F ::= ENUMERATED {
         a(5), b, c(7), ... !-5, z(3)
     }

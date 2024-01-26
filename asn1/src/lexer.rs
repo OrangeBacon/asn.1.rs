@@ -77,25 +77,7 @@ impl<'a> Lexer<'a> {
     /// in the source text, returns an error.  Skips all whitespace and comments
     /// before the start of a token.
     pub fn peek(&mut self) -> Result<Token<'a>> {
-        // skip whitespace and comments
-        while let Some(&(offset, c)) = self.chars.peek(0) {
-            match c {
-                '-' | '\u{2011}' => {
-                    if !self.single_comment(c, offset) {
-                        break;
-                    }
-                }
-                '/' => {
-                    if !self.multi_comment(offset)? {
-                        break;
-                    }
-                }
-                _ if is_whitespace(c) => {
-                    self.chars.next();
-                }
-                _ => break,
-            }
-        }
+        self.skip_trivia()?;
 
         let &(offset, c) = self
             .chars
@@ -118,18 +100,11 @@ impl<'a> Lexer<'a> {
             '!' => self.simple_token(TokenKind::Exclamation, offset),
             '^' => self.simple_token(TokenKind::Caret, offset),
             '_' => self.simple_token(TokenKind::Underscore, offset),
+            '<' => self.simple_token(TokenKind::Less, offset),
+            '/' => self.simple_token(TokenKind::ForwardSlash, offset),
             '-' | '\u{2011}' => self.simple_token(TokenKind::Hyphen, offset),
 
             ':' => self.multi_token(TokenKind::Colon, TokenKind::Assignment, offset, "::="),
-
-            '<' => self.multi_token(TokenKind::Less, TokenKind::XMLEndTag, offset, "</"),
-
-            '/' => self.multi_token(
-                TokenKind::ForwardSlash,
-                TokenKind::XMLSingleTagEnd,
-                offset,
-                "/>",
-            ),
 
             '.' => self.multi_token(TokenKind::Dot, TokenKind::Ellipsis, offset, "..."),
 
@@ -174,9 +149,106 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    /// Peek the next XML token from the source.
+    pub fn peek_xml(&mut self) -> Result<Token<'a>> {
+        let &(offset, ch) = self
+            .chars
+            .peek(0)
+            .ok_or(LexerError::EndOfFile { file: self.file })?;
+
+        Ok(match ch {
+            '<' => {
+                if matches!(self.chars.peek(1), Some((_, '/'))) {
+                    Token {
+                        kind: TokenKind::XMLEndTag,
+                        value: "</",
+                        offset,
+                        file: self.file,
+                    }
+                } else {
+                    self.simple_token(TokenKind::Less, offset)
+                }
+            }
+            '>' => self.simple_token(TokenKind::Greater, offset),
+            '/' if matches!(self.chars.peek(1), Some((_, '>'))) => {
+                Token {
+                    kind: TokenKind::XMLSingleTagEnd,
+                    value: "/>",
+                    offset,
+                    file: self.file,
+                }
+            }
+            _ => {
+                let value = &self.source[offset..];
+
+                let mut len = ch.len_utf8();
+                while let Some(&(_, ch)) = self.chars.peek(len) {
+
+                    match (ch, self.chars.peek(len + ch.len_utf8())) {
+                        ('<' | '>', _) | ('/', Some((_, '>'))) => break,
+                        _ => (),
+                    }
+                    len += ch.len_utf8();
+                }
+
+                Token {
+                    kind: TokenKind::XMLData,
+                    value: &value[..len],
+                    offset,
+                    file: self.file,
+                }
+            }
+        })
+    }
+
+    /// Consume the next XML token
+    pub fn next_xml(&mut self) -> Result<Token<'a>> {
+        let peek = self.peek_xml();
+
+        match peek {
+            Ok(t) => {
+                for _ in t.value.chars() {
+                    self.chars.next();
+                }
+
+                Ok(t)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Consume the next comment
+    pub fn next_comment(&mut self) -> Option<Token<'a>> {
+        self.comments.pop_front()
+    }
+
     /// Returns true if the lexer is at the end of its source file
     pub fn is_eof(&mut self) -> bool {
         matches!(self.peek(), Err(LexerError::EndOfFile { .. }))
+    }
+
+    /// skip whitespace and comments
+    fn skip_trivia(&mut self) -> Result {
+        while let Some(&(offset, c)) = self.chars.peek(0) {
+            match c {
+                '-' | '\u{2011}' => {
+                    if !self.single_comment(c, offset) {
+                        break;
+                    }
+                }
+                '/' => {
+                    if !self.multi_comment(offset)? {
+                        break;
+                    }
+                }
+                _ if is_whitespace(c) => {
+                    self.chars.next();
+                }
+                _ => break,
+            }
+        }
+
+        Ok(())
     }
 
     /// Return a 1 character token

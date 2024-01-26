@@ -277,8 +277,7 @@ impl<'a> Parser<'a> {
                 self.next(&[TokenKind::Assignment])?;
 
                 if ty.is_assign() {
-                    // TODO: XML value parsing
-                    todo!("XML value")
+                    self.xml_value()?;
                 } else {
                     self.type_or_value(TypeOrValue {
                         alternative: &[],

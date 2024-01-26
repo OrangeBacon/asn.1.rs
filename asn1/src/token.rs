@@ -36,14 +36,11 @@ pub enum TokenKind {
     // Compound tokens
     ValueRefOrIdent,
     TypeOrModuleRef,
-    IntegerUnicodeLabel,
-    NonIntegerUnicodeLabel,
     Number,
-    XMLAsn1TypeName,
-    XMLBoolNumber,
     CString,
     BHString,
     Field,
+    XMLData,
 
     // Keywords
     // "ABSENT",

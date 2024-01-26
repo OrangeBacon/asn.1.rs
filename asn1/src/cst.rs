@@ -73,12 +73,9 @@ pub enum Asn1Tag {
     OpenTypeFieldValue,
 
     // xml value
-    XMLTypedValue,
-    XMLTag,
     XMLValue,
-    XMLBoolean,
-    XMLInteger,
-    XMLIri,
+    XMLTag,
+    XMLData,
 
     // reference
     SymbolList,

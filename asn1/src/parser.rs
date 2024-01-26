@@ -107,6 +107,44 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Peek the next XML token from the lexer without consuming it
+    fn peek_xml(&mut self, kind: &[TokenKind]) -> Result<Token<'a>> {
+        let tok = self.lexer.peek_xml()?;
+
+        if kind.contains(&tok.kind) || kind.is_empty() {
+            Ok(tok)
+        } else {
+            Err(ParserError::Expected {
+                kind: kind.to_vec().into(),
+                offset: tok.offset,
+                file: tok.file,
+            })
+        }
+    }
+
+    /// Get the next XML token from the lexer
+    fn next_xml(&mut self, kind: &[TokenKind]) -> Result<Token<'a>> {
+        let tok = self.lexer.next_xml()?;
+        self.temp_result.push(TreeContent::Token(tok));
+
+        if kind.contains(&tok.kind) || kind.is_empty() {
+            Ok(tok)
+        } else {
+            Err(ParserError::Expected {
+                kind: kind.to_vec().into(),
+                offset: tok.offset,
+                file: tok.file,
+            })
+        }
+    }
+
+    /// Consume all comment tokens from the lexer
+    fn consume_comments(&mut self) {
+        while let Some(tok) = self.lexer.next_comment() {
+            self.temp_result.push(TreeContent::Token(tok));
+        }
+    }
+
     /// Start an ast tree node with the given tag to describe the node
     fn start_temp_vec(&mut self, tag: Asn1Tag) -> Result {
         // TODO: make this an actual parameter, not a magic number I picked randomly
