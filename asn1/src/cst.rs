@@ -67,6 +67,13 @@ pub enum Asn1Tag {
     EmbeddedPDVType,
     PrefixType,
 
+    // composite type
+    SequenceType,
+    SetType,
+    ExtensionAndException,
+    ComponentTypeList,
+    ComponentType,
+
     // value
     NumberValue,
     BracedValue,

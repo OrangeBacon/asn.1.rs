@@ -150,7 +150,7 @@ impl<'a> Parser<'a> {
     /// file.  Returns true if the a non-empty exception spec was parsed.  All
     /// elements of the exception spec count as types or values, so check for the
     /// valid ones later.
-    fn exception_spec(&mut self, subsequent: &[TokenKind]) -> Result<bool> {
+    pub(super) fn exception_spec(&mut self, subsequent: &[TokenKind]) -> Result<bool> {
         self.start_temp_vec(Asn1Tag::ExceptionSpec)?;
 
         let mut kind = subsequent.to_vec();

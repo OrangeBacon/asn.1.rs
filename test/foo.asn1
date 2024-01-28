@@ -82,3 +82,7 @@ TestModule2 DEFINITIONS ::= BEGIN
     ENCODING-CONTROL another
         one with more stuff
 END -- hi --
+
+TestModule3 DEFINITIONS ::= BEGIN
+    A ::= SEQUENCE {a INTEGER OPTIONAL, b BOOLEAN DEFAULT TRUE, COMPONENTS OF Test, ...}
+END -- test --

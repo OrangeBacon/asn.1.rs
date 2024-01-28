@@ -62,7 +62,7 @@ impl<'a> Parser<'a> {
         }
 
         // handle comments at the end of the file after all meaningful tokens
-        let _ = self.next(&[]);
+        self.consume_comments();
 
         self.end_temp_vec(Asn1Tag::Root);
         let root = self.result.len();

@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use asn1::{
     lexer::Lexer,
     parser::{Parser, ParserError},
@@ -17,7 +19,11 @@ fn main() {
 
     let parser = Parser::new(lexer);
 
-    match parser.run() {
+    let start = Instant::now();
+    let res = parser.run();
+    let end = start.elapsed();
+
+    match res {
         Ok(t) => print!("{t}"),
         Err(
             ref err @ (ParserError::Expected { offset, .. }
@@ -29,4 +35,6 @@ fn main() {
         }
         Err(e) => println!("{e:?}"),
     }
+
+    println!("Completed in {end:?}");
 }
