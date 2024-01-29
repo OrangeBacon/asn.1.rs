@@ -149,6 +149,7 @@ impl<'a> Parser<'a> {
         let mut kind = expecting.subsequent.to_vec();
         kind.push(TokenKind::Dot);
         kind.push(TokenKind::LeftCurly);
+        kind.push(TokenKind::Colon);
         let tok = self.peek(kind)?;
 
         if tok.kind == TokenKind::Dot {
@@ -167,6 +168,7 @@ impl<'a> Parser<'a> {
         let mut kind = expecting.subsequent.to_vec();
         kind.push(TokenKind::Dot);
         kind.push(TokenKind::LeftCurly);
+        kind.push(TokenKind::Colon);
         let tok = self.peek(kind)?;
 
         if tok.kind == TokenKind::LeftCurly {
@@ -175,6 +177,7 @@ impl<'a> Parser<'a> {
 
         let mut kind = expecting.subsequent.to_vec();
         kind.push(TokenKind::Dot);
+        kind.push(TokenKind::Colon);
 
         let tok = self.peek(kind)?;
         if tok.kind == TokenKind::Dot {
@@ -182,6 +185,9 @@ impl<'a> Parser<'a> {
         }
 
         self.end_temp_vec(Asn1Tag::Defined);
+
+        self.open_type_field_value(expecting)?;
+
         Ok(())
     }
 
