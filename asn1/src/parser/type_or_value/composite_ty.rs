@@ -82,9 +82,121 @@ impl<'a> Parser<'a> {
     fn extension_struct(&mut self) -> Result {
         self.extension_and_exception()?;
 
-        // comma extension additions | empty
-        // empty | comma ellipsis
-        // if last not empty => comma component list | empty
+        let tok = self.peek(&[TokenKind::RightCurly, TokenKind::Comma])?;
+        if tok.kind == TokenKind::RightCurly {
+            return Ok(());
+        }
+
+        self.next(&[TokenKind::Comma])?;
+
+        let tok = self.peek(&[
+            TokenKind::ValueRefOrIdent,
+            TokenKind::KwComponents,
+            TokenKind::VersionOpen,
+            TokenKind::Ellipsis,
+        ])?;
+        if tok.kind != TokenKind::Ellipsis {
+            let is_comma = self.extension_additions()?;
+            if !is_comma {
+                return Ok(());
+            }
+        }
+
+        self.next(&[TokenKind::Ellipsis])?;
+
+        let tok = self.peek(&[TokenKind::RightCurly, TokenKind::Comma])?;
+        if tok.kind == TokenKind::RightCurly {
+            return Ok(());
+        }
+
+        self.next(&[TokenKind::Comma])?;
+        self.component_type_list(&[TokenKind::RightCurly])?;
+
+        Ok(())
+    }
+
+    /// Parse the list of versioned additions to a struct type.
+    /// `[[0: my INTEGER]], a INTEGER, [[1: new BOOLEAN]]`  Returns true if a
+    /// trailing comma was consumed.
+    fn extension_additions(&mut self) -> Result<bool> {
+        self.start_temp_vec(Asn1Tag::ExtensionAdditions)?;
+
+        let mut ret = false;
+        loop {
+            self.extension_addition()?;
+            let tok = self.peek(&[TokenKind::Comma, TokenKind::RightCurly])?;
+            if tok.kind != TokenKind::Comma {
+                break;
+            }
+            self.next(&[TokenKind::Comma])?;
+
+            let tok = self.peek(&[
+                TokenKind::ValueRefOrIdent,
+                TokenKind::KwComponents,
+                TokenKind::VersionOpen,
+                TokenKind::Ellipsis,
+            ])?;
+            if tok.kind == TokenKind::Ellipsis {
+                ret = true;
+                break;
+            }
+        }
+
+        self.end_temp_vec(Asn1Tag::ExtensionAdditions);
+
+        Ok(ret)
+    }
+
+    /// Parse a single extension addition
+    fn extension_addition(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::ExtensionAddition)?;
+
+        let tok = self.peek(&[
+            TokenKind::ValueRefOrIdent,
+            TokenKind::KwComponents,
+            TokenKind::VersionOpen,
+        ])?;
+        if tok.kind == TokenKind::VersionOpen {
+            self.extension_addition_group()?;
+        } else {
+            self.component_type(&[TokenKind::Comma, TokenKind::RightCurly])?;
+        }
+
+        self.end_temp_vec(Asn1Tag::ExtensionAddition);
+
+        Ok(())
+    }
+
+    /// Parse a single versioned addition to a struct type. `[[0: my INTEGER]]`
+    fn extension_addition_group(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::ExtensionAdditionGroup)?;
+
+        self.next(&[TokenKind::VersionOpen])?;
+
+        let tok = self.peek(&[
+            TokenKind::ValueRefOrIdent,
+            TokenKind::KwComponents,
+            TokenKind::Number,
+        ])?;
+        if tok.kind == TokenKind::Number {
+            self.version_number()?;
+        }
+
+        self.component_type_list(&[TokenKind::VersionClose])?;
+        self.next(&[TokenKind::VersionClose])?;
+
+        self.end_temp_vec(Asn1Tag::ExtensionAdditionGroup);
+        Ok(())
+    }
+
+    /// Parse a component type version number e.g. `1:`
+    fn version_number(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::VersionNumber)?;
+
+        self.next(&[TokenKind::Number])?;
+        self.next(&[TokenKind::Colon])?;
+
+        self.end_temp_vec(Asn1Tag::VersionNumber);
 
         Ok(())
     }

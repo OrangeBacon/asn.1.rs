@@ -73,6 +73,10 @@ pub enum Asn1Tag {
     ExtensionAndException,
     ComponentTypeList,
     ComponentType,
+    ExtensionAdditions,
+    ExtensionAddition,
+    ExtensionAdditionGroup,
+    VersionNumber,
 
     // value
     NumberValue,

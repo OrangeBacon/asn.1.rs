@@ -32,6 +32,8 @@ pub enum TokenKind {
     XMLEndTag,
     XMLSingleTagEnd,
     Ellipsis,
+    VersionOpen,
+    VersionClose,
 
     // Compound tokens
     ValueRefOrIdent,

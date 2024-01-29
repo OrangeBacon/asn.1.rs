@@ -87,6 +87,10 @@ TestModule3 DEFINITIONS ::= BEGIN
     A ::= SEQUENCE {
         a INTEGER OPTIONAL,
         b BOOLEAN DEFAULT TRUE,
-        COMPONENTS OF Test, ... !Except : 7
+        COMPONENTS OF Test, ... !Except : 7,
+        [[1: test Version1Type, test2 BIT STRING { a(5) } ]],
+        c a < INTEGER,
+        ...,
+        d REAL
     }
 END -- test --

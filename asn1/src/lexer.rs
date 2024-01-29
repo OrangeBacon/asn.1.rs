@@ -91,8 +91,6 @@ impl<'a> Lexer<'a> {
             ',' => self.simple_token(TokenKind::Comma, offset),
             '(' => self.simple_token(TokenKind::LeftParen, offset),
             ')' => self.simple_token(TokenKind::RightParen, offset),
-            '[' => self.simple_token(TokenKind::LeftSquare, offset),
-            ']' => self.simple_token(TokenKind::RightSquare, offset),
             '=' => self.simple_token(TokenKind::Equals, offset),
             ';' => self.simple_token(TokenKind::SemiColon, offset),
             '@' => self.simple_token(TokenKind::At, offset),
@@ -105,8 +103,14 @@ impl<'a> Lexer<'a> {
             '-' | '\u{2011}' => self.simple_token(TokenKind::Hyphen, offset),
 
             ':' => self.multi_token(TokenKind::Colon, TokenKind::Assignment, offset, "::="),
-
             '.' => self.multi_token(TokenKind::Dot, TokenKind::Ellipsis, offset, "..."),
+            '[' => self.multi_token(TokenKind::LeftSquare, TokenKind::VersionOpen, offset, "[["),
+            ']' => self.multi_token(
+                TokenKind::RightSquare,
+                TokenKind::VersionClose,
+                offset,
+                "]]",
+            ),
 
             '&' => self.field(offset)?,
             'a'..='z' | 'A'..='Z' => self.identifier(c, offset),
@@ -170,20 +174,17 @@ impl<'a> Lexer<'a> {
                 }
             }
             '>' => self.simple_token(TokenKind::Greater, offset),
-            '/' if matches!(self.chars.peek(1), Some((_, '>'))) => {
-                Token {
-                    kind: TokenKind::XMLSingleTagEnd,
-                    value: "/>",
-                    offset,
-                    file: self.file,
-                }
-            }
+            '/' if matches!(self.chars.peek(1), Some((_, '>'))) => Token {
+                kind: TokenKind::XMLSingleTagEnd,
+                value: "/>",
+                offset,
+                file: self.file,
+            },
             _ => {
                 let value = &self.source[offset..];
 
                 let mut len = ch.len_utf8();
                 while let Some(&(_, ch)) = self.chars.peek(len) {
-
                     match (ch, self.chars.peek(len + ch.len_utf8())) {
                         ('<' | '>', _) | ('/', Some((_, '>'))) => break,
                         _ => (),
