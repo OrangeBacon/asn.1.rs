@@ -7,26 +7,32 @@ use super::{Parser, Result, TypeOrValue};
 impl<'a> Parser<'a> {
     /// Parse a sequence type definition
     pub(super) fn sequence_type(&mut self, expecting: TypeOrValue) -> Result {
-        self.start_temp_vec(Asn1Tag::SequenceType)?;
-
-        self.next(&[TokenKind::KwSequence])?;
-        self.struct_type()?;
-
-        self.end_temp_vec(Asn1Tag::SequenceType);
-
-        self.open_type_field_value(expecting)?;
-
-        Ok(())
+        self.sequence_set(expecting, Asn1Tag::SequenceType, TokenKind::KwSequence)
     }
 
     /// Parse a set type definition
     pub(super) fn set_type(&mut self, expecting: TypeOrValue) -> Result {
-        self.start_temp_vec(Asn1Tag::SetType)?;
+        self.sequence_set(expecting, Asn1Tag::SetType, TokenKind::KwSet)
+    }
 
-        self.next(&[TokenKind::KwSet])?;
-        self.struct_type()?;
+    // Parse either a sequence or set type
+    fn sequence_set(&mut self, expecting: TypeOrValue, tag: Asn1Tag, kind: TokenKind) -> Result {
+        self.start_temp_vec(tag)?;
 
-        self.end_temp_vec(Asn1Tag::SetType);
+        self.next(vec![kind])?;
+
+        let tok = self.peek(&[TokenKind::LeftCurly, TokenKind::KwOf])?;
+        if tok.kind == TokenKind::LeftCurly {
+            self.struct_type()?;
+        } else {
+            self.next(&[TokenKind::KwOf])?;
+            self.type_or_value_named(TypeOrValue {
+                alternative: &[],
+                subsequent: expecting.subsequent,
+            })?;
+        }
+
+        self.end_temp_vec(tag);
 
         self.open_type_field_value(expecting)?;
 

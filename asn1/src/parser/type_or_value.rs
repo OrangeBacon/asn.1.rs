@@ -32,7 +32,24 @@ pub(super) enum TypeOrValueResult {
 impl<'a> Parser<'a> {
     /// Parse either a type or a value declaration
     pub(super) fn type_or_value(&mut self, expecting: TypeOrValue) -> Result<TypeOrValueResult> {
-        // TODO type: choice, sequence of, set, set of, constrained type
+        self.type_or_value_maybe_named(expecting, false)
+    }
+
+    /// Parse either a type or a value declaration, allowing named types.
+    pub(super) fn type_or_value_named(
+        &mut self,
+        expecting: TypeOrValue,
+    ) -> Result<TypeOrValueResult> {
+        self.type_or_value_maybe_named(expecting, true)
+    }
+
+    /// Parse either a type or a value declaration
+    fn type_or_value_maybe_named(
+        &mut self,
+        expecting: TypeOrValue,
+        named: bool,
+    ) -> Result<TypeOrValueResult> {
+        // TODO type: choice, constrained type
 
         let tok = self.peek(&[])?;
 
@@ -45,7 +62,7 @@ impl<'a> Parser<'a> {
         match tok.kind {
             // either
             TokenKind::TypeOrModuleRef => self.defined(expecting)?,
-            TokenKind::ValueRefOrIdent => self.ident_type_value(expecting)?,
+            TokenKind::ValueRefOrIdent => self.ident_type_value(expecting, named)?,
 
             // values
             TokenKind::Number | TokenKind::Hyphen => self.number_value()?,
@@ -201,7 +218,9 @@ impl<'a> Parser<'a> {
     /// ```
     /// `IntegerValue`, `EnumeratedValue` and the first option of `DefinedValue`
     /// are all identical to the parser so will be distinguished later.
-    fn ident_type_value(&mut self, expecting: TypeOrValue) -> Result {
+    ///
+    /// If `named` is true, then allows parsing named values.
+    fn ident_type_value(&mut self, expecting: TypeOrValue, named: bool) -> Result {
         self.start_temp_vec(Asn1Tag::Defined)?;
 
         self.next(&[TokenKind::ValueRefOrIdent])?;
@@ -212,9 +231,29 @@ impl<'a> Parser<'a> {
         kind.push(TokenKind::Less);
         kind.push(TokenKind::Dot);
 
-        let tok = self.peek(kind)?;
+        let tok = if named {
+            let ty = self.type_or_value(TypeOrValue {
+                alternative: &[
+                    TokenKind::Colon,
+                    TokenKind::LeftCurly,
+                    TokenKind::Less,
+                    TokenKind::Dot,
+                ],
+                subsequent: expecting.subsequent,
+            })?;
 
-        match tok.kind {
+            match ty {
+                TypeOrValueResult::TypeOrValue => {
+                    self.end_temp_vec(Asn1Tag::Defined);
+                    return Ok(())
+                },
+                TypeOrValueResult::Alternate(tok) => tok,
+            }
+        } else {
+            self.peek(kind)?.kind
+        };
+
+        match tok {
             TokenKind::LeftCurly => {
                 self.actual_parameter_list()?;
                 let mut kind = expecting.subsequent.to_vec();

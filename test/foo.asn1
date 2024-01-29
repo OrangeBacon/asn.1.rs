@@ -84,7 +84,7 @@ TestModule2 DEFINITIONS ::= BEGIN
 END -- hi --
 
 TestModule3 DEFINITIONS ::= BEGIN
-    A ::= SEQUENCE {
+    A ::= SET OF a SEQUENCE {
         a INTEGER OPTIONAL,
         b BOOLEAN DEFAULT TRUE,
         COMPONENTS OF Test, ... !Except : 7,
@@ -93,4 +93,5 @@ TestModule3 DEFINITIONS ::= BEGIN
         ...,
         d REAL
     }
+    B ::= SEQUENCE OF a A
 END -- test --
