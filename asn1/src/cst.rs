@@ -83,6 +83,9 @@ pub enum Asn1Tag {
     ChoiceExtensionList,
     ChoiceExtensionItem,
 
+    // object
+    ObjectClass,
+
     // value
     NumberValue,
     BracedValue,

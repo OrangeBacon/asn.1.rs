@@ -1,6 +1,7 @@
 mod composite_ty;
 mod ty;
 mod value;
+mod object;
 
 use crate::{
     cst::Asn1Tag,
@@ -49,7 +50,7 @@ impl<'a> Parser<'a> {
         expecting: TypeOrValue,
         named: bool,
     ) -> Result<TypeOrValueResult> {
-        // TODO type: choice, constrained type
+        // TODO type: constrained type
 
         let tok = self.peek(&[])?;
 
@@ -128,6 +129,18 @@ impl<'a> Parser<'a> {
                 self.next(&[])?;
                 self.open_type_field_value(expecting)?;
             }
+
+            // object definition - used in object class assignment.
+            // ```
+            // ObjectClass ::=
+            //     DefinedObjectClass
+            //   | ObjectClassDefinition
+            //   | ParameterizedObjectClass
+            // ```
+            // the defined and parameterized options of this will be parsed as
+            // type references and changed to object references later, so object
+            // class definition is all that needs to be added.
+            TokenKind::KwClass => self.object_class(expecting)?,
 
             _ => {
                 return Err(ParserError::TypeValueError {
@@ -246,13 +259,13 @@ impl<'a> Parser<'a> {
             match ty {
                 TypeOrValueResult::TypeOrValue => {
                     self.end_temp_vec(Asn1Tag::Defined);
-                    return Ok(())
-                },
+                    return Ok(());
+                }
                 TypeOrValueResult::Alternate(tok) => tok,
             }
         } else {
             self.peek(kind)?.kind
-         };
+        };
 
         match tok {
             TokenKind::LeftCurly => {

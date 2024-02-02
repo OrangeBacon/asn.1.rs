@@ -57,7 +57,7 @@ pub enum TokenKind {
     // "BY",
     KwCharacter,
     KwChoice,
-    // "CLASS",
+    KwClass,
     // "COMPONENT",
     KwComponents,
     // "CONSTRAINED",
@@ -157,7 +157,7 @@ pub struct Token<'a> {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 73] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 74] = [
     // "ABSENT",
     ("ABSTRACT-SYNTAX", TokenKind::KwAbstractSyntax),
     ("ALL", TokenKind::KwAll),
@@ -169,8 +169,8 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 73] = [
     ("BOOLEAN", TokenKind::KwBoolean),
     // "BY",
     ("CHARACTER", TokenKind::KwCharacter),
-    ("CHOICE",TokenKind::KwChoice),
-    // "CLASS",
+    ("CHOICE", TokenKind::KwChoice),
+    ("CLASS", TokenKind::KwClass),
     // "COMPONENT",
     ("COMPONENTS", TokenKind::KwComponents),
     // "CONSTRAINED",

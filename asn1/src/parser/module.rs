@@ -247,68 +247,75 @@ impl<'a> Parser<'a> {
             TokenKind::KwEncodingControl,
         ])?;
 
-        // TODO: Object class assignment
         // TODO: Object set assignment
         // TODO: Parameterized assignment
 
         match name.kind {
-            TokenKind::TypeOrModuleRef => {
-                self.start_temp_vec(Asn1Tag::TypeAssignment)?;
-
-                let ty = self.type_or_value(TypeOrValue {
-                    alternative: &[TokenKind::Assignment],
-                    subsequent: &[TokenKind::Assignment],
-                })?;
-
-                self.next(&[TokenKind::Assignment])?;
-
-                if ty.is_assign() {
-                    self.type_or_value(TypeOrValue {
-                        alternative: &[],
-                        subsequent: &[
-                            TokenKind::TypeOrModuleRef,
-                            TokenKind::ValueRefOrIdent,
-                            TokenKind::KwEnd,
-                            TokenKind::KwEncodingControl,
-                        ],
-                    })?;
-                } else {
-                    self.next(&[TokenKind::LeftCurly])?;
-                    // TODO: element set specs
-                    self.next(&[TokenKind::RightCurly])?;
-                }
-
-                self.end_temp_vec(Asn1Tag::TypeAssignment);
-            }
-            TokenKind::ValueRefOrIdent => {
-                self.start_temp_vec(Asn1Tag::ValueAssignment)?;
-
-                let ty = self.type_or_value(TypeOrValue {
-                    alternative: &[TokenKind::Assignment],
-                    subsequent: &[TokenKind::Assignment],
-                })?;
-                self.next(&[TokenKind::Assignment])?;
-
-                if ty.is_assign() {
-                    self.xml_value()?;
-                } else {
-                    self.type_or_value(TypeOrValue {
-                        alternative: &[],
-                        subsequent: &[
-                            TokenKind::TypeOrModuleRef,
-                            TokenKind::ValueRefOrIdent,
-                            TokenKind::KwEnd,
-                            TokenKind::KwEncodingControl,
-                        ],
-                    })?;
-                }
-                self.end_temp_vec(Asn1Tag::ValueAssignment)
-            }
+            TokenKind::TypeOrModuleRef => self.type_assignment()?,
+            TokenKind::ValueRefOrIdent => self.value_assignment()?,
             _ => (),
         }
 
         self.end_temp_vec(Asn1Tag::Assignment);
 
+        Ok(())
+    }
+
+    /// Parse an assignment starting with a type reference
+    fn type_assignment(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::TypeAssignment)?;
+
+        let ty = self.type_or_value(TypeOrValue {
+            alternative: &[TokenKind::Assignment],
+            subsequent: &[TokenKind::Assignment],
+        })?;
+
+        self.next(&[TokenKind::Assignment])?;
+
+        if ty.is_assign() {
+            self.type_or_value(TypeOrValue {
+                alternative: &[],
+                subsequent: &[
+                    TokenKind::TypeOrModuleRef,
+                    TokenKind::ValueRefOrIdent,
+                    TokenKind::KwEnd,
+                    TokenKind::KwEncodingControl,
+                ],
+            })?;
+        } else {
+            self.next(&[TokenKind::LeftCurly])?;
+            // TODO: element set specs
+            self.next(&[TokenKind::RightCurly])?;
+        }
+
+        self.end_temp_vec(Asn1Tag::TypeAssignment);
+        Ok(())
+    }
+
+    /// Parse an assignment starting with a value reference
+    fn value_assignment(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::ValueAssignment)?;
+
+        let ty = self.type_or_value(TypeOrValue {
+            alternative: &[TokenKind::Assignment],
+            subsequent: &[TokenKind::Assignment],
+        })?;
+        self.next(&[TokenKind::Assignment])?;
+
+        if ty.is_assign() {
+            self.xml_value()?;
+        } else {
+            self.type_or_value(TypeOrValue {
+                alternative: &[],
+                subsequent: &[
+                    TokenKind::TypeOrModuleRef,
+                    TokenKind::ValueRefOrIdent,
+                    TokenKind::KwEnd,
+                    TokenKind::KwEncodingControl,
+                ],
+            })?;
+        }
+        self.end_temp_vec(Asn1Tag::ValueAssignment);
         Ok(())
     }
 

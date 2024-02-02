@@ -102,4 +102,7 @@ TestModule3 DEFINITIONS ::= BEGIN
         [[d OCTET STRING, e EMBEDDED PDV]],
         ...
     }
+    D ::= CLASS {
+
+    }
 END -- test --
