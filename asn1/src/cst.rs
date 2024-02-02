@@ -77,6 +77,11 @@ pub enum Asn1Tag {
     ExtensionAddition,
     ExtensionAdditionGroup,
     VersionNumber,
+    ChoiceType,
+    TypeList,
+    ChoiceExtension,
+    ChoiceExtensionList,
+    ChoiceExtensionItem,
 
     // value
     NumberValue,

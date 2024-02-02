@@ -91,7 +91,15 @@ TestModule3 DEFINITIONS ::= BEGIN
         [[1: test Version1Type, test2 BIT STRING { a(5) } ]],
         c a < INTEGER,
         ...,
-        d REAL
+        d REAL,
     }
     B ::= SEQUENCE OF a A
+    C ::= CHOICE {
+        a BOOLEAN,
+        b REAL,
+        ...,
+        c INTEGER {a(5)},
+        [[d OCTET STRING, e EMBEDDED PDV]],
+        ...
+    }
 END -- test --

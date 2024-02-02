@@ -89,6 +89,7 @@ impl<'a> Parser<'a> {
             TokenKind::KwEmbedded => self.embedded_pdv_type(expecting)?,
             TokenKind::KwSequence => self.sequence_type(expecting)?,
             TokenKind::KwSet => self.set_type(expecting)?,
+            TokenKind::KwChoice => self.choice_type(expecting)?,
 
             TokenKind::KwAbstractSyntax | TokenKind::KwTypeIdentifier => {
                 self.object_fields(expecting)?
@@ -251,7 +252,7 @@ impl<'a> Parser<'a> {
             }
         } else {
             self.peek(kind)?.kind
-        };
+         };
 
         match tok {
             TokenKind::LeftCurly => {

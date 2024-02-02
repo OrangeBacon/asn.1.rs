@@ -2,7 +2,7 @@
 
 use crate::{cst::Asn1Tag, token::TokenKind};
 
-use super::{Parser, Result, TypeOrValue};
+use super::{Parser, Result, TypeOrValue, TypeOrValueResult};
 
 impl<'a> Parser<'a> {
     /// Parse a sequence type definition
@@ -282,6 +282,132 @@ impl<'a> Parser<'a> {
         }
 
         self.end_temp_vec(Asn1Tag::ComponentType);
+        Ok(())
+    }
+
+    /// Parse a choice type definition
+    pub(super) fn choice_type(&mut self, expecting: TypeOrValue) -> Result {
+        self.start_temp_vec(Asn1Tag::ChoiceType)?;
+
+        self.next(&[TokenKind::KwChoice])?;
+        self.next(&[TokenKind::LeftCurly])?;
+
+        let more = self.type_list(&[TokenKind::Comma, TokenKind::RightCurly])?;
+        if more {
+            self.choice_extension()?;
+        }
+
+        self.next(&[TokenKind::RightCurly])?;
+
+        self.end_temp_vec(Asn1Tag::ChoiceType);
+
+        self.open_type_field_value(expecting)?;
+
+        Ok(())
+    }
+
+    /// Parse a list of types within a choice type
+    fn type_list(&mut self, subsequent: &'static [TokenKind]) -> Result<bool> {
+        self.start_temp_vec(Asn1Tag::TypeList)?;
+
+        let mut ret = false;
+        loop {
+            self.type_or_value_named(TypeOrValue {
+                alternative: &[],
+                subsequent,
+            })?;
+            let tok = self.peek(subsequent)?;
+            if tok.kind != TokenKind::Comma {
+                break;
+            }
+            self.next(&[TokenKind::Comma])?;
+            if self.peek(&[])?.kind != TokenKind::ValueRefOrIdent {
+                ret = true;
+                break;
+            }
+        }
+
+        self.end_temp_vec(Asn1Tag::TypeList);
+
+        Ok(ret)
+    }
+
+    /// Parse optional parts of a choice type
+    fn choice_extension(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::ChoiceExtension)?;
+
+        self.extension_and_exception()?;
+        let tok = self.peek(&[TokenKind::Comma, TokenKind::RightCurly])?;
+        if tok.kind == TokenKind::Comma {
+            self.next(&[TokenKind::Comma])?;
+            let tok = self.peek(&[
+                TokenKind::VersionOpen,
+                TokenKind::ValueRefOrIdent,
+                TokenKind::Ellipsis,
+                TokenKind::RightCurly,
+            ])?;
+            if tok.kind == TokenKind::Ellipsis {
+                self.next(&[TokenKind::Ellipsis])?;
+            } else if tok.kind != TokenKind::RightCurly {
+                let is_comma = self.choice_extension_list()?;
+                if is_comma {
+                    self.next(&[TokenKind::Ellipsis])?;
+                }
+            }
+        }
+
+        self.end_temp_vec(Asn1Tag::ChoiceExtension);
+
+        Ok(())
+    }
+
+    /// Parse a list of extensions to a choice type
+    fn choice_extension_list(&mut self) -> Result<bool> {
+        self.start_temp_vec(Asn1Tag::ChoiceExtensionList)?;
+
+        let mut ret = false;
+        loop {
+            self.choice_extension_item()?;
+            let tok = self.peek(&[TokenKind::Comma, TokenKind::RightCurly])?;
+            if tok.kind == TokenKind::RightCurly {
+                break;
+            }
+            self.next(&[TokenKind::Comma])?;
+            let tok = self.peek(&[
+                TokenKind::ValueRefOrIdent,
+                TokenKind::VersionOpen,
+                TokenKind::Ellipsis,
+            ])?;
+            if tok.kind == TokenKind::Ellipsis {
+                ret = true;
+                break;
+            }
+        }
+
+        self.end_temp_vec(Asn1Tag::ChoiceExtensionList);
+        Ok(ret)
+    }
+
+    /// Parse a single item within a choice extension list
+    fn choice_extension_item(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::ChoiceExtensionItem)?;
+
+        let ret = self.type_or_value_named(TypeOrValue {
+            alternative: &[TokenKind::VersionOpen],
+            subsequent: &[TokenKind::Comma, TokenKind::RightCurly],
+        })?;
+
+        if ret == TypeOrValueResult::Alternate(TokenKind::VersionOpen) {
+            self.next(&[TokenKind::VersionOpen])?;
+            let tok = self.peek(&[TokenKind::Number, TokenKind::ValueRefOrIdent])?;
+            if tok.kind == TokenKind::Number {
+                self.version_number()?;
+            }
+            self.type_list(&[TokenKind::Comma, TokenKind::VersionClose])?;
+            self.next(&[TokenKind::VersionClose])?;
+        }
+
+        self.end_temp_vec(Asn1Tag::ChoiceExtensionItem);
         Ok(())
     }
 }
