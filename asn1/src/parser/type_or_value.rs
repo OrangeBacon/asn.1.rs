@@ -1,7 +1,7 @@
 mod composite_ty;
+mod object;
 mod ty;
 mod value;
-mod object;
 
 use crate::{
     cst::Asn1Tag,
@@ -142,10 +142,11 @@ impl<'a> Parser<'a> {
             // class definition is all that needs to be added.
             TokenKind::KwClass => self.object_class(expecting)?,
 
-            _ => {
+            k => {
                 return Err(ParserError::TypeValueError {
                     subsequent: expecting.subsequent.to_vec(),
                     alternative: expecting.alternative.to_vec(),
+                    got: k,
                     offset: tok.offset,
                     file: tok.file,
                 });
@@ -184,14 +185,16 @@ impl<'a> Parser<'a> {
         let tok = self.peek(kind)?;
 
         if tok.kind == TokenKind::Dot {
+            // external references
             self.next(&[TokenKind::Dot])?;
 
             let tok = self.peek(&[
                 TokenKind::ValueRefOrIdent,
                 TokenKind::TypeOrModuleRef,
-                TokenKind::Field,
+                TokenKind::TypeField,
+                TokenKind::ValueField,
             ])?;
-            if tok.kind != TokenKind::Field {
+            if tok.kind == TokenKind::ValueRefOrIdent || tok.kind == TokenKind::TypeOrModuleRef {
                 self.next(&[])?;
             }
         }
@@ -294,7 +297,7 @@ impl<'a> Parser<'a> {
 
         loop {
             self.next(&[TokenKind::Dot])?;
-            self.next(&[TokenKind::Field])?;
+            self.next(&[TokenKind::ValueField, TokenKind::TypeField])?;
 
             let mut kind = subsequent.to_vec();
             kind.push(TokenKind::Dot);

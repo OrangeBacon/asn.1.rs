@@ -6,6 +6,7 @@ pub enum ParserError {
     /// Unable to lex one of the token kinds at a given offset into a file
     Expected {
         kind: CowVec<TokenKind>,
+        got: TokenKind,
         offset: usize,
         file: usize,
     },
@@ -20,6 +21,7 @@ pub enum ParserError {
     TypeValueError {
         subsequent: Vec<TokenKind>,
         alternative: Vec<TokenKind>,
+        got: TokenKind,
         offset: usize,
         file: usize,
     },

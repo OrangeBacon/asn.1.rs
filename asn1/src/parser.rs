@@ -101,6 +101,7 @@ impl<'a> Parser<'a> {
         } else {
             Err(ParserError::Expected {
                 kind,
+                got: peek.kind,
                 offset: peek.offset,
                 file: peek.file,
             })
@@ -116,6 +117,7 @@ impl<'a> Parser<'a> {
         } else {
             Err(ParserError::Expected {
                 kind: kind.to_vec().into(),
+                got: tok.kind,
                 offset: tok.offset,
                 file: tok.file,
             })
@@ -132,6 +134,7 @@ impl<'a> Parser<'a> {
         } else {
             Err(ParserError::Expected {
                 kind: kind.to_vec().into(),
+                got: tok.kind,
                 offset: tok.offset,
                 file: tok.file,
             })

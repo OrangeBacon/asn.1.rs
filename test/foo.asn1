@@ -103,6 +103,6 @@ TestModule3 DEFINITIONS ::= BEGIN
         ...
     }
     D ::= CLASS {
-
+        &MyType
     }
 END -- test --

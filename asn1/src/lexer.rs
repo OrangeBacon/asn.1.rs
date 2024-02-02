@@ -48,6 +48,9 @@ pub enum LexerError {
 
     /// No identifier found after an `&`
     MissingFieldName { offset: usize, file: usize },
+
+    /// Unexpected keyword after an '&'
+    KeywordFieldName { offset: usize, file: usize },
 }
 
 pub type Result<T = (), E = LexerError> = std::result::Result<T, E>;
@@ -547,16 +550,36 @@ impl<'a> Lexer<'a> {
     /// Parse an object field reference `&name`
     fn field(&mut self, offset: usize) -> Result<Token<'a>> {
         let Some(&(_, ch)) = self.chars.peek(1) else {
-            return Err(LexerError::MissingFieldName { offset, file: self.file });
+            return Err(LexerError::MissingFieldName {
+                offset,
+                file: self.file,
+            });
         };
+
+        if !ch.is_ascii_alphabetic() {
+            return Err(LexerError::MissingFieldName {
+                offset,
+                file: self.file,
+            });
+        }
 
         // ident doesn't check the first character, so this will consume the `&`
         let ident = self.identifier(ch, offset);
 
-        Ok(Token {
-            kind: TokenKind::Field,
-            ..ident
-        })
+        match ident.kind {
+            TokenKind::ValueRefOrIdent => Ok(Token {
+                kind: TokenKind::ValueField,
+                ..ident
+            }),
+            TokenKind::TypeOrModuleRef => Ok(Token {
+                kind: TokenKind::TypeField,
+                ..ident
+            }),
+            _ => Err(LexerError::KeywordFieldName {
+                offset,
+                file: self.file,
+            }),
+        }
     }
 }
 

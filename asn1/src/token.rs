@@ -41,8 +41,9 @@ pub enum TokenKind {
     Number,
     CString,
     BHString,
-    Field,
     XMLData,
+    ValueField,
+    TypeField,
 
     // Keywords
     // "ABSENT",
