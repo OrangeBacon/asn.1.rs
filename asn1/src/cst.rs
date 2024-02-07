@@ -85,6 +85,11 @@ pub enum Asn1Tag {
 
     // object
     ObjectClass,
+    FieldSpecList,
+    FieldSpec,
+    TypeFieldSpec,
+    ValueFieldSpec,
+    OptionalitySpec,
 
     // value
     NumberValue,

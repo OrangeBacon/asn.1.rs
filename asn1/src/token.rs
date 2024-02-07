@@ -129,7 +129,7 @@ pub enum TokenKind {
     KwTrue,
     KwTypeIdentifier,
     // "UNION",
-    // "UNIQUE",
+    KwUnique,
     KwUniversal,
     KwUniversalString,
     KwUTCTime,
@@ -158,7 +158,7 @@ pub struct Token<'a> {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 74] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 75] = [
     // "ABSENT",
     ("ABSTRACT-SYNTAX", TokenKind::KwAbstractSyntax),
     ("ALL", TokenKind::KwAll),
@@ -242,7 +242,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 74] = [
     ("TRUE", TokenKind::KwTrue),
     ("TYPE-IDENTIFIER", TokenKind::KwTypeIdentifier),
     // "UNION",
-    // "UNIQUE",
+    ("UNIQUE", TokenKind::KwUnique),
     ("UNIVERSAL", TokenKind::KwUniversal),
     ("UniversalString", TokenKind::KwUniversalString),
     ("UTCTime", TokenKind::KwUTCTime),

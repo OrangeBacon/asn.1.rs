@@ -102,7 +102,16 @@ TestModule3 DEFINITIONS ::= BEGIN
         [[d OCTET STRING, e EMBEDDED PDV]],
         ...
     }
-    D ::= CLASS {
-        &MyType
+    OPERATION ::= CLASS {
+        &ArgumentType OPTIONAL,
+        &ResultType OPTIONAL,
+        &Errors ERROR OPTIONAL,
+        &Linked OPERATION OPTIONAL,
+        &resultReturned BOOLEAN DEFAULT TRUE,
+        &operationCode INTEGER UNIQUE
+    }
+    ERROR ::= CLASS {
+        &ParameterType OPTIONAL,
+        &errorCode INTEGER UNIQUE
     }
 END -- test --
