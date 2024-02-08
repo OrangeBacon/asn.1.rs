@@ -90,6 +90,9 @@ pub enum Asn1Tag {
     TypeFieldSpec,
     ValueFieldSpec,
     OptionalitySpec,
+    SyntaxSpec,
+    SyntaxSpecList,
+    OptionalSyntaxSpec,
 
     // value
     NumberValue,

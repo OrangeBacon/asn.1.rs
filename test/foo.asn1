@@ -109,9 +109,21 @@ TestModule3 DEFINITIONS ::= BEGIN
         &Linked OPERATION OPTIONAL,
         &resultReturned BOOLEAN DEFAULT TRUE,
         &operationCode INTEGER UNIQUE
+    } WITH SYNTAX {
+        [ARGUMENT &ArgumentType]
+        [RESULT &ResultType]
+        [RETURN RESULT &resultReturned]
+        [ERRORS &Errors]
+        [LINKED &Linked]
+        CODE &operationCode
     }
+
     ERROR ::= CLASS {
         &ParameterType OPTIONAL,
         &errorCode INTEGER UNIQUE
+    } WITH SYNTAX {
+        [PARAMETER &ParameterType],
+        [LITERAL [A &field] [B &field2]]
+        CODE &errorCode
     }
 END -- test --

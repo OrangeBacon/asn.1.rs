@@ -1,6 +1,6 @@
 //! object class definition
 
-use crate::{cst::Asn1Tag, token::TokenKind};
+use crate::{cst::Asn1Tag, lexer::SquareBracketMode, token::TokenKind};
 
 use super::{Parser, Result, TypeOrValue, TypeOrValueResult};
 
@@ -12,13 +12,15 @@ impl<'a> Parser<'a> {
     ///     "{" FieldSpec "," + "}"
     ///     WithSyntaxSpec?
     /// ```
-    pub(super) fn object_class(&mut self, _expecting: TypeOrValue) -> Result {
+    pub(super) fn object_class(&mut self, expecting: TypeOrValue) -> Result {
         self.start_temp_vec(Asn1Tag::ObjectClass)?;
 
         self.next(&[TokenKind::KwClass])?;
         self.next(&[TokenKind::LeftCurly])?;
         self.field_spec_list()?;
         self.next(&[TokenKind::RightCurly])?;
+
+        self.syntax_spec(expecting)?;
 
         self.end_temp_vec(Asn1Tag::ObjectClass);
         Ok(())
@@ -158,6 +160,77 @@ impl<'a> Parser<'a> {
         }
 
         self.end_temp_vec(Asn1Tag::OptionalitySpec);
+        Ok(())
+    }
+
+    /// Parse a syntax specification for an object class
+    fn syntax_spec(&mut self, expecting: TypeOrValue) -> Result {
+        self.start_temp_vec(Asn1Tag::SyntaxSpec)?;
+
+        let mut kind = expecting.subsequent.to_vec();
+        kind.push(TokenKind::KwWith);
+        let tok = self.peek(kind)?;
+        if tok.kind != TokenKind::KwWith {
+            return Ok(());
+        }
+
+        self.next(&[TokenKind::KwWith])?;
+        self.next(&[TokenKind::KwSyntax])?;
+        self.next(&[TokenKind::LeftCurly])?;
+
+        self.lexer.set_square_bracket_mode(SquareBracketMode::Split);
+        self.lexer.enable_keywords(false);
+
+        self.syntax_spec_list(TokenKind::RightCurly)?;
+
+        self.lexer.enable_keywords(true);
+        self.lexer.set_square_bracket_mode(SquareBracketMode::Join);
+
+        self.next(&[TokenKind::RightCurly])?;
+
+        self.end_temp_vec(Asn1Tag::SyntaxSpec);
+        Ok(())
+    }
+
+    /// Parse the contents of a syntax specification
+    fn syntax_spec_list(&mut self, next: TokenKind) -> Result {
+        self.start_temp_vec(Asn1Tag::SyntaxSpecList)?;
+
+        loop {
+            let tok = self.peek(
+                [
+                    TokenKind::TypeOrModuleRef,
+                    TokenKind::Comma,
+                    TokenKind::TypeField,
+                    TokenKind::ValueField,
+                    TokenKind::LeftSquare,
+                    next,
+                ]
+                .to_vec(),
+            )?;
+            if tok.kind == next {
+                break;
+            } else if tok.kind != TokenKind::LeftSquare {
+                self.next(&[])?;
+                continue;
+            } else {
+                self.optional_syntax_spec()?;
+            }
+        }
+
+        self.end_temp_vec(Asn1Tag::SyntaxSpecList);
+        Ok(())
+    }
+
+    /// Parse an optional portion of a syntax specification
+    fn optional_syntax_spec(&mut self) -> Result {
+        self.start_temp_vec(Asn1Tag::OptionalSyntaxSpec)?;
+
+        self.next(&[TokenKind::LeftSquare])?;
+        self.syntax_spec_list(TokenKind::RightSquare)?;
+        self.next(&[TokenKind::RightSquare])?;
+
+        self.end_temp_vec(Asn1Tag::OptionalSyntaxSpec);
         Ok(())
     }
 }

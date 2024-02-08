@@ -120,7 +120,7 @@ pub enum TokenKind {
     // "SETTINGS",
     // "SIZE",
     KwString,
-    // "SYNTAX",
+    KwSyntax,
     KwT61String,
     KwTags,
     KwTeletexString,
@@ -158,7 +158,7 @@ pub struct Token<'a> {
 }
 
 /// String/Enum mapping for keywords
-pub const KEYWORD_DATA: [(&str, TokenKind); 75] = [
+pub const KEYWORD_DATA: [(&str, TokenKind); 76] = [
     // "ABSENT",
     ("ABSTRACT-SYNTAX", TokenKind::KwAbstractSyntax),
     ("ALL", TokenKind::KwAll),
@@ -233,7 +233,7 @@ pub const KEYWORD_DATA: [(&str, TokenKind); 75] = [
     // "SETTINGS",
     // "SIZE",
     ("STRING", TokenKind::KwString),
-    // "SYNTAX",
+    ("SYNTAX", TokenKind::KwSyntax),
     ("T61String", TokenKind::KwT61String),
     ("TAGS", TokenKind::KwTags),
     ("TeletexString", TokenKind::KwTeletexString),

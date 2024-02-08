@@ -23,6 +23,23 @@ pub struct Lexer<'a> {
 
     /// List of comment tokens not returned yet
     comments: VecDeque<Token<'a>>,
+
+    /// How square brackets are currently being parsed
+    square_bracket_mode: SquareBracketMode,
+
+    /// Should keyword parsing be enabled
+    enable_keywords: bool,
+}
+
+/// How should lexing of square brackets proceed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub enum SquareBracketMode {
+    /// Lex `[[` as two tokens
+    Split,
+
+    /// Lex `[[` as one open version bracket
+    #[default]
+    Join,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -64,6 +81,8 @@ impl<'a> Lexer<'a> {
             source,
             file,
             comments: VecDeque::new(),
+            square_bracket_mode: Default::default(),
+            enable_keywords: true,
         }
     }
 
@@ -107,13 +126,22 @@ impl<'a> Lexer<'a> {
 
             ':' => self.multi_token(TokenKind::Colon, TokenKind::Assignment, offset, "::="),
             '.' => self.multi_token(TokenKind::Dot, TokenKind::Ellipsis, offset, "..."),
-            '[' => self.multi_token(TokenKind::LeftSquare, TokenKind::VersionOpen, offset, "[["),
-            ']' => self.multi_token(
+
+            '[' if self.square_bracket_mode == SquareBracketMode::Join => {
+                self.multi_token(TokenKind::LeftSquare, TokenKind::VersionOpen, offset, "[[")
+            }
+            ']' if self.square_bracket_mode == SquareBracketMode::Join => self.multi_token(
                 TokenKind::RightSquare,
                 TokenKind::VersionClose,
                 offset,
                 "]]",
             ),
+            '[' if self.square_bracket_mode == SquareBracketMode::Split => {
+                self.simple_token(TokenKind::LeftSquare, offset)
+            }
+            ']' if self.square_bracket_mode == SquareBracketMode::Split => {
+                self.simple_token(TokenKind::RightSquare, offset)
+            }
 
             '&' => self.field(offset)?,
             'a'..='z' | 'A'..='Z' => self.identifier(c, offset),
@@ -424,7 +452,11 @@ impl<'a> Lexer<'a> {
         };
 
         let value = &value[..len];
-        let kind = keywords().get(value).copied().unwrap_or(ident_kind);
+        let kind = if self.enable_keywords {
+            keywords().get(value).copied().unwrap_or(ident_kind)
+        } else {
+            ident_kind
+        };
 
         Token {
             kind,
@@ -580,6 +612,16 @@ impl<'a> Lexer<'a> {
                 file: self.file,
             }),
         }
+    }
+
+    /// Set the lexer's square bracket mode.
+    pub fn set_square_bracket_mode(&mut self, mode: SquareBracketMode) {
+        self.square_bracket_mode = mode;
+    }
+
+    /// Should keyword parsing be enabled
+    pub fn enable_keywords(&mut self, mode: bool) {
+        self.enable_keywords = mode;
     }
 }
 
