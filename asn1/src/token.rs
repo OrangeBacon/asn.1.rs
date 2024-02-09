@@ -141,13 +141,12 @@ pub enum TokenKind {
 
 /// Data relating to a single lexed token
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Token<'a> {
+pub struct Token {
     /// The type of this token
     pub(crate) kind: TokenKind,
 
-    /// The string value of the token, will be a valid string for the token kind
-    /// so it can be parsed further, e.g. into a number.
-    pub(crate) value: &'a str,
+    /// The byte length of the source of the token in its source file.
+    pub(crate) length: usize,
 
     /// Byte offset into the file that the token starts at.  The end location
     /// can be derived from this offset + the length of the value string.

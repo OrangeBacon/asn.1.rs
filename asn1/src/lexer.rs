@@ -22,7 +22,7 @@ pub struct Lexer<'a> {
     pub(crate) file: usize,
 
     /// List of comment tokens not returned yet
-    comments: VecDeque<Token<'a>>,
+    comments: VecDeque<Token>,
 
     /// How square brackets are currently being parsed
     square_bracket_mode: SquareBracketMode,
@@ -98,7 +98,7 @@ impl<'a> Lexer<'a> {
     /// Return the next token from the source. If there are no more characters
     /// in the source text, returns an error.  Skips all whitespace and comments
     /// before the start of a token.
-    pub fn peek(&mut self) -> Result<Token<'a>> {
+    pub fn peek(&mut self) -> Result<Token> {
         self.skip_trivia()?;
 
         let &(offset, c) = self
@@ -165,7 +165,7 @@ impl<'a> Lexer<'a> {
 
     /// Peeks a token of the given kind (see peek()), then advances the source
     /// text past the token.  Might also return a comment token instead.
-    pub fn next_token(&mut self) -> Result<Token<'a>> {
+    pub fn next_token(&mut self) -> Result<Token> {
         let peek = self.peek();
 
         if let Some(comment) = self.comments.pop_front() {
@@ -174,7 +174,7 @@ impl<'a> Lexer<'a> {
 
         match peek {
             Ok(t) => {
-                for _ in t.value.chars() {
+                for _ in 0..t.length {
                     self.chars.next();
                 }
 
@@ -185,7 +185,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Peek the next XML token from the source.
-    pub fn peek_xml(&mut self) -> Result<Token<'a>> {
+    pub fn peek_xml(&mut self) -> Result<Token> {
         let &(offset, ch) = self
             .chars
             .peek(0)
@@ -196,7 +196,7 @@ impl<'a> Lexer<'a> {
                 if matches!(self.chars.peek(1), Some((_, '/'))) {
                     Token {
                         kind: TokenKind::XMLEndTag,
-                        value: "</",
+                        length: 2,
                         offset,
                         file: self.file,
                     }
@@ -207,25 +207,23 @@ impl<'a> Lexer<'a> {
             '>' => self.simple_token(TokenKind::Greater, offset),
             '/' if matches!(self.chars.peek(1), Some((_, '>'))) => Token {
                 kind: TokenKind::XMLSingleTagEnd,
-                value: "/>",
+                length: 2,
                 offset,
                 file: self.file,
             },
             _ => {
-                let value = &self.source[offset..];
-
-                let mut len = ch.len_utf8();
-                while let Some(&(_, ch)) = self.chars.peek(len) {
-                    match (ch, self.chars.peek(len + ch.len_utf8())) {
+                let mut length = ch.len_utf8();
+                while let Some(&(_, ch)) = self.chars.peek(length) {
+                    match (ch, self.chars.peek(length + ch.len_utf8())) {
                         ('<' | '>', _) | ('/', Some((_, '>'))) => break,
                         _ => (),
                     }
-                    len += ch.len_utf8();
+                    length += ch.len_utf8();
                 }
 
                 Token {
                     kind: TokenKind::XMLData,
-                    value: &value[..len],
+                    length,
                     offset,
                     file: self.file,
                 }
@@ -234,12 +232,12 @@ impl<'a> Lexer<'a> {
     }
 
     /// Consume the next XML token
-    pub fn next_xml(&mut self) -> Result<Token<'a>> {
+    pub fn next_xml(&mut self) -> Result<Token> {
         let peek = self.peek_xml();
 
         match peek {
             Ok(t) => {
-                for _ in t.value.chars() {
+                for _ in 0..t.length {
                     self.chars.next();
                 }
 
@@ -250,7 +248,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Consume the next comment
-    pub fn next_comment(&mut self) -> Option<Token<'a>> {
+    pub fn next_comment(&mut self) -> Option<Token> {
         self.comments.pop_front()
     }
 
@@ -284,12 +282,10 @@ impl<'a> Lexer<'a> {
     }
 
     /// Return a 1 character token
-    fn simple_token(&self, kind: TokenKind, offset: usize) -> Token<'a> {
-        let value = &self.source[offset..];
-
+    fn simple_token(&self, kind: TokenKind, offset: usize) -> Token {
         Token {
             kind,
-            value: &value[..1],
+            length: 1,
             offset,
             file: self.file,
         }
@@ -302,13 +298,13 @@ impl<'a> Lexer<'a> {
         multi_kind: TokenKind,
         offset: usize,
         value: &str,
-    ) -> Token<'a> {
+    ) -> Token {
         let tok_value = &self.source[offset..];
 
         if !tok_value.starts_with(value) {
             return Token {
                 kind: single_kind,
-                value: &tok_value[..1],
+                length: 1,
                 offset,
                 file: self.file,
             };
@@ -316,7 +312,7 @@ impl<'a> Lexer<'a> {
 
         Token {
             kind: multi_kind,
-            value: &tok_value[..value.len()],
+            length: value.len(),
             offset,
             file: self.file,
         }
@@ -325,8 +321,6 @@ impl<'a> Lexer<'a> {
     /// Parse a single line comment which is text between pairs of two hyphens.
     /// Non-breaking hyphens are also accepted instead of hyphens.
     fn single_comment(&mut self, first: char, offset: usize) -> bool {
-        let value = &self.source[offset..];
-
         let Some(&(_, second)) = self.chars.peek(1) else { return false };
         if !matches!(second, '-' | '\u{2011}') {
             return false;
@@ -334,18 +328,18 @@ impl<'a> Lexer<'a> {
         self.chars.next(); // Consume the first hyphen
         self.chars.next(); // Consume the second hyphen
 
-        let mut len = first.len_utf8() + second.len_utf8();
+        let mut length = first.len_utf8() + second.len_utf8();
 
         while let Some(&(_, next)) = self.chars.peek(0) {
             if is_newline(next) {
                 break;
             }
 
-            len += next.len_utf8();
+            length += next.len_utf8();
 
             if matches!(next, '-' | '\u{2011}') {
                 if let Some(&(_, c @ ('-' | '\u{2011}'))) = self.chars.peek(1) {
-                    len += c.len_utf8();
+                    length += c.len_utf8();
 
                     self.chars.next();
                     self.chars.next();
@@ -358,7 +352,7 @@ impl<'a> Lexer<'a> {
 
         self.comments.push_back(Token {
             kind: TokenKind::SingleComment,
-            value: &value[..len],
+            length,
             offset,
             file: self.file,
         });
@@ -369,8 +363,6 @@ impl<'a> Lexer<'a> {
     /// Parse a multi line comment which is text between `/*` and `*/`.  The comment
     /// ends when a matching `*/` has been found for every `/*` encountered.
     fn multi_comment(&mut self, offset: usize) -> Result<bool> {
-        let value = &self.source[offset..];
-
         let Some(&(_, c)) = self.chars.peek(1) else { return Ok(false)};
         if c != '*' {
             // not a start of comment
@@ -380,18 +372,18 @@ impl<'a> Lexer<'a> {
         self.chars.next();
         self.chars.next();
 
-        let mut len = 2;
+        let mut length = 2;
         let mut depth = 1;
         while let Some(&(_, c)) = self.chars.peek(0) {
-            len += c.len_utf8();
+            length += c.len_utf8();
             self.chars.next();
 
             if c == '/' && matches!(self.chars.peek(0), Some((_, '*'))) {
-                len += 1;
+                length += 1;
                 depth += 1;
                 self.chars.next();
             } else if c == '*' && matches!(self.chars.peek(0), Some((_, '/'))) {
-                len += 1;
+                length += 1;
                 depth -= 1;
                 self.chars.next();
 
@@ -410,7 +402,7 @@ impl<'a> Lexer<'a> {
 
         self.comments.push_back(Token {
             kind: TokenKind::MultiComment,
-            value: &value[..len],
+            length,
             offset,
             file: self.file,
         });
@@ -421,22 +413,22 @@ impl<'a> Lexer<'a> {
     /// Parse an identifier.  Could be a type reference, identifier, value reference
     /// or module reference.  Does not consume the identifier, len characters must
     /// be skipped after the identifier is parsed if the identifier is used.
-    fn identifier(&mut self, first: char, offset: usize) -> Token<'a> {
+    fn identifier(&mut self, first: char, offset: usize) -> Token {
         let value = &self.source[offset..];
 
-        let mut len = 1;
-        while let Some(&(_, c)) = self.chars.peek(len) {
+        let mut length = 1;
+        while let Some(&(_, c)) = self.chars.peek(length) {
             if c.is_ascii_alphanumeric() || "$_".contains(c) {
-                len += 1;
+                length += 1;
                 continue;
             }
 
             if c == '-' || c == '\u{2011}' {
-                if let Some(&(_, c)) = self.chars.peek(len + 1) {
+                if let Some(&(_, c)) = self.chars.peek(length + 1) {
                     if c.is_ascii_alphanumeric() {
                         // does not check the hyphen as it does not count as
                         // lower or upper case
-                        len += 2;
+                        length += 2;
                         continue;
                     }
                 }
@@ -451,7 +443,7 @@ impl<'a> Lexer<'a> {
             TokenKind::TypeOrModuleRef
         };
 
-        let value = &value[..len];
+        let value = &value[..length];
         let kind = if self.enable_keywords {
             keywords().get(value).copied().unwrap_or(ident_kind)
         } else {
@@ -460,36 +452,32 @@ impl<'a> Lexer<'a> {
 
         Token {
             kind,
-            value,
+            length,
             offset,
             file: self.file,
         }
     }
 
     /// Parse a number ([1-9][0-9]*)|0
-    fn number(&mut self, offset: usize) -> Token<'a> {
-        let value = &self.source[offset..];
+    fn number(&mut self, offset: usize) -> Token {
+        let mut length = self.digits(0);
 
-        let mut len = self.digits(0);
-
-        if let Some(&(_, '.')) = self.chars.peek(len) {
-            len += 1;
-            len = self.digits(len);
+        if let Some(&(_, '.')) = self.chars.peek(length) {
+            length += 1;
+            length = self.digits(length);
         }
 
-        if let Some(&(_, 'e' | 'E')) = self.chars.peek(len) {
-            len += 1;
-            if let Some(&(_, ch @ ('+' | '-' | '\u{2011}'))) = self.chars.peek(len) {
-                len += ch.len_utf8();
+        if let Some(&(_, 'e' | 'E')) = self.chars.peek(length) {
+            length += 1;
+            if let Some(&(_, ch @ ('+' | '-' | '\u{2011}'))) = self.chars.peek(length) {
+                length += ch.len_utf8();
             }
-            len = self.digits(len);
+            length = self.digits(length);
         }
-
-        let value = &value[..len];
 
         Token {
             kind: TokenKind::Number,
-            value,
+            length,
             offset,
             file: self.file,
         }
@@ -510,23 +498,23 @@ impl<'a> Lexer<'a> {
     }
 
     /// Parse a character string literal
-    fn c_string(&mut self, offset: usize) -> Result<Token<'a>> {
+    fn c_string(&mut self, offset: usize) -> Result<Token> {
         let value = &self.source[offset..];
-        let mut len = 1;
+        let mut length = 1;
 
-        while let Some(&(_, ch)) = self.chars.peek(len) {
-            len += ch.len_utf8();
+        while let Some(&(_, ch)) = self.chars.peek(length) {
+            length += ch.len_utf8();
 
             if ch == '"' {
-                if matches!(self.chars.peek(len), Some(&(_, '"'))) {
-                    len += 1;
+                if matches!(self.chars.peek(length), Some(&(_, '"'))) {
+                    length += 1;
                 } else {
                     break;
                 }
             }
         }
 
-        let value = &value[..len];
+        let value = &value[..length];
         if !value.ends_with('"') {
             return Err(LexerError::NonTerminatedString {
                 offset,
@@ -536,19 +524,19 @@ impl<'a> Lexer<'a> {
 
         Ok(Token {
             kind: TokenKind::CString,
-            value,
+            length,
             offset,
             file: self.file,
         })
     }
 
     /// Parse either a b_string or an h_string (binary string or hexadecimal string)
-    fn bh_string(&mut self, offset: usize) -> Result<Token<'a>> {
+    fn bh_string(&mut self, offset: usize) -> Result<Token> {
         let value = &self.source[offset..];
-        let mut len = 1;
+        let mut length = 1;
 
-        while let Some(&(_, ch)) = self.chars.peek(len) {
-            len += ch.len_utf8();
+        while let Some(&(_, ch)) = self.chars.peek(length) {
+            length += ch.len_utf8();
 
             if ch == '\'' {
                 break;
@@ -556,14 +544,14 @@ impl<'a> Lexer<'a> {
         }
 
         // 'b' or 'h' suffix
-        if let Some(&(_, ch)) = self.chars.peek(len) {
-            len += ch.len_utf8();
+        if let Some(&(_, ch)) = self.chars.peek(length) {
+            length += ch.len_utf8();
         }
 
         // validate the end of the string now, but the content of the string is
         // ignored here, so must be checked later.
 
-        let value = &value[..len];
+        let value = &value[..length];
         if !value.ends_with("'B") && !value.ends_with("'H") {
             return Err(LexerError::NonTerminatedBHString {
                 offset,
@@ -573,14 +561,14 @@ impl<'a> Lexer<'a> {
 
         Ok(Token {
             kind: TokenKind::BHString,
-            value,
+            length,
             offset,
             file: self.file,
         })
     }
 
     /// Parse an object field reference `&name`
-    fn field(&mut self, offset: usize) -> Result<Token<'a>> {
+    fn field(&mut self, offset: usize) -> Result<Token> {
         let Some(&(_, ch)) = self.chars.peek(1) else {
             return Err(LexerError::MissingFieldName {
                 offset,

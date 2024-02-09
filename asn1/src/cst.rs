@@ -6,20 +6,20 @@ use crate::token::Token;
 
 /// A whole ASN.1 file including all modules
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Asn1<'a> {
+pub struct Asn1 {
     pub root: usize,
-    pub data: Vec<TreeContent<'a>>,
+    pub data: Vec<TreeContent>,
 }
 
 /// Content of a tree
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum TreeContent<'a> {
+pub enum TreeContent {
     Tree {
         tag: Asn1Tag,
         start: usize,
         count: usize,
     },
-    Token(Token<'a>),
+    Token(Token),
 }
 
 /// The possible kinds of tree node
@@ -61,7 +61,6 @@ pub enum Asn1Tag {
     SelectionType,
     BitStringType,
     OctetStringType,
-    CharacterStringType,
     ObjectFields,
     InstanceOfType,
     EmbeddedPDVType,
@@ -111,37 +110,42 @@ pub enum Asn1Tag {
     Symbol,
     Reference,
     SymbolsFromModuleList,
-    SymbolsFromModule,
-    GlobalModuleReference,
-    SelectionOption,
 
     // parameterized
     ActualParameterList,
 }
 
-impl Display for Asn1<'_> {
+/// Formatter for the CST of an asn1 file
+pub(crate) struct Asn1Formatter<'a> {
+    pub tree: &'a Asn1,
+    pub source: &'a str,
+}
+
+impl Display for Asn1Formatter<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let fmt = Asn1Formatter {
+        let fmt = Asn1FormatterInternal {
             depth: 0,
-            tree: self,
-            node: self.data[self.root],
+            tree: self.tree,
+            node: self.tree.data[self.tree.root],
             prefix: String::new(),
             child_prefix: String::new(),
+            source: self.source,
         };
 
         write!(f, "{fmt}")
     }
 }
 
-struct Asn1Formatter<'a, 'b> {
+struct Asn1FormatterInternal<'a> {
     depth: usize,
-    tree: &'a Asn1<'b>,
-    node: TreeContent<'b>,
+    tree: &'a Asn1,
+    node: TreeContent,
     prefix: String,
     child_prefix: String,
+    source: &'a str,
 }
 
-impl Display for Asn1Formatter<'_, '_> {
+impl Display for Asn1FormatterInternal<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.prefix)?;
 
@@ -156,28 +160,35 @@ impl Display for Asn1Formatter<'_, '_> {
                 writeln!(f)?;
 
                 for &node in head {
-                    let fmt = Asn1Formatter {
+                    let fmt = Asn1FormatterInternal {
                         depth: self.depth + 1,
                         tree: self.tree,
                         node,
                         prefix: self.child_prefix.clone() + "|-- ",
                         child_prefix: self.child_prefix.clone() + "|   ",
+                        source: self.source,
                     };
 
                     write!(f, "{fmt}")?;
                 }
 
-                let fmt = Asn1Formatter {
+                let fmt = Asn1FormatterInternal {
                     depth: self.depth + 1,
                     tree: self.tree,
                     node: *last,
                     prefix: self.child_prefix.clone() + "`-- ",
                     child_prefix: self.child_prefix.clone() + "    ",
+                    source: self.source,
                 };
 
                 write!(f, "{fmt}")?;
             }
-            TreeContent::Token(t) => writeln!(f, "{:?}: {:?}", t.kind, t.value)?,
+            TreeContent::Token(t) => writeln!(
+                f,
+                "{:?}: {:?}",
+                t.kind,
+                &self.source[t.offset..t.offset + t.length]
+            )?,
         }
 
         Ok(())

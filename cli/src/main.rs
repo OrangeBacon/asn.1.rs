@@ -1,30 +1,19 @@
 use std::time::Instant;
 
-use asn1::{
-    lexer::Lexer,
-    parser::{Parser, ParserError},
-};
+use asn1::{AsnCompiler, ParserError};
 
 fn main() {
-    let source = std::fs::read_to_string("test/foo.asn1").unwrap();
+    let mut compiler = AsnCompiler::new();
 
-    let mut lexer = Lexer::new(0, &source);
-
-    if std::env::args().any(|a| a == "lex") {
-        while let Ok(t) = lexer.next_token() {
-            println!("{t:?}");
-        }
-        return;
-    }
-
-    let parser = Parser::new(lexer);
+    let path = "test/foo.asn1";
+    let source = std::fs::read_to_string(path).unwrap();
 
     let start = Instant::now();
-    let res = parser.run();
+    let res = compiler.add_file(path.to_string(), source.clone());
     let end = start.elapsed();
 
     match res {
-        Ok(t) => print!("{t}"),
+        Ok(t) => print!("{}", compiler.print_cst(t)),
         Err(
             ref err @ (ParserError::Expected { offset, .. }
             | ParserError::TypeValueError { offset, .. }),

@@ -21,10 +21,10 @@ pub struct Parser<'a> {
     lexer: Lexer<'a>,
 
     /// The partial tree constructed by the parser
-    result: Vec<TreeContent<'a>>,
+    result: Vec<TreeContent>,
 
     /// Temporary storage used when making the tree
-    temp_result: Vec<TreeContent<'a>>,
+    temp_result: Vec<TreeContent>,
 
     /// Data to finish constructing a partial cst in error cases
     error_nodes: Vec<TempVec>,
@@ -54,7 +54,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Run the parser to produce a set of ASN.1 definitions
-    pub fn run(mut self) -> Result<Asn1<'a>> {
+    pub fn run(mut self) -> Result<Asn1> {
         self.start_temp_vec(Asn1Tag::Root)?;
 
         while !self.lexer.is_eof() {
@@ -76,7 +76,7 @@ impl<'a> Parser<'a> {
 
     /// Consume a token of the given kind or return an error.  Ignores any comment tokens.
     /// If an empty list is given, returns any token.
-    fn next(&mut self, kind: impl Into<CowVec<TokenKind>>) -> Result<Token<'a>> {
+    fn next(&mut self, kind: impl Into<CowVec<TokenKind>>) -> Result<Token> {
         self.peek(kind)?;
 
         loop {
@@ -91,7 +91,7 @@ impl<'a> Parser<'a> {
 
     /// Peek a token without consuming it or return an error if the token is not
     /// of one of the provided kinds. If an empty list is given, returns any token.
-    fn peek(&mut self, kind: impl Into<CowVec<TokenKind>>) -> Result<Token<'a>> {
+    fn peek(&mut self, kind: impl Into<CowVec<TokenKind>>) -> Result<Token> {
         let kind = kind.into();
 
         let peek = self.lexer.peek()?;
@@ -109,7 +109,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek the next XML token from the lexer without consuming it
-    fn peek_xml(&mut self, kind: &[TokenKind]) -> Result<Token<'a>> {
+    fn peek_xml(&mut self, kind: &[TokenKind]) -> Result<Token> {
         let tok = self.lexer.peek_xml()?;
 
         if kind.contains(&tok.kind) || kind.is_empty() {
@@ -125,7 +125,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Get the next XML token from the lexer
-    fn next_xml(&mut self, kind: &[TokenKind]) -> Result<Token<'a>> {
+    fn next_xml(&mut self, kind: &[TokenKind]) -> Result<Token> {
         let tok = self.lexer.next_xml()?;
         self.temp_result.push(TreeContent::Token(tok));
 
