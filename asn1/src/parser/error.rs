@@ -1,4 +1,4 @@
-use crate::{lexer::LexerError, token::TokenKind, util::CowVec};
+use crate::{compiler::SourceId, lexer::LexerError, token::TokenKind, util::CowVec};
 
 /// Any error that can be emitted by the parser
 #[derive(Debug, Clone)]
@@ -8,11 +8,11 @@ pub enum ParserError {
         kind: CowVec<TokenKind>,
         got: TokenKind,
         offset: usize,
-        file: usize,
+        id: SourceId,
     },
 
     /// Recursion depth limit reached in the parser (try to avoid stack overflow)
-    ParserDepthExceeded { offset: usize, file: usize },
+    ParserDepthExceeded { offset: usize, id: SourceId },
 
     /// An error occurred within the lexer
     LexerError(LexerError),
@@ -23,7 +23,7 @@ pub enum ParserError {
         alternative: Vec<TokenKind>,
         got: TokenKind,
         offset: usize,
-        file: usize,
+        id: SourceId,
     },
 }
 

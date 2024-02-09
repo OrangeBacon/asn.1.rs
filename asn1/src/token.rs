@@ -1,3 +1,5 @@
+use crate::compiler::SourceId;
+
 /// The kind of a lexed token
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TokenKind {
@@ -153,7 +155,7 @@ pub struct Token {
     pub(crate) offset: usize,
 
     /// The file ID of the file the token was lexed from
-    pub(crate) file: usize,
+    pub(crate) id: SourceId,
 }
 
 /// String/Enum mapping for keywords

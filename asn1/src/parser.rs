@@ -103,7 +103,7 @@ impl<'a> Parser<'a> {
                 kind,
                 got: peek.kind,
                 offset: peek.offset,
-                file: peek.file,
+                id: peek.id,
             })
         }
     }
@@ -119,7 +119,7 @@ impl<'a> Parser<'a> {
                 kind: kind.to_vec().into(),
                 got: tok.kind,
                 offset: tok.offset,
-                file: tok.file,
+                id: tok.id,
             })
         }
     }
@@ -136,7 +136,7 @@ impl<'a> Parser<'a> {
                 kind: kind.to_vec().into(),
                 got: tok.kind,
                 offset: tok.offset,
-                file: tok.file,
+                id: tok.id,
             })
         }
     }
@@ -154,7 +154,7 @@ impl<'a> Parser<'a> {
         if self.depth >= 100 {
             return Err(ParserError::ParserDepthExceeded {
                 offset: self.lexer.offset(),
-                file: self.lexer.file,
+                id: self.lexer.id,
             });
         }
 

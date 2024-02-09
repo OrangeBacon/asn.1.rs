@@ -148,7 +148,7 @@ impl<'a> Parser<'a> {
                     alternative: expecting.alternative.to_vec(),
                     got: k,
                     offset: tok.offset,
-                    file: tok.file,
+                    id: tok.id,
                 });
             }
         }

@@ -39,7 +39,7 @@ impl AsnCompiler {
 
     /// Add a new file to the compiler
     pub fn add_file(&mut self, file_name: String, source: String) -> Result<SourceId, ParserError> {
-        let id = self.sources.len();
+        let id = SourceId(self.sources.len());
 
         let lexer = Lexer::new(id, &source);
         let tree = Parser::new(lexer).run()?;
@@ -50,7 +50,7 @@ impl AsnCompiler {
             tree,
         });
 
-        Ok(SourceId(id))
+        Ok(id)
     }
 
     /// Convert the CST of a file into a string

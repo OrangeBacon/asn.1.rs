@@ -5,6 +5,7 @@ use std::{
 };
 
 use crate::{
+    compiler::SourceId,
     token::{self, Token, TokenKind},
     util::{Peek, Peekable},
 };
@@ -19,7 +20,7 @@ pub struct Lexer<'a> {
     source: &'a str,
 
     /// File ID to use for all returned tokens
-    pub(crate) file: usize,
+    pub(crate) id: SourceId,
 
     /// List of comment tokens not returned yet
     comments: VecDeque<Token>,
@@ -47,27 +48,27 @@ pub enum LexerError {
     /// Unexpected character within the input file
     UnexpectedCharacter {
         ch: char,
-        file: usize,
+        id: SourceId,
         offset: usize,
     },
 
     /// End of file reached when trying to get a token
-    EndOfFile { file: usize },
+    EndOfFile { id: SourceId },
 
     /// Reached end of file while parsing a multi-line comment
-    NonTerminatedComment { offset: usize, file: usize },
+    NonTerminatedComment { offset: usize, id: SourceId },
 
     /// Reached end of file while parsing a character string
-    NonTerminatedString { offset: usize, file: usize },
+    NonTerminatedString { offset: usize, id: SourceId },
 
     /// Reached end of file while parsing a binary or hexadecimal string
-    NonTerminatedBHString { offset: usize, file: usize },
+    NonTerminatedBHString { offset: usize, id: SourceId },
 
     /// No identifier found after an `&`
-    MissingFieldName { offset: usize, file: usize },
+    MissingFieldName { offset: usize, id: SourceId },
 
     /// Unexpected keyword after an '&'
-    KeywordFieldName { offset: usize, file: usize },
+    KeywordFieldName { offset: usize, id: SourceId },
 }
 
 pub type Result<T = (), E = LexerError> = std::result::Result<T, E>;
@@ -75,11 +76,11 @@ pub type Result<T = (), E = LexerError> = std::result::Result<T, E>;
 impl<'a> Lexer<'a> {
     /// Create a new Lexer for a given source file.  `file` represents a file
     /// ID that will be returned with each token.
-    pub fn new(file: usize, source: &'a str) -> Self {
+    pub fn new(id: SourceId, source: &'a str) -> Self {
         Self {
             chars: source.char_indices().n_peekable(),
             source,
-            file,
+            id,
             comments: VecDeque::new(),
             square_bracket_mode: Default::default(),
             enable_keywords: true,
@@ -104,7 +105,7 @@ impl<'a> Lexer<'a> {
         let &(offset, c) = self
             .chars
             .peek(0)
-            .ok_or(LexerError::EndOfFile { file: self.file })?;
+            .ok_or(LexerError::EndOfFile { id: self.id })?;
 
         let ret = match c {
             '{' => self.simple_token(TokenKind::LeftCurly, offset),
@@ -154,7 +155,7 @@ impl<'a> Lexer<'a> {
             ch => {
                 return Err(LexerError::UnexpectedCharacter {
                     ch,
-                    file: self.file,
+                    id: self.id,
                     offset,
                 })
             }
@@ -189,7 +190,7 @@ impl<'a> Lexer<'a> {
         let &(offset, ch) = self
             .chars
             .peek(0)
-            .ok_or(LexerError::EndOfFile { file: self.file })?;
+            .ok_or(LexerError::EndOfFile { id: self.id })?;
 
         Ok(match ch {
             '<' => {
@@ -198,7 +199,7 @@ impl<'a> Lexer<'a> {
                         kind: TokenKind::XMLEndTag,
                         length: 2,
                         offset,
-                        file: self.file,
+                        id: self.id,
                     }
                 } else {
                     self.simple_token(TokenKind::Less, offset)
@@ -209,7 +210,7 @@ impl<'a> Lexer<'a> {
                 kind: TokenKind::XMLSingleTagEnd,
                 length: 2,
                 offset,
-                file: self.file,
+                id: self.id,
             },
             _ => {
                 let mut length = ch.len_utf8();
@@ -225,7 +226,7 @@ impl<'a> Lexer<'a> {
                     kind: TokenKind::XMLData,
                     length,
                     offset,
-                    file: self.file,
+                    id: self.id,
                 }
             }
         })
@@ -287,7 +288,7 @@ impl<'a> Lexer<'a> {
             kind,
             length: 1,
             offset,
-            file: self.file,
+            id: self.id,
         }
     }
 
@@ -306,7 +307,7 @@ impl<'a> Lexer<'a> {
                 kind: single_kind,
                 length: 1,
                 offset,
-                file: self.file,
+                id: self.id,
             };
         }
 
@@ -314,7 +315,7 @@ impl<'a> Lexer<'a> {
             kind: multi_kind,
             length: value.len(),
             offset,
-            file: self.file,
+            id: self.id,
         }
     }
 
@@ -354,7 +355,7 @@ impl<'a> Lexer<'a> {
             kind: TokenKind::SingleComment,
             length,
             offset,
-            file: self.file,
+            id: self.id,
         });
 
         true
@@ -396,7 +397,7 @@ impl<'a> Lexer<'a> {
         if depth != 0 {
             return Err(LexerError::NonTerminatedComment {
                 offset,
-                file: self.file,
+                id: self.id,
             });
         }
 
@@ -404,7 +405,7 @@ impl<'a> Lexer<'a> {
             kind: TokenKind::MultiComment,
             length,
             offset,
-            file: self.file,
+            id: self.id,
         });
 
         Ok(true)
@@ -454,7 +455,7 @@ impl<'a> Lexer<'a> {
             kind,
             length,
             offset,
-            file: self.file,
+            id: self.id,
         }
     }
 
@@ -479,7 +480,7 @@ impl<'a> Lexer<'a> {
             kind: TokenKind::Number,
             length,
             offset,
-            file: self.file,
+            id: self.id,
         }
     }
 
@@ -518,7 +519,7 @@ impl<'a> Lexer<'a> {
         if !value.ends_with('"') {
             return Err(LexerError::NonTerminatedString {
                 offset,
-                file: self.file,
+                id: self.id,
             });
         }
 
@@ -526,7 +527,7 @@ impl<'a> Lexer<'a> {
             kind: TokenKind::CString,
             length,
             offset,
-            file: self.file,
+            id: self.id,
         })
     }
 
@@ -555,7 +556,7 @@ impl<'a> Lexer<'a> {
         if !value.ends_with("'B") && !value.ends_with("'H") {
             return Err(LexerError::NonTerminatedBHString {
                 offset,
-                file: self.file,
+                id: self.id,
             });
         }
 
@@ -563,7 +564,7 @@ impl<'a> Lexer<'a> {
             kind: TokenKind::BHString,
             length,
             offset,
-            file: self.file,
+            id: self.id,
         })
     }
 
@@ -572,14 +573,14 @@ impl<'a> Lexer<'a> {
         let Some(&(_, ch)) = self.chars.peek(1) else {
             return Err(LexerError::MissingFieldName {
                 offset,
-                file: self.file,
+                id: self.id,
             });
         };
 
         if !ch.is_ascii_alphabetic() {
             return Err(LexerError::MissingFieldName {
                 offset,
-                file: self.file,
+                id: self.id,
             });
         }
 
@@ -597,7 +598,7 @@ impl<'a> Lexer<'a> {
             }),
             _ => Err(LexerError::KeywordFieldName {
                 offset,
-                file: self.file,
+                id: self.id,
             }),
         }
     }
