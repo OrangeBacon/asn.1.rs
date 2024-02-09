@@ -1,6 +1,7 @@
 //! The primary interface to all the ASN.1 parsing, codegen, analysis, and other tools.
 
 use crate::{
+    analysis::{Analysis, AnalysisError},
     cst::{Asn1, Asn1Formatter},
     lexer::Lexer,
     parser::{Parser, ParserError},
@@ -61,5 +62,14 @@ impl AsnCompiler {
             source: &source.source,
         }
         .to_string()
+    }
+
+    /// Run type analysis of all the provided source files to inform code generation
+    pub fn analysis(&mut self) -> Result<(), AnalysisError> {
+        for source in &mut self.sources {
+            Analysis::new(&mut source.tree, &source.source).local()?;
+        }
+
+        Ok(())
     }
 }

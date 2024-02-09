@@ -10,6 +10,7 @@ fn main() {
 
     let start = Instant::now();
     let res = compiler.add_file(path.to_string(), source.clone());
+    let an = compiler.analysis();
     let end = start.elapsed();
 
     match res {
@@ -22,6 +23,11 @@ fn main() {
 
             println!("{err:?} = {at:?}");
         }
+        Err(e) => println!("{e:?}"),
+    }
+
+    match an {
+        Ok(_) => println!("Analysis Passed"),
         Err(e) => println!("{e:?}"),
     }
 
