@@ -26,6 +26,9 @@ struct Source {
 
     /// The concrete syntax tree of the file.
     tree: Asn1,
+
+    /// ID of the source
+    id: SourceId,
 }
 
 /// Reference to a single source file
@@ -49,6 +52,7 @@ impl AsnCompiler {
             file_name,
             source,
             tree,
+            id,
         });
 
         Ok(id)
@@ -67,7 +71,7 @@ impl AsnCompiler {
     /// Run type analysis of all the provided source files to inform code generation
     pub fn analysis(&mut self) -> Result<(), AnalysisError> {
         for source in &mut self.sources {
-            Analysis::new(&mut source.tree, &source.source).local()?;
+            Analysis::new(&mut source.tree, &source.source, source.id).local()?;
         }
 
         Ok(())

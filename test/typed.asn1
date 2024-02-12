@@ -1,0 +1,4 @@
+MyModule DEFINITIONS ::= BEGIN
+    MyType ::= BOOLEAN
+    my_val MyType ::= TRUE
+END

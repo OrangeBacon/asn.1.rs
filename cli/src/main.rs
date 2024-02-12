@@ -5,7 +5,7 @@ use asn1::{AsnCompiler, ParserError};
 fn main() {
     let mut compiler = AsnCompiler::new();
 
-    let path = "test/foo.asn1";
+    let path = "test/typed.asn1";
     let source = std::fs::read_to_string(path).unwrap();
 
     let start = Instant::now();
