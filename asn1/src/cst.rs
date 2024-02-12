@@ -1,25 +1,57 @@
 //! Representation of a parsed ASN.1 description file (NOT an encoded message)
+//! This is a Concrete Syntax Tree (not an Abstract Syntax Tree), meaning all
+//! tokens from the source file are included, such as brackets, comments, etc.
+//! This is useful for formatting, codegen, IDE like features, but not as good
+//! for analysis as the structure is much less strict than would be present for
+//! an AST, therefore an AST is also implemented as a view over this CST (in
+//! another module).
 
 use std::fmt::Display;
 
-use crate::token::Token;
+use crate::{
+    compiler::SourceId,
+    token::{Token, TokenKind},
+};
 
 /// A whole ASN.1 file including all modules
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Asn1 {
-    pub root: usize,
-    pub data: Vec<TreeContent>,
+    /// ID of the node containing the root node of the tree
+    pub root: AsnNodeId,
+
+    /// Flattened representation of all data contained within the tree
+    data: Vec<TreeContent>,
+
+    /// ID of the source file the tree was created from
+    id: SourceId,
 }
+
+/// ID representing a single ASN.1 CST node
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AsnNodeId(usize, SourceId);
 
 /// Content of a tree
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TreeContent {
+    /// Header of a nested node in the tree with a given kind
     Tree {
         tag: Asn1Tag,
         start: usize,
         count: usize,
     },
-    Token(Token),
+
+    /// A token from a given source file
+    Token {
+        /// The type of this token
+        kind: TokenKind,
+
+        /// The byte length of the source of the token in its source file.
+        length: usize,
+
+        /// Byte offset into the file that the token starts at.  The end location
+        /// can be derived from this offset + the length of the value string.
+        offset: usize,
+    },
 }
 
 /// The possible kinds of tree node
@@ -115,9 +147,79 @@ pub enum Asn1Tag {
     ActualParameterList,
 }
 
+impl Asn1 {
+    /// Create a CST from an externally constructed tree.
+    pub fn new(id: SourceId, data: Vec<TreeContent>, root_idx: usize) -> Asn1 {
+        Asn1 {
+            root: AsnNodeId(root_idx, id),
+            data,
+            id,
+        }
+    }
+
+    /// Create an iterator over the nested node contents of a tree node.  Returns
+    /// `None` if the chosen node is a token node, not a tree node.
+    pub fn iter_tree(&self, node: AsnNodeId) -> Option<impl Iterator<Item = AsnNodeId>> {
+        debug_assert_eq!(node.1, self.id);
+
+        match self.data[node.0] {
+            TreeContent::Tree { start, count, .. } => {
+                let id = self.id;
+                Some((start..start + count).map(move |x| AsnNodeId(x, id)))
+            }
+            TreeContent::Token { .. } => None,
+        }
+    }
+
+    /// Get the tag of a provided tree node.  Returns
+    /// `None` if the chosen node is a token node, not a tree node.
+    pub fn tree_tag(&self, node: AsnNodeId) -> Option<Asn1Tag> {
+        debug_assert_eq!(node.1, self.id);
+
+        match self.data[node.0] {
+            TreeContent::Tree { tag, .. } => Some(tag),
+            _ => None,
+        }
+    }
+
+    /// Get a token from the tree
+    pub fn token(&self, node: AsnNodeId) -> Option<Token> {
+        debug_assert_eq!(node.1, self.id);
+
+        match self.data[node.0] {
+            TreeContent::Token {
+                kind,
+                length,
+                offset,
+            } => Some(Token {
+                kind,
+                length,
+                offset,
+                id: self.id,
+            }),
+            _ => None,
+        }
+    }
+}
+
+impl TreeContent {
+    /// Construct a new tree node from a given token.  Does not check the source
+    /// ID of the token.
+    pub fn new(tok: Token) -> TreeContent {
+        TreeContent::Token {
+            kind: tok.kind,
+            length: tok.length,
+            offset: tok.offset,
+        }
+    }
+}
+
 /// Formatter for the CST of an asn1 file
 pub(crate) struct Asn1Formatter<'a> {
+    /// The tree to be formatted
     pub tree: &'a Asn1,
+
+    /// The source text the tree was created from
     pub source: &'a str,
 }
 
@@ -126,7 +228,7 @@ impl Display for Asn1Formatter<'_> {
         let fmt = Asn1FormatterInternal {
             depth: 0,
             tree: self.tree,
-            node: self.tree.data[self.tree.root],
+            node: self.tree.data[self.tree.root.0],
             prefix: String::new(),
             child_prefix: String::new(),
             source: self.source,
@@ -136,6 +238,7 @@ impl Display for Asn1Formatter<'_> {
     }
 }
 
+/// Pretty printer for a nested tree
 struct Asn1FormatterInternal<'a> {
     depth: usize,
     tree: &'a Asn1,
@@ -183,12 +286,11 @@ impl Display for Asn1FormatterInternal<'_> {
 
                 write!(f, "{fmt}")?;
             }
-            TreeContent::Token(t) => writeln!(
-                f,
-                "{:?}: {:?}",
-                t.kind,
-                &self.source[t.offset..t.offset + t.length]
-            )?,
+            TreeContent::Token {
+                kind,
+                length,
+                offset,
+            } => writeln!(f, "{:?}: {:?}", kind, &self.source[offset..offset + length])?,
         }
 
         Ok(())

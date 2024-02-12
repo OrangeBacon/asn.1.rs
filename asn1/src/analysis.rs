@@ -1,12 +1,9 @@
 //! Type checking and name resolution for ASN.1
 
 mod error;
-
-use std::ops::Range;
-
 use crate::{
     compiler::SourceId,
-    cst::{Asn1, Asn1Tag, TreeContent},
+    cst::{Asn1, Asn1Tag, AsnNodeId},
     token::{Token, TokenKind},
 };
 
@@ -45,30 +42,49 @@ impl<'a> Analysis<'a> {
         Ok(())
     }
 
-    /// Get a list of nodes that are contained within given node
-    fn get_tree(&mut self, node: usize, kind: &[Asn1Tag]) -> Result<(Asn1Tag, Range<usize>)> {
-        match self.cst.data[node] {
-            TreeContent::Tree { tag, start, count } => {
-                if kind.is_empty() || kind.contains(&tag) {
-                    Ok((tag, start..start + count))
-                } else {
-                    Err(AnalysisError::WrongTree {
-                        node,
-                        id: self.id,
-                        expected: kind.to_vec(),
-                        got: tag,
-                    })
-                }
-            }
-            TreeContent::Token(_) => Err(AnalysisError::NotTree { node, id: self.id, expected: kind.to_vec() }),
+    /// Get a list of nodes that are contained within a given node and return the
+    /// tag of that node.  If the tag does not match one of the provided kinds,
+    /// returns an error.
+    fn get_tree(
+        &mut self,
+        node: AsnNodeId,
+        kind: &[Asn1Tag],
+    ) -> Result<(Asn1Tag, impl Iterator<Item = AsnNodeId>)> {
+        let tag = self
+            .cst
+            .tree_tag(node)
+            .ok_or_else(|| AnalysisError::NotTree {
+                node,
+                id: self.id,
+                expected: kind.to_vec(),
+            })?;
+
+        if !kind.is_empty() && !kind.contains(&tag) {
+            return Err(AnalysisError::WrongTree {
+                node,
+                id: self.id,
+                expected: kind.to_vec(),
+                got: tag,
+            });
         }
+
+        let iter = self
+            .cst
+            .iter_tree(node)
+            .ok_or_else(|| AnalysisError::NotTree {
+                node,
+                id: self.id,
+                expected: kind.to_vec(),
+            })?;
+
+        Ok((tag, iter))
     }
 
     /// Is the given node a comment token
-    fn is_comment(&mut self, node: usize) -> bool {
+    fn is_comment(&mut self, node: AsnNodeId) -> bool {
         matches!(
-            self.cst.data[node],
-            TreeContent::Token(Token {
+            self.cst.token(node),
+            Some(Token {
                 kind: TokenKind::SingleComment | TokenKind::MultiComment,
                 ..
             })

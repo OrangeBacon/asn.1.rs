@@ -68,10 +68,7 @@ impl<'a> Parser<'a> {
         let root = self.result.len();
         self.result.push(self.temp_result[0]);
 
-        Ok(Asn1 {
-            root,
-            data: self.result,
-        })
+        Ok(Asn1::new(self.lexer.id, self.result, root))
     }
 
     /// Consume a token of the given kind or return an error.  Ignores any comment tokens.
@@ -81,7 +78,7 @@ impl<'a> Parser<'a> {
 
         loop {
             let tok = self.lexer.next_token()?;
-            self.temp_result.push(TreeContent::Token(tok));
+            self.temp_result.push(TreeContent::new(tok));
 
             if tok.kind != TokenKind::SingleComment && tok.kind != TokenKind::MultiComment {
                 return Ok(tok);
@@ -127,7 +124,7 @@ impl<'a> Parser<'a> {
     /// Get the next XML token from the lexer
     fn next_xml(&mut self, kind: &[TokenKind]) -> Result<Token> {
         let tok = self.lexer.next_xml()?;
-        self.temp_result.push(TreeContent::Token(tok));
+        self.temp_result.push(TreeContent::new(tok));
 
         if kind.contains(&tok.kind) || kind.is_empty() {
             Ok(tok)
@@ -144,7 +141,7 @@ impl<'a> Parser<'a> {
     /// Consume all comment tokens from the lexer
     fn consume_comments(&mut self) {
         while let Some(tok) = self.lexer.next_comment() {
-            self.temp_result.push(TreeContent::Token(tok));
+            self.temp_result.push(TreeContent::new(tok));
         }
     }
 
