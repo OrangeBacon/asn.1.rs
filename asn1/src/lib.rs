@@ -1,7 +1,6 @@
 #![forbid(unsafe_code)]
 
 mod analysis;
-mod ast;
 mod compiler;
 mod cst;
 mod lexer;

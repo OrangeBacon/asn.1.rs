@@ -13,6 +13,12 @@ pub enum AnalysisError {
         expected: Vec<Asn1Tag>,
     },
 
+    /// Expected a tree node but found nothing (internal error)
+    NoNode {
+        id: SourceId,
+        expected: Vec<Asn1Tag>,
+    },
+
     /// Expected a tree of the given kind, but got something different
     WrongTree {
         node: AsnNodeId,

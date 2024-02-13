@@ -1,6 +1,16 @@
-//! Type checking and name resolution for ASN.1
+//! Type checking and name resolution for ASN.1.
+//! The following analysis passes are defined:
+//! - Local: analyse each module in isolation to get its imports and exports.
+//! - Global: resolve dependencies between modules (imports and exports).
+//! - Name: resolve names and references within each module.
+//! - Type: resolve types across all modules.
+//! - Value: parse and analyse values now that the type of the value is known.
+//! Note that modules can depend upon each other and must be checked at the
+//! same time so circular and recursive dependency resolution can take place.
 
 mod error;
+mod module;
+
 use crate::{
     compiler::SourceId,
     cst::{Asn1, Asn1Tag, AsnNodeId},
@@ -37,6 +47,8 @@ impl<'a> Analysis<'a> {
             if self.is_comment(module) {
                 continue;
             }
+
+            self.local_module(module)?;
         }
 
         Ok(())
@@ -46,7 +58,7 @@ impl<'a> Analysis<'a> {
     /// tag of that node.  If the tag does not match one of the provided kinds,
     /// returns an error.
     fn get_tree(
-        &mut self,
+        &self,
         node: AsnNodeId,
         kind: &[Asn1Tag],
     ) -> Result<(Asn1Tag, impl Iterator<Item = AsnNodeId>)> {
@@ -81,7 +93,7 @@ impl<'a> Analysis<'a> {
     }
 
     /// Is the given node a comment token
-    fn is_comment(&mut self, node: AsnNodeId) -> bool {
+    fn is_comment(&self, node: AsnNodeId) -> bool {
         matches!(
             self.cst.token(node),
             Some(Token {
