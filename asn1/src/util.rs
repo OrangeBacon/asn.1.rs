@@ -57,6 +57,7 @@ impl<I: Iterator> Peekable<I> {
 pub enum CowVec<T: 'static> {
     Borrowed(&'static [T]),
     Owned(Vec<T>),
+    Single(T),
 }
 
 impl<T> From<Vec<T>> for CowVec<T> {
@@ -89,6 +90,12 @@ impl<const N: usize, T> From<&'static mut [T; N]> for CowVec<T> {
     }
 }
 
+impl<T> From<T> for CowVec<T> {
+    fn from(value: T) -> Self {
+        CowVec::Single(value)
+    }
+}
+
 impl<T> Deref for CowVec<T> {
     type Target = [T];
 
@@ -96,6 +103,7 @@ impl<T> Deref for CowVec<T> {
         match self {
             CowVec::Borrowed(b) => b,
             CowVec::Owned(o) => o,
+            CowVec::Single(v) => std::slice::from_ref(v),
         }
     }
 }

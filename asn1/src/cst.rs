@@ -6,7 +6,7 @@
 //! an AST, therefore an AST is also implemented as a view over this CST (in
 //! another module).
 
-use std::fmt::Display;
+use std::{fmt::Display, ops::Range};
 
 use crate::{
     compiler::SourceId,
@@ -159,13 +159,19 @@ impl Asn1 {
 
     /// Create an iterator over the nested node contents of a tree node.  Returns
     /// `None` if the chosen node is a token node, not a tree node.
-    pub fn iter_tree(&self, node: AsnNodeId) -> Option<impl Iterator<Item = AsnNodeId>> {
+    pub fn iter_tree(&self, node: AsnNodeId) -> Option<CstIter> {
         debug_assert_eq!(node.1, self.id);
 
         match self.data[node.0] {
-            TreeContent::Tree { start, count, .. } => {
+            TreeContent::Tree {
+                tag, start, count, ..
+            } => {
                 let id = self.id;
-                Some((start..start + count).map(move |x| AsnNodeId(x, id)))
+                Some(CstIter {
+                    tag,
+                    range: start..start + count,
+                    id,
+                })
             }
             TreeContent::Token { .. } => None,
         }
@@ -294,5 +300,20 @@ impl Display for Asn1FormatterInternal<'_> {
         }
 
         Ok(())
+    }
+}
+
+/// Iterator over CST Nodes
+pub struct CstIter {
+    pub tag: Asn1Tag,
+    range: Range<usize>,
+    id: SourceId,
+}
+
+impl Iterator for CstIter {
+    type Item = AsnNodeId;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.range.next().map(|e| AsnNodeId(e, self.id))
     }
 }

@@ -11,10 +11,13 @@
 mod error;
 mod module;
 
+use std::fmt::Write;
+
 use crate::{
     compiler::SourceId,
-    cst::{Asn1, Asn1Tag, AsnNodeId},
+    cst::{Asn1, Asn1Tag, AsnNodeId, CstIter},
     token::{Token, TokenKind},
+    util::CowVec,
 };
 
 pub use self::error::{AnalysisError, Result};
@@ -29,7 +32,7 @@ pub struct Analysis<'a> {
     cst: &'a mut Asn1,
 
     /// ID of the source file.
-    id: SourceId,
+    pub(crate) id: SourceId,
 }
 
 impl<'a> Analysis<'a> {
@@ -40,8 +43,8 @@ impl<'a> Analysis<'a> {
 
     /// Run module-local analysis to gather imports / exports and other requirements
     /// that do not need full name and type resolution
-    pub fn local(&mut self) -> Result<(), AnalysisError> {
-        let (_, root) = self.get_tree(self.cst.root, &[Asn1Tag::Root])?;
+    pub fn local(&mut self) -> Result {
+        let root = self.tree(self.cst.root, &[Asn1Tag::Root])?;
 
         for module in root {
             if self.is_comment(module) {
@@ -56,40 +59,79 @@ impl<'a> Analysis<'a> {
 
     /// Get a list of nodes that are contained within a given node and return the
     /// tag of that node.  If the tag does not match one of the provided kinds,
-    /// returns an error.
-    fn get_tree(
+    /// returns None.
+    pub fn tree(
         &self,
-        node: AsnNodeId,
-        kind: &[Asn1Tag],
-    ) -> Result<(Asn1Tag, impl Iterator<Item = AsnNodeId>)> {
-        let tag = self
-            .cst
-            .tree_tag(node)
-            .ok_or_else(|| AnalysisError::NotTree {
+        node: impl Into<Option<AsnNodeId>>,
+        asn1_tag: impl Into<CowVec<Asn1Tag>>,
+    ) -> Result<CstIter> {
+        let kind = asn1_tag.into();
+
+        let Some(node) = node.into() else {
+            return Err(AnalysisError::NoTreeNode {
+                id: self.id,
+                expected: kind,
+            });
+        };
+
+        let Some(tag) = self.cst.tree_tag(node) else {
+            return Err(AnalysisError::NotTree {
                 node,
                 id: self.id,
-                expected: kind.to_vec(),
-            })?;
+                expected: kind,
+            });
+        };
 
         if !kind.is_empty() && !kind.contains(&tag) {
             return Err(AnalysisError::WrongTree {
                 node,
                 id: self.id,
-                expected: kind.to_vec(),
+                expected: kind,
                 got: tag,
             });
         }
 
-        let iter = self
-            .cst
-            .iter_tree(node)
-            .ok_or_else(|| AnalysisError::NotTree {
+        let iter = self.cst.iter_tree(node).ok_or(AnalysisError::NotTree {
+            node,
+            id: self.id,
+            expected: kind,
+        })?;
+
+        Ok(iter)
+    }
+
+    pub fn token(
+        &self,
+        node: impl Into<Option<AsnNodeId>>,
+        token_kind: impl Into<CowVec<TokenKind>>,
+    ) -> Result<Token> {
+        let kind = token_kind.into();
+
+        let Some(node) = node.into() else {
+            return Err(AnalysisError::NoTokenNode {
+                id: self.id,
+                expected: kind,
+            });
+        };
+
+        let Some(tok) = self.cst.token(node) else {
+            return Err(AnalysisError::NotToken {
                 node,
                 id: self.id,
-                expected: kind.to_vec(),
-            })?;
+                expected: kind,
+            });
+        };
 
-        Ok((tag, iter))
+        if !kind.is_empty() && !kind.contains(&tok.kind) {
+            return Err(AnalysisError::WrongToken {
+                node,
+                id: self.id,
+                expected: kind,
+                got: tok.kind,
+            });
+        }
+
+        Ok(tok)
     }
 
     /// Is the given node a comment token
@@ -101,5 +143,24 @@ impl<'a> Analysis<'a> {
                 ..
             })
         )
+    }
+
+    /// Convert a token into a user-readable string (debugging method)
+    pub fn token_string(&self, tok: Token) -> String {
+        debug_assert_eq!(tok.id, self.id);
+
+        let mut s = String::new();
+
+        write!(
+            s,
+            "{:?}@{}..{}: {}",
+            tok.kind,
+            tok.offset,
+            tok.offset + tok.length,
+            &self.source[tok.offset..tok.offset + tok.length]
+        )
+        .unwrap();
+
+        s
     }
 }
