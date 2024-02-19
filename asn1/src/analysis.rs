@@ -7,17 +7,22 @@
 //! - Value: parse and analyse values now that the type of the value is known.
 //! Note that modules can depend upon each other and must be checked at the
 //! same time so circular and recursive dependency resolution can take place.
+//!
+//! The analysis passes are all based on the fact that the provided CST from the
+//! parser is valid as far as the parser can tell.  Any parse errors that put
+//! tokens in weird locations within the cst due to error recovery, etc (not
+//! currently implemented) should ensure that either analysis does not run or
+//! the recovered ast is valid.  Otherwise an internal compiler error will be
+//! thrown.  If the error is that a structure that should not be present is,
+//! however it could not be detected in parsing, then it likely will be thrown
+//! as a type error for the user to fix and analysis to continue.
 
 mod error;
 mod module;
 
-use std::fmt::Write;
-
 use crate::{
     compiler::SourceId,
-    cst::{Asn1, Asn1Tag, AsnNodeId, CstIter},
-    token::{Token, TokenKind},
-    util::CowVec,
+    cst::{Asn1, Asn1Tag},
 };
 
 pub use self::error::{AnalysisError, Result};
@@ -26,10 +31,10 @@ pub use self::error::{AnalysisError, Result};
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Analysis<'a> {
     /// Text value of the source, used to resolve references within the CST.
-    source: &'a str,
+    pub(crate) source: &'a str,
 
     /// Parsed CST for the source file.
-    cst: &'a mut Asn1,
+    pub(crate) cst: &'a mut Asn1,
 
     /// ID of the source file.
     pub(crate) id: SourceId,
@@ -55,112 +60,5 @@ impl<'a> Analysis<'a> {
         }
 
         Ok(())
-    }
-
-    /// Get a list of nodes that are contained within a given node and return the
-    /// tag of that node.  If the tag does not match one of the provided kinds,
-    /// returns None.
-    pub fn tree(
-        &self,
-        node: impl Into<Option<AsnNodeId>>,
-        asn1_tag: impl Into<CowVec<Asn1Tag>>,
-    ) -> Result<CstIter> {
-        let kind = asn1_tag.into();
-
-        let Some(node) = node.into() else {
-            return Err(AnalysisError::NoTreeNode {
-                id: self.id,
-                expected: kind,
-            });
-        };
-
-        let Some(tag) = self.cst.tree_tag(node) else {
-            return Err(AnalysisError::NotTree {
-                node,
-                id: self.id,
-                expected: kind,
-            });
-        };
-
-        if !kind.is_empty() && !kind.contains(&tag) {
-            return Err(AnalysisError::WrongTree {
-                node,
-                id: self.id,
-                expected: kind,
-                got: tag,
-            });
-        }
-
-        let iter = self.cst.iter_tree(node).ok_or(AnalysisError::NotTree {
-            node,
-            id: self.id,
-            expected: kind,
-        })?;
-
-        Ok(iter)
-    }
-
-    pub fn token(
-        &self,
-        node: impl Into<Option<AsnNodeId>>,
-        token_kind: impl Into<CowVec<TokenKind>>,
-    ) -> Result<Token> {
-        let kind = token_kind.into();
-
-        let Some(node) = node.into() else {
-            return Err(AnalysisError::NoTokenNode {
-                id: self.id,
-                expected: kind,
-            });
-        };
-
-        let Some(tok) = self.cst.token(node) else {
-            return Err(AnalysisError::NotToken {
-                node,
-                id: self.id,
-                expected: kind,
-            });
-        };
-
-        if !kind.is_empty() && !kind.contains(&tok.kind) {
-            return Err(AnalysisError::WrongToken {
-                node,
-                id: self.id,
-                expected: kind,
-                got: tok.kind,
-            });
-        }
-
-        Ok(tok)
-    }
-
-    /// Is the given node a comment token
-    fn is_comment(&self, node: AsnNodeId) -> bool {
-        matches!(
-            self.cst.token(node),
-            Some(Token {
-                kind: TokenKind::SingleComment | TokenKind::MultiComment,
-                ..
-            })
-        )
-    }
-
-    /// Convert a token into a user-readable string (debugging method)
-    pub fn token_string(&self, tok: Token) -> String {
-        debug_assert_eq!(tok.id, self.id);
-
-        let mut s = String::new();
-
-        write!(
-            s,
-            "{:?}@{}..{}: {}",
-            tok.kind,
-            tok.offset,
-            tok.offset + tok.length,
-            &self.source[tok.offset..tok.offset + tok.length]
-        )
-        .unwrap();
-
-        s
     }
 }

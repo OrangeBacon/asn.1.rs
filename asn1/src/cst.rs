@@ -6,7 +6,7 @@
 //! an AST, therefore an AST is also implemented as a view over this CST (in
 //! another module).
 
-use std::{fmt::Display, ops::Range};
+use std::{fmt::Display, iter::Peekable, ops::Range};
 
 use crate::{
     compiler::SourceId,
@@ -169,7 +169,7 @@ impl Asn1 {
                 let id = self.id;
                 Some(CstIter {
                     tag,
-                    range: start..start + count,
+                    range: (start..start + count).peekable(),
                     id,
                 })
             }
@@ -305,9 +305,14 @@ impl Display for Asn1FormatterInternal<'_> {
 
 /// Iterator over CST Nodes
 pub struct CstIter {
+    /// The tag of the tree node that is being iterated over
     pub tag: Asn1Tag,
-    range: Range<usize>,
-    id: SourceId,
+
+    /// The source iterator representing indexes into a cst
+    range: Peekable<Range<usize>>,
+
+    /// The id of the source file this iterator came from
+    pub id: SourceId,
 }
 
 impl Iterator for CstIter {
@@ -315,5 +320,12 @@ impl Iterator for CstIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.range.next().map(|e| AsnNodeId(e, self.id))
+    }
+}
+
+impl CstIter {
+    /// Try to get the next node ID without consuming it
+    pub fn peek(&mut self) -> Option<AsnNodeId> {
+        self.range.peek().map(|e| AsnNodeId(*e, self.id))
     }
 }
