@@ -105,7 +105,7 @@ impl Analysis<'_> {
     }
 }
 
-impl CstIter {
+impl CstIter<'_> {
     /// Are there any more nodes in this iterator
     pub fn assert_empty(&mut self) -> Result {
         if let Some(id) = self.peek() {

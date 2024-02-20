@@ -6,7 +6,7 @@
 //! an AST, therefore an AST is also implemented as a view over this CST (in
 //! another module).
 
-use std::{fmt::Display, iter::Peekable, ops::Range};
+use std::{fmt::Display, ops::Range};
 
 use crate::{
     compiler::SourceId,
@@ -169,8 +169,10 @@ impl Asn1 {
                 let id = self.id;
                 Some(CstIter {
                     tag,
-                    range: (start..start + count).peekable(),
+                    range: start..start + count,
                     id,
+                    peek: None,
+                    tree: self,
                 })
             }
             TreeContent::Token { .. } => None,
@@ -304,28 +306,54 @@ impl Display for Asn1FormatterInternal<'_> {
 }
 
 /// Iterator over CST Nodes
-pub struct CstIter {
+pub struct CstIter<'a> {
     /// The tag of the tree node that is being iterated over
     pub tag: Asn1Tag,
 
-    /// The source iterator representing indexes into a cst
-    range: Peekable<Range<usize>>,
-
     /// The id of the source file this iterator came from
     pub id: SourceId,
+
+    /// The source iterator representing indexes into a cst
+    range: Range<usize>,
+
+    /// A peeked node id
+    peek: Option<AsnNodeId>,
+
+    /// The tree instance to read the cst from
+    tree: &'a Asn1,
 }
 
-impl Iterator for CstIter {
-    type Item = AsnNodeId;
+impl CstIter<'_> {
+    /// Get the next non-trivia node
+    pub fn next(&mut self) -> Option<AsnNodeId> {
+        if let Some(node) = self.peek.take() {
+            return Some(node);
+        }
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.range.next().map(|e| AsnNodeId(e, self.id))
+        for node in &mut self.range {
+            if matches!(
+                self.tree.data[node],
+                TreeContent::Token {
+                    kind: TokenKind::MultiComment | TokenKind::SingleComment,
+                    ..
+                }
+            ) {
+                continue;
+            }
+            return Some(AsnNodeId(node, self.id));
+        }
+
+        None
     }
-}
 
-impl CstIter {
-    /// Try to get the next node ID without consuming it
+    /// Try to get the next non-trivia node ID without consuming it
     pub fn peek(&mut self) -> Option<AsnNodeId> {
-        self.range.peek().map(|e| AsnNodeId(*e, self.id))
+        if let Some(node) = self.peek {
+            return Some(node);
+        }
+
+        self.peek = self.next();
+
+        self.peek
     }
 }

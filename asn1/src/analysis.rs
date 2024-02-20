@@ -49,9 +49,9 @@ impl<'a> Analysis<'a> {
     /// Run module-local analysis to gather imports / exports and other requirements
     /// that do not need full name and type resolution
     pub fn local(&mut self) -> Result {
-        let root = self.tree(self.cst.root, &[Asn1Tag::Root])?;
+        let mut root = self.tree(self.cst.root, &[Asn1Tag::Root])?;
 
-        for module in root {
+        while let Some(module) = root.next() {
             if self.is_comment(module) {
                 continue;
             }
