@@ -18,47 +18,8 @@
 //! as a type error for the user to fix and analysis to continue.
 
 mod error;
-mod module;
+mod local;
 
-use crate::{
-    compiler::SourceId,
-    cst::{Asn1, Asn1Tag},
-};
+pub mod context;
 
-pub use self::error::{AnalysisError, Result};
-
-/// State for analysing syntax trees
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Analysis<'a> {
-    /// Text value of the source, used to resolve references within the CST.
-    pub(crate) source: &'a str,
-
-    /// Parsed CST for the source file.
-    pub(crate) cst: &'a mut Asn1,
-
-    /// ID of the source file.
-    pub(crate) id: SourceId,
-}
-
-impl<'a> Analysis<'a> {
-    /// Create an analysis context for the given source file
-    pub fn new(cst: &'a mut Asn1, source: &'a str, id: SourceId) -> Self {
-        Self { source, cst, id }
-    }
-
-    /// Run module-local analysis to gather imports / exports and other requirements
-    /// that do not need full name and type resolution
-    pub fn local(&mut self) -> Result {
-        let mut root = self.tree(self.cst.root, &[Asn1Tag::Root])?;
-
-        while let Some(module) = root.next() {
-            if self.is_comment(module) {
-                continue;
-            }
-
-            self.local_module(module)?;
-        }
-
-        Ok(())
-    }
-}
+pub use error::AnalysisError;

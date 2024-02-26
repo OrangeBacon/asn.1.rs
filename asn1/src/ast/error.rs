@@ -24,16 +24,10 @@ pub enum AstError {
     },
 
     /// Expected a tree node but found nothing (internal error)
-    NoTreeNode {
-        id: SourceId,
-        expected: CowVec<Asn1Tag>,
-    },
+    NoTreeNode { expected: CowVec<Asn1Tag> },
 
-    /// Expected a token node but found nothing
-    NoTokenNode {
-        id: SourceId,
-        expected: CowVec<TokenKind>,
-    },
+    /// Expected a token node but found nothing (internal error)
+    NoTokenNode { expected: CowVec<TokenKind> },
 
     /// Expected a tree of the given kind, but got something different
     WrongTree {

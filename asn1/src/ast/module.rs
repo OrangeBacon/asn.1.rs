@@ -1,5 +1,5 @@
 use crate::{
-    analysis::Analysis,
+    analysis::context::AnalysisContext,
     cst::{Asn1Tag, AsnNodeId, CstIter},
     token::{Token, TokenKind},
 };
@@ -30,7 +30,7 @@ pub enum TagDefault {
     Explicit,
 }
 
-impl Analysis<'_> {
+impl AnalysisContext<'_> {
     /// Try to get the ast for a module
     pub fn module_ast(&self, node: AsnNodeId) -> Result<ModuleDefinition> {
         let mut iter = self.tree(node, Asn1Tag::ModuleDefinition)?;

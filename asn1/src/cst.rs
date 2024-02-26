@@ -222,6 +222,14 @@ impl TreeContent {
     }
 }
 
+impl AsnNodeId {
+    /// Get the source ID from a node ID
+    #[inline]
+    pub(crate) fn source(&self) -> SourceId {
+        self.1
+    }
+}
+
 /// Formatter for the CST of an asn1 file
 pub(crate) struct Asn1Formatter<'a> {
     /// The tree to be formatted

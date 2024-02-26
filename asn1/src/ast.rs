@@ -2,7 +2,7 @@ mod error;
 mod module;
 
 use crate::{
-    analysis::Analysis,
+    analysis::context::AnalysisContext,
     cst::{Asn1Tag, AsnNodeId, CstIter},
     token::{Token, TokenKind},
     util::CowVec,
@@ -10,7 +10,7 @@ use crate::{
 
 pub use self::error::{AstError, Result};
 
-impl Analysis<'_> {
+impl AnalysisContext<'_> {
     /// Get a list of nodes that are contained within a given node and return the
     /// tag of that node.  If the tag does not match one of the provided kinds,
     /// returns None.
@@ -22,16 +22,16 @@ impl Analysis<'_> {
         let kind = asn1_tag.into();
 
         let Some(node) = node.into() else {
-            return Err(AstError::NoTreeNode {
-                id: self.id,
-                expected: kind,
-            });
+            return Err(AstError::NoTreeNode { expected: kind });
         };
 
-        let Some(tag) = self.cst.tree_tag(node) else {
+        let source = self.source(node.source());
+        let cst = &source.tree;
+
+        let Some(tag) = cst.tree_tag(node) else {
             return Err(AstError::NotTree {
                 node,
-                id: self.id,
+                id: source.id,
                 expected: kind,
             });
         };
@@ -39,15 +39,15 @@ impl Analysis<'_> {
         if !kind.is_empty() && !kind.contains(&tag) {
             return Err(AstError::WrongTree {
                 node,
-                id: self.id,
+                id: source.id,
                 expected: kind,
                 got: tag,
             });
         }
 
-        let iter = self.cst.iter_tree(node).ok_or(AstError::NotTree {
+        let iter = cst.iter_tree(node).ok_or(AstError::NotTree {
             node,
-            id: self.id,
+            id: source.id,
             expected: kind,
         })?;
 
@@ -62,16 +62,16 @@ impl Analysis<'_> {
         let kind = token_kind.into();
 
         let Some(node) = node.into() else {
-            return Err(AstError::NoTokenNode {
-                id: self.id,
-                expected: kind,
-            });
+            return Err(AstError::NoTokenNode { expected: kind });
         };
 
-        let Some(tok) = self.cst.token(node) else {
+        let source = self.source(node.source());
+        let cst = &source.tree;
+
+        let Some(tok) = cst.token(node) else {
             return Err(AstError::NotToken {
                 node,
-                id: self.id,
+                id: source.id,
                 expected: kind,
             });
         };
@@ -79,7 +79,7 @@ impl Analysis<'_> {
         if !kind.is_empty() && !kind.contains(&tok.kind) {
             return Err(AstError::WrongToken {
                 node,
-                id: self.id,
+                id: source.id,
                 expected: kind,
                 got: tok.kind,
             });
@@ -91,7 +91,7 @@ impl Analysis<'_> {
     /// Is the given node a comment token
     pub fn is_comment(&self, node: AsnNodeId) -> bool {
         matches!(
-            self.cst.token(node),
+            self.source(node.source()).tree.token(node),
             Some(Token {
                 kind: TokenKind::SingleComment | TokenKind::MultiComment,
                 ..
@@ -101,7 +101,7 @@ impl Analysis<'_> {
 
     /// Get the string value of a token
     pub fn token_value(&self, tok: Token) -> &str {
-        &self.source[tok.offset..tok.offset + tok.length]
+        &self.source(tok.id).source[tok.offset..tok.offset + tok.length]
     }
 }
 
