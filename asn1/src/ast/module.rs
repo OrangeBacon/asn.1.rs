@@ -32,7 +32,7 @@ pub enum TagDefault {
 
 impl AnalysisContext<'_> {
     /// Try to get the ast for a module
-    pub fn module_ast(&self, node: AsnNodeId) -> Result<ModuleDefinition> {
+    pub(crate) fn module_ast(&self, node: AsnNodeId) -> Result<ModuleDefinition> {
         let mut iter = self.tree(node, Asn1Tag::ModuleDefinition)?;
 
         let mut name_iter = self.tree(iter.next(), Asn1Tag::ModuleIdentifier)?;

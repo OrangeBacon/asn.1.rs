@@ -29,9 +29,12 @@ fn main() {
     let an = compiler.analysis();
     let an_end = an_start.elapsed();
 
-    match an {
-        Ok(an) => println!("Analysis Completed: {:?}", an.errors),
-        Err(e) => println!("{e:?}"),
+    if !an.errors.is_empty() {
+        println!("{:?}", an.errors);
+    }
+
+    if !an.warnings.is_empty() {
+        println!("{:?}", an.warnings);
     }
 
     println!("Parse {end:?}");

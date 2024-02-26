@@ -1,7 +1,7 @@
 //! The primary interface to all the ASN.1 parsing, codegen, analysis, and other tools.
 
 use crate::{
-    analysis::{context::AnalysisContext, AnalysisError},
+    analysis::context::AnalysisContext,
     cst::{Asn1, Asn1Formatter},
     lexer::Lexer,
     parser::{Parser, ParserError},
@@ -82,9 +82,7 @@ impl AsnCompiler {
     }
 
     /// Run static analysis of all the provided source files.
-    pub fn analysis(&mut self) -> Result<AnalysisContext, AnalysisError> {
-        let analysis = AnalysisContext::new(self);
-
-        Ok(analysis)
+    pub fn analysis(&mut self) -> AnalysisContext {
+        AnalysisContext::new(self)
     }
 }

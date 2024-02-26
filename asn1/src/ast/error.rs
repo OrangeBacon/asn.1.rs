@@ -23,10 +23,10 @@ pub enum AstError {
         expected: CowVec<TokenKind>,
     },
 
-    /// Expected a tree node but found nothing (internal error)
+    /// Expected a tree node but found nothing
     NoTreeNode { expected: CowVec<Asn1Tag> },
 
-    /// Expected a token node but found nothing (internal error)
+    /// Expected a token node but found nothing
     NoTokenNode { expected: CowVec<TokenKind> },
 
     /// Expected a tree of the given kind, but got something different
