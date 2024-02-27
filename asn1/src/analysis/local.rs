@@ -1,6 +1,6 @@
 use crate::{compiler::SourceId, cst::Asn1Tag};
 
-use super::{context::AnalysisContext, error::Result};
+use super::{context::AnalysisContext, environment::Environment, error::Result};
 
 impl AnalysisContext<'_> {
     /// Run module-local analysis to gather imports / exports and other requirements
@@ -15,7 +15,7 @@ impl AnalysisContext<'_> {
                 continue;
             }
 
-            modules.push(module);
+            modules.push(Environment::new(module));
         }
 
         self.modules.extend(modules);

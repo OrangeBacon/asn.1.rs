@@ -17,7 +17,9 @@
 //! however it could not be detected in parsing, then it likely will be thrown
 //! as a type error for the user to fix and analysis to continue.
 
+mod environment;
 mod error;
+mod global;
 mod local;
 
 pub mod context;

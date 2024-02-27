@@ -1,11 +1,11 @@
 use std::ops::{Deref, DerefMut};
 
-use crate::{compiler::SourceId, cst::AsnNodeId, AsnCompiler};
+use crate::{compiler::SourceId, AsnCompiler};
 
-use super::{error::AnalysisWarning, AnalysisError};
+use super::{environment::Environment, error::AnalysisWarning, AnalysisError};
 
 /// Data used and produced by static analysis of source files
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct AnalysisContext<'a> {
     /// context to get source files/trees from
     compiler: &'a mut AsnCompiler,
@@ -17,7 +17,7 @@ pub struct AnalysisContext<'a> {
     pub warnings: Vec<AnalysisWarning>,
 
     /// List of all modules from all source files
-    pub(crate) modules: Vec<AsnNodeId>,
+    pub(super) modules: Vec<Environment>,
 }
 
 impl<'a> AnalysisContext<'a> {
@@ -49,7 +49,11 @@ impl<'a> AnalysisContext<'a> {
     }
 
     /// Run all analysis passes
-    fn run(&mut self) {}
+    fn run(&mut self) {
+        if let Err(e) = self.global() {
+            self.errors.push(e);
+        }
+    }
 }
 
 impl Deref for AnalysisContext<'_> {
