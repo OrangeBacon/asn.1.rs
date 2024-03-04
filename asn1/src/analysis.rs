@@ -17,11 +17,13 @@
 //! however it could not be detected in parsing, then it likely will be thrown
 //! as a type error for the user to fix and analysis to continue.
 
+mod context;
 mod environment;
 mod error;
 mod global;
 mod local;
+mod object_tree;
 
-pub mod context;
-
+pub use context::AnalysisContext;
 pub use error::AnalysisError;
+pub use object_tree::{Iri, IriParseError, Oid, OidComponent};

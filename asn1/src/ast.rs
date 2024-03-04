@@ -2,7 +2,7 @@ mod error;
 mod module;
 
 use crate::{
-    analysis::context::AnalysisContext,
+    analysis::AnalysisContext,
     cst::{Asn1Tag, AsnNodeId, CstIter},
     token::{Token, TokenKind},
     util::CowVec,
@@ -54,6 +54,7 @@ impl AnalysisContext<'_> {
         Ok(iter)
     }
 
+    /// Get a token of one of the provided kinds from the given tree node id.
     pub fn token(
         &self,
         node: impl Into<Option<AsnNodeId>>,

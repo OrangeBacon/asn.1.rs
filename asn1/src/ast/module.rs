@@ -1,16 +1,16 @@
 use crate::{
-    analysis::context::AnalysisContext,
+    analysis::{AnalysisContext, Iri, Oid, OidComponent},
     cst::{Asn1Tag, AsnNodeId, CstIter},
     token::{Token, TokenKind},
 };
 
-use super::error::Result;
+use super::{error::Result, AstError};
 
 /// A group of ASN.1 assignments and settings.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ModuleDefinition<'a> {
     /// Identifier for the module
-    pub name: &'a str,
+    pub name: ModuleIdentifier<'a>,
 
     /// Name of the default encoding
     pub encoding_reference: Option<Token>,
@@ -20,6 +20,18 @@ pub struct ModuleDefinition<'a> {
 
     /// Is extensibility implied in this module
     pub extensibility: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct ModuleIdentifier<'a> {
+    /// Identifier for the module
+    pub name: &'a str,
+
+    /// The module's object identifier
+    pub oid: Option<Oid>,
+
+    /// The module's internationalized resource identifier value
+    pub iri: Option<Iri>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -35,10 +47,7 @@ impl AnalysisContext<'_> {
     pub(crate) fn module_ast(&self, node: AsnNodeId) -> Result<ModuleDefinition> {
         let mut iter = self.tree(node, Asn1Tag::ModuleDefinition)?;
 
-        let mut name_iter = self.tree(iter.next(), Asn1Tag::ModuleIdentifier)?;
-        let name = self.token(name_iter.next(), TokenKind::TypeOrModuleRef)?;
-        let name = self.token_value(name);
-        name_iter.assert_empty()?;
+        let name = self.module_identifier(&mut iter)?;
 
         self.token(iter.next(), TokenKind::KwDefinitions)?;
 
@@ -57,6 +66,75 @@ impl AnalysisContext<'_> {
             tag_default,
             extensibility,
         })
+    }
+
+    /// Interpret a module identifier
+    fn module_identifier(&self, iter: &mut CstIter) -> Result<ModuleIdentifier> {
+        let mut iter = self.tree(iter.next(), Asn1Tag::ModuleIdentifier)?;
+        let name = self.token(iter.next(), TokenKind::TypeOrModuleRef)?;
+        let name = self.token_value(name);
+
+        let oid = if iter.peek().is_some() {
+            Some(self.module_oid(&mut iter)?)
+        } else {
+            None
+        };
+        let iri = if let Some(node) = iter.peek() {
+            let tok = self.token(iter.next(), TokenKind::CString)?;
+            let iri = Iri::from_str(self.token_value(tok))
+                .map_err(|err| AstError::IriParseError { err, node })?;
+            Some(iri)
+        } else {
+            None
+        };
+
+        iter.assert_empty()?;
+
+        Ok(ModuleIdentifier { name, oid, iri })
+    }
+
+    /// Interpret a module identifier's oid
+    fn module_oid(&self, iter: &mut CstIter) -> Result<Oid> {
+        let mut iter = self.tree(iter.next(), Asn1Tag::DefinitiveOID)?;
+        self.token(iter.next(), TokenKind::LeftCurly)?;
+
+        let mut oid = vec![];
+        while let Ok(mut comp) = self.tree(iter.peek(), Asn1Tag::DefinitiveOIDComponent) {
+            iter.next();
+            let comp = self.module_oid_component(&mut comp)?;
+            oid.push(comp);
+        }
+
+        self.token(iter.next(), TokenKind::RightCurly)?;
+
+        Ok(Oid { components: oid })
+    }
+
+    /// Interpret the inside of a definitive oid component
+    fn module_oid_component(&self, iter: &mut CstIter) -> Result<OidComponent> {
+        let mut comp = OidComponent {
+            label: None,
+            number: None,
+        };
+        let tok = self.token(
+            iter.next(),
+            &[TokenKind::ValueRefOrIdent, TokenKind::Number],
+        )?;
+        if tok.kind == TokenKind::Number {
+            comp.number = Some(self.token_value(tok).to_string());
+        } else {
+            comp.label = Some(self.token_value(tok).to_string());
+            if iter.peek().is_some() {
+                self.token(iter.next(), TokenKind::LeftParen)?;
+                let tok = self.token(iter.next(), TokenKind::Number)?;
+                self.token(iter.next(), TokenKind::RightParen)?;
+                comp.number = Some(self.token_value(tok).to_string());
+            }
+        }
+
+        iter.assert_empty()?;
+
+        Ok(comp)
     }
 
     /// Interpret the encoding reference cst node

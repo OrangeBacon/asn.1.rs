@@ -1,7 +1,7 @@
 //! The primary interface to all the ASN.1 parsing, codegen, analysis, and other tools.
 
 use crate::{
-    analysis::context::AnalysisContext,
+    analysis::AnalysisContext,
     cst::{Asn1, Asn1Formatter},
     lexer::Lexer,
     parser::{Parser, ParserError},

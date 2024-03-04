@@ -1,8 +1,5 @@
 use crate::{
-    compiler::SourceId,
-    cst::{Asn1Tag, AsnNodeId},
-    token::TokenKind,
-    util::CowVec,
+    analysis::IriParseError, compiler::SourceId, cst::{Asn1Tag, AsnNodeId}, token::TokenKind, util::CowVec
 };
 
 /// Any error that can be produced by ast construction.  If thrown to the user,
@@ -47,6 +44,9 @@ pub enum AstError {
 
     /// Expected an iterator to be empty but it was not
     FoundNode { id: SourceId, got: AsnNodeId },
+
+    /// An error occurred while parsing an IRI string
+    IriParseError { err: IriParseError, node: AsnNodeId },
 }
 
 pub type Result<T = (), E = AstError> = std::result::Result<T, E>;
