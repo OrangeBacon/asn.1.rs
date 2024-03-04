@@ -1,6 +1,8 @@
 mod error;
 mod module;
 
+use std::ops::Deref;
+
 use crate::{
     analysis::AnalysisContext,
     cst::{Asn1Tag, AsnNodeId, CstIter},
@@ -9,6 +11,16 @@ use crate::{
 };
 
 pub use self::error::{AstError, Result};
+
+/// A piece of data with an associated id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct WithId<T> {
+    /// The stored data
+    pub value: T,
+
+    /// The associated ID
+    pub id: AsnNodeId,
+}
 
 impl AnalysisContext<'_> {
     /// Get a list of nodes that are contained within a given node and return the
@@ -59,7 +71,7 @@ impl AnalysisContext<'_> {
         &self,
         node: impl Into<Option<AsnNodeId>>,
         token_kind: impl Into<CowVec<TokenKind>>,
-    ) -> Result<Token> {
+    ) -> Result<WithId<Token>> {
         let kind = token_kind.into();
 
         let Some(node) = node.into() else {
@@ -86,7 +98,10 @@ impl AnalysisContext<'_> {
             });
         }
 
-        Ok(tok)
+        Ok(WithId {
+            value: tok,
+            id: node,
+        })
     }
 
     /// Is the given node a comment token
@@ -111,11 +126,19 @@ impl CstIter<'_> {
     pub fn assert_empty(&mut self) -> Result {
         if let Some(id) = self.peek() {
             Err(AstError::FoundNode {
-                id: self.id,
+                id: self.file,
                 got: id,
             })
         } else {
             Ok(())
         }
+    }
+}
+
+impl<T> Deref for WithId<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
     }
 }

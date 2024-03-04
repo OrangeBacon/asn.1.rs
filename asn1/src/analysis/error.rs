@@ -1,5 +1,7 @@
 use crate::{ast::AstError, cst::AsnNodeId};
 
+use super::IriParseError;
+
 /// Any error that can be produced by an analysis pass
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum AnalysisError {
@@ -8,6 +10,9 @@ pub enum AnalysisError {
 
     /// A duplicate module name was found
     DuplicateModule { first: AsnNodeId, second: AsnNodeId },
+
+    /// An error while parsing an IRI string value
+    IriParseError { err: IriParseError, node: AsnNodeId },
 }
 
 pub type Result<T = (), E = AnalysisError> = std::result::Result<T, E>;

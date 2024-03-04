@@ -22,18 +22,21 @@ pub struct OidComponent {
 /// An internationalized resource identifier
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Iri {
+    /// The list of labels within the iri
     pub components: Vec<IriComponent>,
 }
 
 /// A single component of an iri.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IriComponent {
+    /// the unicode or integer label
     pub label: String,
 }
 
 /// An error encountered while parsing an iri string
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum IriParseError {
+    /// A
     MissingPrefix,
     MissingSuffix,
 }

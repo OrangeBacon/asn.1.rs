@@ -1,10 +1,10 @@
 use crate::{
-    analysis::{AnalysisContext, Iri, Oid, OidComponent},
+    analysis::AnalysisContext,
     cst::{Asn1Tag, AsnNodeId, CstIter},
     token::{Token, TokenKind},
 };
 
-use super::{error::Result, AstError};
+use super::{error::Result, WithId};
 
 /// A group of ASN.1 assignments and settings.
 #[derive(Debug, Clone)]
@@ -13,10 +13,10 @@ pub struct ModuleDefinition<'a> {
     pub name: ModuleIdentifier<'a>,
 
     /// Name of the default encoding
-    pub encoding_reference: Option<Token>,
+    pub encoding_reference: Option<WithId<Token>>,
 
     /// How automatic tagging should be performed
-    pub tag_default: TagDefault,
+    pub tag_default: Option<WithId<TagDefault>>,
 
     /// Is extensibility implied in this module
     pub extensibility: bool,
@@ -25,18 +25,38 @@ pub struct ModuleDefinition<'a> {
 #[derive(Debug, Clone)]
 pub struct ModuleIdentifier<'a> {
     /// Identifier for the module
-    pub name: &'a str,
+    pub name: WithId<&'a str>,
 
     /// The module's object identifier
-    pub oid: Option<Oid>,
+    pub oid: Option<ModuleOid>,
 
     /// The module's internationalized resource identifier value
-    pub iri: Option<Iri>,
+    pub iri: Option<WithId<&'a str>>,
+}
+
+/// An object identifier
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ModuleOid {
+    /// Ordered list of all components in the OID
+    pub components: Vec<ModuleOidComponent>,
+
+    /// Node ID for this oid
+    pub id: AsnNodeId,
+}
+
+/// A single component of an object identifier
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ModuleOidComponent {
+    /// the non-integer label for the component
+    pub label: Option<WithId<String>>,
+
+    /// the integer label for the component.  note that this is not a number as
+    /// math should not be done to it, it is an identifier.
+    pub number: Option<WithId<String>>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum TagDefault {
-    None,
     Automatic,
     Implicit,
     Explicit,
@@ -72,18 +92,22 @@ impl AnalysisContext<'_> {
     fn module_identifier(&self, iter: &mut CstIter) -> Result<ModuleIdentifier> {
         let mut iter = self.tree(iter.next(), Asn1Tag::ModuleIdentifier)?;
         let name = self.token(iter.next(), TokenKind::TypeOrModuleRef)?;
-        let name = self.token_value(name);
+        let name = WithId {
+            value: self.token_value(*name),
+            id: name.id,
+        };
 
         let oid = if iter.peek().is_some() {
             Some(self.module_oid(&mut iter)?)
         } else {
             None
         };
-        let iri = if let Some(node) = iter.peek() {
+        let iri = if iter.peek().is_some() {
             let tok = self.token(iter.next(), TokenKind::CString)?;
-            let iri = Iri::from_str(self.token_value(tok))
-                .map_err(|err| AstError::IriParseError { err, node })?;
-            Some(iri)
+            Some(WithId {
+                value: self.token_value(*tok),
+                id: tok.id,
+            })
         } else {
             None
         };
@@ -94,7 +118,7 @@ impl AnalysisContext<'_> {
     }
 
     /// Interpret a module identifier's oid
-    fn module_oid(&self, iter: &mut CstIter) -> Result<Oid> {
+    fn module_oid(&self, iter: &mut CstIter) -> Result<ModuleOid> {
         let mut iter = self.tree(iter.next(), Asn1Tag::DefinitiveOID)?;
         self.token(iter.next(), TokenKind::LeftCurly)?;
 
@@ -107,12 +131,15 @@ impl AnalysisContext<'_> {
 
         self.token(iter.next(), TokenKind::RightCurly)?;
 
-        Ok(Oid { components: oid })
+        Ok(ModuleOid {
+            components: oid,
+            id: iter.node,
+        })
     }
 
     /// Interpret the inside of a definitive oid component
-    fn module_oid_component(&self, iter: &mut CstIter) -> Result<OidComponent> {
-        let mut comp = OidComponent {
+    fn module_oid_component(&self, iter: &mut CstIter) -> Result<ModuleOidComponent> {
+        let mut comp = ModuleOidComponent {
             label: None,
             number: None,
         };
@@ -121,14 +148,23 @@ impl AnalysisContext<'_> {
             &[TokenKind::ValueRefOrIdent, TokenKind::Number],
         )?;
         if tok.kind == TokenKind::Number {
-            comp.number = Some(self.token_value(tok).to_string());
+            comp.number = Some(WithId {
+                value: self.token_value(*tok).to_string(),
+                id: tok.id,
+            });
         } else {
-            comp.label = Some(self.token_value(tok).to_string());
+            comp.label = Some(WithId {
+                value: self.token_value(*tok).to_string(),
+                id: tok.id,
+            });
             if iter.peek().is_some() {
                 self.token(iter.next(), TokenKind::LeftParen)?;
                 let tok = self.token(iter.next(), TokenKind::Number)?;
                 self.token(iter.next(), TokenKind::RightParen)?;
-                comp.number = Some(self.token_value(tok).to_string());
+                comp.number = Some(WithId {
+                    value: self.token_value(*tok).to_string(),
+                    id: tok.id,
+                });
             }
         }
 
@@ -138,7 +174,7 @@ impl AnalysisContext<'_> {
     }
 
     /// Interpret the encoding reference cst node
-    fn encoding_reference(&self, iter: &mut CstIter) -> Result<Option<Token>> {
+    fn encoding_reference(&self, iter: &mut CstIter) -> Result<Option<WithId<Token>>> {
         let mut iter = self.tree(iter.next(), Asn1Tag::EncodingReferenceDefault)?;
 
         if iter.peek().is_some() {
@@ -152,11 +188,12 @@ impl AnalysisContext<'_> {
     }
 
     /// Interpret the tag default cst node
-    fn tag_default(&self, iter: &mut CstIter) -> Result<TagDefault> {
+    fn tag_default(&self, iter: &mut CstIter) -> Result<Option<WithId<TagDefault>>> {
         let mut iter = self.tree(iter.next(), Asn1Tag::TagDefault)?;
         if iter.peek().is_none() {
-            return Ok(TagDefault::None);
+            return Ok(None);
         }
+
         let tok = self.token(
             iter.next(),
             &[
@@ -168,11 +205,16 @@ impl AnalysisContext<'_> {
         self.token(iter.next(), TokenKind::KwTags)?;
         iter.assert_empty()?;
 
-        Ok(match tok.kind {
+        let res = match tok.kind {
             TokenKind::KwImplicit => TagDefault::Implicit,
             TokenKind::KwExplicit => TagDefault::Explicit,
             _ => TagDefault::Automatic,
-        })
+        };
+
+        Ok(Some(WithId {
+            value: res,
+            id: iter.node,
+        }))
     }
 
     /// Interpret the extension default cst node

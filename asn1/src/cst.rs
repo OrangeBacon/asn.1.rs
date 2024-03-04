@@ -169,8 +169,9 @@ impl Asn1 {
                 let id = self.id;
                 Some(CstIter {
                     tag,
+                    node,
                     range: start..start + count,
-                    id,
+                    file: id,
                     peek: None,
                     tree: self,
                 })
@@ -319,7 +320,10 @@ pub struct CstIter<'a> {
     pub tag: Asn1Tag,
 
     /// The id of the source file this iterator came from
-    pub id: SourceId,
+    pub file: SourceId,
+
+    /// The id of the asn node the iterator is iterating over
+    pub node: AsnNodeId,
 
     /// The source iterator representing indexes into a cst
     range: Range<usize>,
@@ -348,7 +352,7 @@ impl CstIter<'_> {
             ) {
                 continue;
             }
-            return Some(AsnNodeId(node, self.id));
+            return Some(AsnNodeId(node, self.file));
         }
 
         None

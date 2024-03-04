@@ -26,4 +26,4 @@ mod object_tree;
 
 pub use context::AnalysisContext;
 pub use error::AnalysisError;
-pub use object_tree::{Iri, IriParseError, Oid, OidComponent};
+pub use object_tree::{Iri, IriParseError, Oid};
