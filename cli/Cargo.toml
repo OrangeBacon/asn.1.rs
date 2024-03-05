@@ -3,8 +3,10 @@ name = "cli"
 version = "0.1.0"
 edition = "2021"
 default-run = "cli"
+description = "Command line interface to the ASN.1-rs parser"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 asn1 = { path = "../asn1" }
+clap = { version = "4.5.1", features = ["derive", "unicode", "wrap_help"] }
