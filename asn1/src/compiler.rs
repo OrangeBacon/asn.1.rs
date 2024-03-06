@@ -13,6 +13,15 @@ use crate::{
 pub struct AsnCompiler {
     /// List of all included source files.
     sources: Vec<Source>,
+
+    /// Perform case-folding before matching any keywords.
+    pub ignore_keyword_case: bool,
+
+    /// Allow non-ascii characters in identifiers
+    pub unicode_identifiers: bool,
+
+    /// Allow further whitespace characters
+    pub unicode_whitespace: bool,
 }
 
 /// Information relating to a single source file

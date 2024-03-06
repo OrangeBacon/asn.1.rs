@@ -1,14 +1,14 @@
 use std::{path::PathBuf, time::Instant};
 
 use asn1::{AsnCompiler, ParserError};
-use clap::Parser;
+use clap::{Parser, ValueEnum, ValueHint};
 
 #[derive(Parser)]
 #[command(version, about)]
 #[command(name = "asn1rs")]
 struct Cli {
     /// All initial source files to be parsed
-    #[arg(required = true)]
+    #[arg(required = true, value_hint = ValueHint::FilePath)]
     files: Vec<PathBuf>,
 
     /// Display timing information for various phases within the compiler
@@ -18,12 +18,49 @@ struct Cli {
     /// Display the parsed Concrete Syntax Tree of each file
     #[arg(long)]
     print_cst: bool,
+
+    /// Disable all default features.
+    #[arg(short, long)]
+    strict: bool,
+
+    /// Enable any additional feature
+    #[arg(value_enum, short, long)]
+    feature: Vec<Feature>,
+}
+
+#[derive(ValueEnum, Clone, Copy)]
+enum Feature {
+    /// Perform case-folding before matching any keywords.
+    IgnoreKeywordCase,
+
+    /// Allow non-ascii characters in identifiers
+    UnicodeIdentifiers,
+
+    /// Allow further whitespace characters
+    UnicodeWhitespace,
 }
 
 fn main() {
     let cli = Cli::parse();
 
     let mut compiler = AsnCompiler::new();
+
+    let features = if cli.strict {
+        &[][..]
+    } else {
+        &[
+            Feature::IgnoreKeywordCase,
+            Feature::UnicodeIdentifiers,
+            Feature::UnicodeWhitespace,
+        ]
+    };
+    for feature in features.iter().copied().chain(cli.feature) {
+        match feature {
+            Feature::IgnoreKeywordCase => compiler.ignore_keyword_case = true,
+            Feature::UnicodeIdentifiers => compiler.unicode_identifiers = true,
+            Feature::UnicodeWhitespace => compiler.unicode_whitespace = true,
+        }
+    }
 
     let mut timings = vec![];
 
@@ -44,7 +81,7 @@ fn main() {
                 }
             }
             Err(
-                | ref err @ ParserError::Expected { offset, .. }
+                ref err @ ParserError::Expected { offset, .. }
                 | ref err @ ParserError::TypeValueError { offset, .. },
             ) => {
                 let at: String = source[offset..].chars().take(15).collect();
