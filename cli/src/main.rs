@@ -30,8 +30,8 @@ struct Cli {
 
 #[derive(ValueEnum, Clone, Copy)]
 enum Feature {
-    /// Perform case-folding before matching any keywords.
-    IgnoreKeywordCase,
+    /// Allow both upper and lowercase keywords.
+    LowercaseKeywords,
 
     /// Allow non-ascii characters in identifiers
     UnicodeIdentifiers,
@@ -49,14 +49,14 @@ fn main() {
         &[][..]
     } else {
         &[
-            Feature::IgnoreKeywordCase,
+            Feature::LowercaseKeywords,
             Feature::UnicodeIdentifiers,
             Feature::UnicodeWhitespace,
         ]
     };
     for feature in features.iter().copied().chain(cli.feature) {
         match feature {
-            Feature::IgnoreKeywordCase => compiler.ignore_keyword_case = true,
+            Feature::LowercaseKeywords => compiler.lowercase_keywords = true,
             Feature::UnicodeIdentifiers => compiler.unicode_identifiers = true,
             Feature::UnicodeWhitespace => compiler.unicode_whitespace = true,
         }

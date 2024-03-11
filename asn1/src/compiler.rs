@@ -1,5 +1,7 @@
 //! The primary interface to all the ASN.1 parsing, codegen, analysis, and other tools.
 
+use std::ops::{Deref, DerefMut};
+
 use crate::{
     analysis::AnalysisContext,
     cst::{Asn1, Asn1Formatter},
@@ -14,8 +16,15 @@ pub struct AsnCompiler {
     /// List of all included source files.
     sources: Vec<Source>,
 
-    /// Perform case-folding before matching any keywords.
-    pub ignore_keyword_case: bool,
+    /// The enabled features.
+    features: Features,
+}
+
+/// All features that can be enabled within the compiler.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct Features {
+    /// Allow both upper and lowercase keywords.
+    pub lowercase_keywords: bool,
 
     /// Allow non-ascii characters in identifiers
     pub unicode_identifiers: bool,
@@ -93,5 +102,19 @@ impl AsnCompiler {
     /// Run static analysis of all the provided source files.
     pub fn analysis(&mut self) -> AnalysisContext {
         AnalysisContext::new(self)
+    }
+}
+
+impl Deref for AsnCompiler {
+    type Target = Features;
+
+    fn deref(&self) -> &Self::Target {
+        &self.features
+    }
+}
+
+impl DerefMut for AsnCompiler {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.features
     }
 }

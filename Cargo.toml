@@ -1,5 +1,5 @@
 [workspace]
-members = ["cli", "asn1"]
+members = ["cli", "asn1", "asn1-data"]
 resolver = "2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

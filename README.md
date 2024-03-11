@@ -15,13 +15,9 @@ specification
 ## Secondary References
 - ITU-T X.660 (07/2011) Information technology – Procedures for the operation of object identifier registration authorities: General procedures and top arcs of the international object identifier tree
 - RFC 3987 Internationalized Resource Identifiers (IRIs)
-
-# Todo:
-- Unicode identifiers UAX#31
-    - XID_Start, XID_End
-    - Unicode normalisation form NFC
-    - Unicode Security Mechanisms UTS#39
-    - Currently identifiers match `[A-Za-z][A-Za-z0-9_$\-]*` with the additional restriction that they cannot contain two consecutive hyphens or end in a hyphen.  Additionally, any hyphens can be hyphens or non-breaking hyphens, which will be treated as identical.
+- RFC 5891 Internationalized Domain Names in Applications (IDNA): Protocol
+- The Unicode Standard, Version 15.1.0
+    - The Unicode Standard is used in all places within other standards instead of ISO/IEC 10646.  This should not affect the behaviour of any input as the two standards are compatible.
 
 # Limitations:
 The following deviations from standards are made within this parser:
@@ -33,4 +29,35 @@ The following deviations from standards are made within this parser:
     Bar MyType ::= "*//b"
     ```
     This ambiguity cannot be resolved until MyType is resolved to either a character string type or an OID-IRI.
-    Therefore, this parser has taken the decision to always parse the above example as two assignments of character string literals and never as an OID-IRI value.
+    Therefore, this parser has taken the decision to always parse the above example as two assignments of character string literals and never as an OID-IRI value containing a multi-line comment.
+
+# Unicode
+This program aims to comply with the requirements within the Unicode Standard, Version 15.1.0.
+- The only accepted source code input encoding is UTF-8.  Any other encoding should be converted to UTF-8 prior to processing with this program.
+- Any reference to characters within this program and its documentation should be taken to mean Unicode Code Point.
+- If the first character of a source file is the byte order mark (U+FEFF) then it will be ignored.  It will not be ignored in any other locations within a source file.
+
+This program aims to comply with the requirements for identifiers, as specified in Version 15.1.0 of the Unicode Standard. See Unicode Standard Annex #31, “Unicode Identifiers and Syntax” (https://www.unicode.org/reports/tr31/tr31-39.html).
+- UAX31-R1 Default Identifiers:  Complied with, using a profile as follows:
+    - Start := XID_Start plus the characters $ (U+0024) and _ (U+005F)
+    - Continue := XID_Continue plus the characters Hyphen (U+2010) and Hyphen-Minus (U+002D)
+    - Medial := empty
+
+    With the following exceptions:
+    - No identifiers can end with a hyphen character.
+    - No identifiers can contain two consecutive hyphens.
+- UAX31-R1b Stable Identifiers:  Not complied with.  No stability guarantees are made beyond that which are made in UAX31-R1.
+- UAX31-R2 Immutable Identifiers: Not complied with for the same reasons as UAX31-R1b is not complied with.
+- UAX31-R3 Pattern_White_Space and Pattern_Syntax Characters: Not currently complied with, but might be complied with in the future.
+- UAX31-R4 Equivalent Normalized Identifiers: Complied with, using a profile as follows:
+    - NFC normalisation for all identifiers.
+    - All Hyphen (U+2010) and Hyphen-Minus (U+002D) characters will be treated as equivalent in identifiers.
+    - Case detection of the first character shall check for General_Category=Uppercase_Letter to see if a character begins with an uppercase letter.  All other characters, including non-cased characters are treated as lowercase for identifier parsing.
+    - Case detection of all uppercase identifiers shall exclude all characters with General_Category=Lowercase_Letter and allow all other characters.
+    - Note that this case detection is not guaranteed to be stable between Unicode versions, however likely will be for commonly used scripts and characters.
+- UAX31-R5 Equivalent Case-Insensitive Identifiers: Not complied with as case insensitive identifiers are not used.
+- UAX31-R6 Filtered Normalized Identifiers: Not complied with as no filtering is performed.
+- UAX31-R7 Filtered Case-Insensitive Identifiers: Not complied with as no filtering is performed.
+- UAX31-R8 Extended Hashtag Identifiers: Not complied with as hashtags are not relevant.
+
+UTS#55, UTS#39 and UTR#36 are not currently complied with.
