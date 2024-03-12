@@ -1,4 +1,4 @@
-use crate::{ast::AstError, cst::AsnNodeId};
+use crate::{ast::AstError, compiler::SourceId, cst::AsnNodeId};
 
 use super::IriParseError;
 
@@ -13,6 +13,9 @@ pub enum AnalysisError {
 
     /// An error while parsing an IRI string value
     IriParseError { err: IriParseError, node: AsnNodeId },
+
+    /// A unicode identifier was encountered when they are not enabled.
+    UnicodeIdentifier { id: SourceId, offset: usize },
 }
 
 pub type Result<T = (), E = AnalysisError> = std::result::Result<T, E>;

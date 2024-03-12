@@ -11,7 +11,7 @@ The defined feature options of the compiler are shown below.  All of the feature
 - lowercase-keywords:
     Allows a version of all keywords to be accepted that does not require all letters to be uppercase.  It the keyword already contains lowercase letters, no changes are allowed.  If the keyword is used as a type reference, it will be transformed into `PascalCase` (Upper camel case).  Otherwise it shall be all lower case.  These transformed keywords will be allowed alongside the standard ones, not as a replacement.
 - unicode-identifiers:
-    Allows the parser to recognise identifiers that contain additional characters beyond the specified ones in the standard.  A summery of the ITU-T standard specification for ASN.1 is that identifiers are to be sequences of characters that will match the regular expression `[A-Za-z][A-Za-z0-9_$\-]*`.  This feature extends the definition of identifiers as specified in the "Compliance with UAX#31" section below.
+    Allows the parser to recognise identifiers that contain additional characters beyond the specified ones in the standard.  A summery of the ITU-T standard specification for ASN.1 is that identifiers are to be sequences of characters that will match the regular expression `[A-Za-z][A-Za-z0-9_$\-]*`.  This feature extends the definition of identifiers as specified in the "Compliance with UAX#31" section below.  Note that for determining whether identifiers start with upper or lower case letters, any code point that is not upper case will be considered as lower case.  This makes all symbols lower case.  See UAX31-R4 below for more detail.
 - unicode-whitespace:
     Allows the use of all unicode whitespace characters within source code. By default only the following characters are treated as whitespace: horizontal tabulation, line feed, vertical tabulation, form feed, carriage return, space, no-break space.
 
@@ -50,7 +50,7 @@ This program aims to comply with the requirements within the Unicode Standard, V
 This program aims to comply with the requirements for identifiers, as specified in Version 15.1.0 of the Unicode Standard. See Unicode Standard Annex #31, “Unicode Identifiers and Syntax” (https://www.unicode.org/reports/tr31/tr31-39.html).
 - UAX31-R1 Default Identifiers:  Complied with, using a profile as follows:
     - Start := XID_Start plus the characters $ (U+0024) and _ (U+005F)
-    - Continue := XID_Continue plus the characters Hyphen (U+2010) and Hyphen-Minus (U+002D)
+    - Continue := XID_Continue plus the characters $ (U+0024), _ (U+005F), Hyphen (U+2010) and Hyphen-Minus (U+002D)
     - Medial := empty
 
     With the following exceptions:

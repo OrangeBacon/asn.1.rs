@@ -3,6 +3,8 @@ mod module;
 
 use std::ops::Deref;
 
+use unicode_normalization::UnicodeNormalization;
+
 use crate::{
     analysis::AnalysisContext,
     cst::{Asn1Tag, AsnNodeId, CstIter},
@@ -118,6 +120,11 @@ impl AnalysisContext<'_> {
     /// Get the string value of a token
     pub fn token_value(&self, tok: Token) -> &str {
         &self.source(tok.id).source[tok.offset..tok.offset + tok.length]
+    }
+
+    /// Get the normalised identifier value of a token, applies NFC normalisation.
+    pub fn ident_value(&self, tok: Token) -> String {
+        self.token_value(tok).replace('\u{2011}', "-").nfc().to_string()
     }
 }
 

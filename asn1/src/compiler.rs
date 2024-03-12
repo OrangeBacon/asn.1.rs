@@ -3,10 +3,9 @@
 use std::ops::{Deref, DerefMut};
 
 use crate::{
-    analysis::AnalysisContext,
+    analysis::{AnalysisContext, AnalysisError},
     cst::{Asn1, Asn1Formatter},
-    lexer::Lexer,
-    parser::{Parser, ParserError},
+    parser::ParserError,
 };
 
 /// Store of all information relating to a whole ASN.1 specification, including
@@ -17,7 +16,10 @@ pub struct AsnCompiler {
     sources: Vec<Source>,
 
     /// The enabled features.
-    features: Features,
+    pub(crate) features: Features,
+
+    /// Errors reported outside of analysis.
+    pub(crate) errors: Vec<AnalysisError>,
 }
 
 /// All features that can be enabled within the compiler.
@@ -65,8 +67,7 @@ impl AsnCompiler {
     pub fn add_file(&mut self, file_name: String, source: String) -> Result<SourceId, ParserError> {
         let id = SourceId(self.sources.len());
 
-        let lexer = Lexer::new(id, &source, self.features);
-        let tree = Parser::new(lexer).run()?;
+        let tree = self.parser(id, &source).run()?;
 
         self.sources.push(Source {
             file_name,
@@ -102,6 +103,11 @@ impl AsnCompiler {
     /// Run static analysis of all the provided source files.
     pub fn analysis(&mut self) -> AnalysisContext {
         AnalysisContext::new(self)
+    }
+
+    /// Add an analysis error to the compiler
+    pub(crate) fn add_err(&mut self, err: AnalysisError) {
+        self.errors.push(err);
     }
 }
 

@@ -5,13 +5,15 @@ use std::{
 };
 
 use crate::{
-    compiler::{Features, SourceId},
+    analysis::AnalysisError,
+    compiler::SourceId,
     token::{self, Token, TokenKind},
     util::{Peek, Peekable},
+    AsnCompiler,
 };
 
 /// State for converting a source string into a token stream
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Lexer<'a> {
     /// Iterator over all chars in the file
     chars: Peekable<CharIndices<'a>>,
@@ -31,8 +33,8 @@ pub struct Lexer<'a> {
     /// Should keyword parsing be enabled
     enable_keywords: bool,
 
-    /// enabled features
-    features: Features,
+    /// The compiler the lexer was created from.
+    compiler: &'a mut AsnCompiler,
 }
 
 /// How should lexing of square brackets proceed.
@@ -76,21 +78,23 @@ pub enum LexerError {
 
 pub type Result<T = (), E = LexerError> = std::result::Result<T, E>;
 
-impl<'a> Lexer<'a> {
+impl AsnCompiler {
     /// Create a new Lexer for a given source file.  `file` represents a file
     /// ID that will be returned with each token.
-    pub fn new(id: SourceId, source: &'a str, features: Features) -> Self {
-        Self {
+    pub fn lexer<'a>(&'a mut self, id: SourceId, source: &'a str) -> Lexer {
+        Lexer {
             chars: source.char_indices().n_peekable(),
             source,
             id,
             comments: VecDeque::new(),
             square_bracket_mode: Default::default(),
             enable_keywords: true,
-            features,
+            compiler: self,
         }
     }
+}
 
+impl<'a> Lexer<'a> {
     /// Get the current character offset.  Might be inaccurate due to comment
     /// tokens possibly having been consumed or not.
     pub fn offset(&mut self) -> usize {
@@ -149,12 +153,13 @@ impl<'a> Lexer<'a> {
             }
 
             '&' => self.field(offset)?,
-            'a'..='z' | 'A'..='Z' => self.identifier(c, offset),
 
             '"' => self.c_string(offset)?,
             '\'' => self.bh_string(offset)?,
 
             '0'..='9' => self.number(offset),
+
+            ch if is_ident_start(ch) => self.identifier(c, offset),
 
             ch => {
                 return Err(LexerError::UnexpectedCharacter {
@@ -425,19 +430,17 @@ impl<'a> Lexer<'a> {
     fn identifier(&mut self, first: char, offset: usize) -> Token {
         let value = &self.source[offset..];
 
-        let mut length = 1;
-        while let Some(&(_, c)) = self.chars.peek(length) {
-            if c.is_ascii_alphanumeric() || "$_".contains(c) {
-                length += 1;
+        let mut length = first.len_utf8();
+        while let Some(&(_, ch)) = self.chars.peek(length) {
+            if is_ident_continue(ch) {
+                length += ch.len_utf8();
                 continue;
             }
 
-            if c == '-' || c == '\u{2011}' {
-                if let Some(&(_, c)) = self.chars.peek(length + 1) {
-                    if c.is_ascii_alphanumeric() {
-                        // does not check the hyphen as it does not count as
-                        // lower or upper case
-                        length += 2;
+            if ch == '-' || ch == '\u{2011}' {
+                if let Some(&(_, after)) = self.chars.peek(length + 1) {
+                    if is_ident_continue(after) {
+                        length += ch.len_utf8();
                         continue;
                     }
                 }
@@ -446,14 +449,32 @@ impl<'a> Lexer<'a> {
             break;
         }
 
-        let ident_kind = if first.is_ascii_lowercase() {
-            TokenKind::ValueRefOrIdent
-        } else {
+        let ident_kind = if asn1_data::UPPERCASE_LETTER.contains_char(first) {
             TokenKind::TypeOrModuleRef
+        } else {
+            TokenKind::ValueRefOrIdent
         };
 
         let value = &value[..length];
         let kind = self.keyword_kind(value, ident_kind);
+
+        if !self.compiler.unicode_identifiers {
+            let mut is_valid = first.is_ascii_alphabetic();
+            for ch in value.chars() {
+                is_valid |= ch.is_ascii_alphanumeric()
+                    || ch == '$'
+                    || ch == '_'
+                    || ch == '-'
+                    || ch == '\u{2011}';
+            }
+
+            if !is_valid {
+                self.compiler.add_err(AnalysisError::UnicodeIdentifier {
+                    id: self.id,
+                    offset,
+                })
+            }
+        }
 
         Token {
             kind,
@@ -581,7 +602,7 @@ impl<'a> Lexer<'a> {
             });
         };
 
-        if !ch.is_ascii_alphabetic() {
+        if is_ident_start(ch) {
             return Err(LexerError::MissingFieldName {
                 offset,
                 id: self.id,
@@ -620,7 +641,7 @@ impl<'a> Lexer<'a> {
     /// Is the character any valid whitespace
     fn is_whitespace(&self, c: char) -> bool {
         // A0 = Non breaking space
-        let unicode = self.features.unicode_whitespace && asn1_data::WHITE_SPACE.contains_char(c);
+        let unicode = self.compiler.unicode_whitespace && asn1_data::WHITE_SPACE.contains_char(c);
         "\t \u{A0}".contains(c) || self.is_newline(c) || unicode
     }
 
@@ -629,7 +650,7 @@ impl<'a> Lexer<'a> {
     fn is_newline(&self, c: char) -> bool {
         // 0B = Vertical Tab
         // 0C = Form Feed
-        let unicode = self.features.unicode_whitespace
+        let unicode = self.compiler.unicode_whitespace
             && "\u{A}\u{B}\u{C}\u{D}\u{85}\u{2028}\u{2029}".contains(c);
         "\n\x0B\x0C\r".contains(c) || unicode
     }
@@ -641,7 +662,7 @@ impl<'a> Lexer<'a> {
             if let Some(kw) = keywords().get(value).copied() {
                 return kw;
             } else if let Some(kw) = lower_keywords().get(value).copied() {
-                if self.features.lowercase_keywords {
+                if self.compiler.lowercase_keywords {
                     return kw;
                 }
             }
@@ -661,4 +682,17 @@ fn keywords() -> &'static HashMap<&'static str, TokenKind> {
 fn lower_keywords() -> &'static HashMap<&'static str, TokenKind> {
     static KEYWORDS: OnceLock<HashMap<&'static str, TokenKind>> = OnceLock::new();
     KEYWORDS.get_or_init(|| HashMap::from(token::KEYWORD_DATA.map(|(_, b, a)| (a, b))))
+}
+
+fn is_ident_start(ch: char) -> bool {
+    ch == '$' || ch == '_' || ch.is_ascii_alphabetic() || asn1_data::XID_START.contains_char(ch)
+}
+
+fn is_ident_continue(ch: char) -> bool {
+    ch == '$'
+        || ch == '_'
+        || ch == '-'
+        || ch == '\u{2011}'
+        || ch.is_ascii_alphanumeric()
+        || asn1_data::XID_START.contains_char(ch)
 }

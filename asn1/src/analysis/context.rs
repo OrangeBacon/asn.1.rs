@@ -23,9 +23,11 @@ pub struct AnalysisContext<'a> {
 impl<'a> AnalysisContext<'a> {
     /// Create a new, blank, analysis context
     pub(crate) fn new(compiler: &'a mut AsnCompiler) -> Self {
+        let errors = std::mem::take(&mut compiler.errors);
+
         let mut this = Self {
             compiler,
-            errors: vec![],
+            errors,
             warnings: vec![],
             modules: vec![],
         };

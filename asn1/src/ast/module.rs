@@ -25,7 +25,7 @@ pub struct ModuleDefinition<'a> {
 #[derive(Debug, Clone)]
 pub struct ModuleIdentifier<'a> {
     /// Identifier for the module
-    pub name: WithId<&'a str>,
+    pub name: WithId<String>,
 
     /// The module's object identifier
     pub oid: Option<ModuleOid>,
@@ -93,7 +93,7 @@ impl AnalysisContext<'_> {
         let mut iter = self.tree(iter.next(), Asn1Tag::ModuleIdentifier)?;
         let name = self.token(iter.next(), TokenKind::TypeOrModuleRef)?;
         let name = WithId {
-            value: self.token_value(*name),
+            value: self.ident_value(*name),
             id: name.id,
         };
 
@@ -154,7 +154,7 @@ impl AnalysisContext<'_> {
             });
         } else {
             comp.label = Some(WithId {
-                value: self.token_value(*tok).to_string(),
+                value: self.ident_value(*tok),
                 id: tok.id,
             });
             if iter.peek().is_some() {

@@ -6,16 +6,18 @@ mod type_or_value;
 mod xml_value;
 
 use crate::{
+    compiler::SourceId,
     cst::{Asn1, Asn1Tag, TreeContent},
     lexer::Lexer,
     token::{Token, TokenKind},
     util::CowVec,
+    AsnCompiler,
 };
 
 pub use self::error::{ParserError, Result};
 
 /// Parser for ASN.1 definition files
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Parser<'a> {
     /// Lexer to get tokens from a source file
     lexer: Lexer<'a>,
@@ -41,10 +43,12 @@ struct TempVec {
     offset: usize,
 }
 
-impl<'a> Parser<'a> {
+impl AsnCompiler {
     /// Create a new parser from a lexer
-    pub fn new(lexer: Lexer<'a>) -> Self {
-        Self {
+    pub fn parser<'a>(&'a mut self, id: SourceId, source: &'a str) -> Parser<'a> {
+        let lexer = self.lexer(id, source);
+
+        Parser {
             lexer,
             result: vec![],
             temp_result: vec![],
@@ -52,7 +56,9 @@ impl<'a> Parser<'a> {
             depth: 0,
         }
     }
+}
 
+impl<'a> Parser<'a> {
     /// Run the parser to produce a set of ASN.1 definitions
     pub fn run(mut self) -> Result<Asn1> {
         self.start_temp_vec(Asn1Tag::Root)?;
