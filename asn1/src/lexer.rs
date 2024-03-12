@@ -453,11 +453,7 @@ impl<'a> Lexer<'a> {
         };
 
         let value = &value[..length];
-        let kind = if self.enable_keywords {
-            keywords().get(value).copied().unwrap_or(ident_kind)
-        } else {
-            ident_kind
-        };
+        let kind = self.keyword_kind(value, ident_kind);
 
         Token {
             kind,
@@ -636,6 +632,22 @@ impl<'a> Lexer<'a> {
         let unicode = self.features.unicode_whitespace
             && "\u{A}\u{B}\u{C}\u{D}\u{85}\u{2028}\u{2029}".contains(c);
         "\n\x0B\x0C\r".contains(c) || unicode
+    }
+
+    /// Match an identifier to a keyword if possible, otherwise return the provided
+    /// default value.
+    fn keyword_kind(&self, value: &str, ident_kind: TokenKind) -> TokenKind {
+        if self.enable_keywords {
+            if let Some(kw) = keywords().get(value).copied() {
+                return kw;
+            } else if let Some(kw) = lower_keywords().get(value).copied() {
+                if self.features.lowercase_keywords {
+                    return kw;
+                }
+            }
+        }
+
+        ident_kind
     }
 }
 
