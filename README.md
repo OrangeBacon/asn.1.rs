@@ -3,7 +3,17 @@
 ASN.1 parser written in rust.
 
 # Usage
-
+```sh
+asn1rs [OPTIONS] <FILES>...
+```
+## Features
+The defined feature options of the compiler are shown below.  All of the features are enabled by default.  To disable all of the default features and strictly comply with the ASN.1 standards, strict mode can be enabled using `-s`. Features can then be specified on the command line using `-f <feature name>`.
+- lowercase-keywords:
+    Allows a version of all keywords to be accepted that does not require all letters to be uppercase.  It the keyword already contains lowercase letters, no changes are allowed.  If the keyword is used as a type reference, it will be transformed into `PascalCase` (Upper camel case).  Otherwise it shall be all lower case.  These transformed keywords will be allowed alongside the standard ones, not as a replacement.
+- unicode-identifiers:
+    Allows the parser to recognise identifiers that contain additional characters beyond the specified ones in the standard.  A summery of the ITU-T standard specification for ASN.1 is that identifiers are to be sequences of characters that will match the regular expression `[A-Za-z][A-Za-z0-9_$\-]*`.  This feature extends the definition of identifiers as specified in the "Compliance with UAX#31" section below.
+- unicode-whitespace:
+    Allows the use of all unicode whitespace characters within source code. By default only the following characters are treated as whitespace: horizontal tabulation, line feed, vertical tabulation, form feed, carriage return, space, no-break space.
 
 # Standards
 - ITU-T X.680 (02/2021) Information technology - Abstract Syntax Notation One (ASN.1): Specification of basic notation

@@ -65,7 +65,7 @@ impl AsnCompiler {
     pub fn add_file(&mut self, file_name: String, source: String) -> Result<SourceId, ParserError> {
         let id = SourceId(self.sources.len());
 
-        let lexer = Lexer::new(id, &source);
+        let lexer = Lexer::new(id, &source, self.features);
         let tree = Parser::new(lexer).run()?;
 
         self.sources.push(Source {

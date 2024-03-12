@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    compiler::SourceId,
+    compiler::{Features, SourceId},
     token::{self, Token, TokenKind},
     util::{Peek, Peekable},
 };
@@ -30,6 +30,9 @@ pub struct Lexer<'a> {
 
     /// Should keyword parsing be enabled
     enable_keywords: bool,
+
+    /// enabled features
+    features: Features,
 }
 
 /// How should lexing of square brackets proceed.
@@ -76,7 +79,7 @@ pub type Result<T = (), E = LexerError> = std::result::Result<T, E>;
 impl<'a> Lexer<'a> {
     /// Create a new Lexer for a given source file.  `file` represents a file
     /// ID that will be returned with each token.
-    pub fn new(id: SourceId, source: &'a str) -> Self {
+    pub fn new(id: SourceId, source: &'a str, features: Features) -> Self {
         Self {
             chars: source.char_indices().n_peekable(),
             source,
@@ -84,6 +87,7 @@ impl<'a> Lexer<'a> {
             comments: VecDeque::new(),
             square_bracket_mode: Default::default(),
             enable_keywords: true,
+            features,
         }
     }
 
@@ -272,7 +276,7 @@ impl<'a> Lexer<'a> {
                         break;
                     }
                 }
-                _ if is_whitespace(c) => {
+                _ if self.is_whitespace(c) => {
                     self.chars.next();
                 }
                 _ => break,
@@ -322,7 +326,9 @@ impl<'a> Lexer<'a> {
     /// Parse a single line comment which is text between pairs of two hyphens.
     /// Non-breaking hyphens are also accepted instead of hyphens.
     fn single_comment(&mut self, first: char, offset: usize) -> bool {
-        let Some(&(_, second)) = self.chars.peek(1) else { return false };
+        let Some(&(_, second)) = self.chars.peek(1) else {
+            return false;
+        };
         if !matches!(second, '-' | '\u{2011}') {
             return false;
         }
@@ -332,7 +338,7 @@ impl<'a> Lexer<'a> {
         let mut length = first.len_utf8() + second.len_utf8();
 
         while let Some(&(_, next)) = self.chars.peek(0) {
-            if is_newline(next) {
+            if self.is_newline(next) {
                 break;
             }
 
@@ -364,7 +370,9 @@ impl<'a> Lexer<'a> {
     /// Parse a multi line comment which is text between `/*` and `*/`.  The comment
     /// ends when a matching `*/` has been found for every `/*` encountered.
     fn multi_comment(&mut self, offset: usize) -> Result<bool> {
-        let Some(&(_, c)) = self.chars.peek(1) else { return Ok(false)};
+        let Some(&(_, c)) = self.chars.peek(1) else {
+            return Ok(false);
+        };
         if c != '*' {
             // not a start of comment
             return Ok(false);
@@ -612,23 +620,33 @@ impl<'a> Lexer<'a> {
     pub fn enable_keywords(&mut self, mode: bool) {
         self.enable_keywords = mode;
     }
-}
 
-/// Is the character any valid whitespace
-fn is_whitespace(c: char) -> bool {
-    // A0 = Non breaking space
-    "\t \u{A0}".contains(c) || is_newline(c)
-}
+    /// Is the character any valid whitespace
+    fn is_whitespace(&self, c: char) -> bool {
+        // A0 = Non breaking space
+        let unicode = self.features.unicode_whitespace && asn1_data::WHITE_SPACE.contains_char(c);
+        "\t \u{A0}".contains(c) || self.is_newline(c) || unicode
+    }
 
-/// Is the character a valid newline character
-fn is_newline(c: char) -> bool {
-    // 0B = Vertical Tab
-    // 0C = Form Feed
-    "\n\x0B\x0C\r".contains(c)
+    /// Is the character a valid newline character.  Do not use for calculating line
+    /// number as this does not count CRLF as one line end.
+    fn is_newline(&self, c: char) -> bool {
+        // 0B = Vertical Tab
+        // 0C = Form Feed
+        let unicode = self.features.unicode_whitespace
+            && "\u{A}\u{B}\u{C}\u{D}\u{85}\u{2028}\u{2029}".contains(c);
+        "\n\x0B\x0C\r".contains(c) || unicode
+    }
 }
 
 /// Get a mapping from keyword strings to their token kind
 fn keywords() -> &'static HashMap<&'static str, TokenKind> {
     static KEYWORDS: OnceLock<HashMap<&'static str, TokenKind>> = OnceLock::new();
-    KEYWORDS.get_or_init(|| HashMap::from(token::KEYWORD_DATA))
+    KEYWORDS.get_or_init(|| HashMap::from(token::KEYWORD_DATA.map(|(a, b, _)| (a, b))))
+}
+
+/// Get a mapping from keyword strings to their token kind
+fn lower_keywords() -> &'static HashMap<&'static str, TokenKind> {
+    static KEYWORDS: OnceLock<HashMap<&'static str, TokenKind>> = OnceLock::new();
+    KEYWORDS.get_or_init(|| HashMap::from(token::KEYWORD_DATA.map(|(_, b, a)| (a, b))))
 }
