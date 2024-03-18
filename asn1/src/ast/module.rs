@@ -10,7 +10,7 @@ use super::{error::Result, WithId};
 #[derive(Debug, Clone)]
 pub struct ModuleDefinition<'a> {
     /// Identifier for the module
-    pub name: ModuleIdentifier<'a>,
+    pub identifier: ModuleIdentifier<'a>,
 
     /// Name of the default encoding
     pub encoding_reference: Option<WithId<Token>>,
@@ -81,7 +81,7 @@ impl AnalysisContext<'_> {
         self.token(iter.next(), TokenKind::KwBegin)?;
 
         Ok(ModuleDefinition {
-            name,
+            identifier: name,
             encoding_reference,
             tag_default,
             extensibility,

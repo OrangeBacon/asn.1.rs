@@ -1,6 +1,6 @@
 use crate::cst::AsnNodeId;
 
-use super::{Iri, Oid};
+// use super::{Iri, Oid};
 
 /// Local variable resolution environment
 #[derive(Debug, PartialEq, Eq)]
@@ -11,11 +11,11 @@ pub struct Environment {
     /// The initially defined module name (hopefully but not necessarily unique)
     pub name: String,
 
-    /// The object identifier for the module (if present)
-    pub oid: Option<Oid>,
+    // /// The object identifier for the module (if present)
+    // pub oid: Option<Oid>,
 
-    /// The iri of the module (if present)
-    pub iri: Option<Iri>,
+    // /// The iri of the module (if present)
+    // pub iri: Option<Iri>,
 }
 
 impl Environment {
@@ -24,8 +24,8 @@ impl Environment {
         Environment {
             node,
             name: String::new(),
-            oid: None,
-            iri: None,
+            // oid: None,
+            // iri: None,
         }
     }
 }

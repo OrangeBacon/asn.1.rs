@@ -1,6 +1,6 @@
 use crate::{ast::AstError, compiler::SourceId, cst::AsnNodeId};
 
-use super::IriParseError;
+// use super::IriParseError;
 
 /// Any error that can be produced by an analysis pass
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -11,11 +11,13 @@ pub enum AnalysisError {
     /// A duplicate module name was found
     DuplicateModule { first: AsnNodeId, second: AsnNodeId },
 
-    /// An error while parsing an IRI string value
-    IriParseError { err: IriParseError, node: AsnNodeId },
-
+    // /// An error while parsing an IRI string value
+    // IriParseError { err: IriParseError, node: AsnNodeId },
     /// A unicode identifier was encountered when they are not enabled.
     UnicodeIdentifier { id: SourceId, offset: usize },
+
+    /// OIDs and IRIs are not supported yet
+    OidIriUnsupported { id: AsnNodeId },
 }
 
 pub type Result<T = (), E = AnalysisError> = std::result::Result<T, E>;

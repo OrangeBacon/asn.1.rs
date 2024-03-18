@@ -11,10 +11,6 @@ impl AnalysisContext<'_> {
 
         let mut modules = vec![];
         while let Some(module) = root.next() {
-            if self.is_comment(module) {
-                continue;
-            }
-
             modules.push(Environment::new(module));
         }
 
