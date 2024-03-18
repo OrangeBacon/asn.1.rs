@@ -5,7 +5,8 @@ mod value;
 
 use crate::{
     cst::Asn1Tag,
-    parser::{Parser, ParserError, Result},
+    diagnostic::Diagnostic,
+    parser::{Parser, Result},
     token::TokenKind,
 };
 
@@ -142,14 +143,15 @@ impl<'a> Parser<'a> {
             // class definition is all that needs to be added.
             TokenKind::KwClass => self.object_class(expecting)?,
 
-            k => {
-                return Err(ParserError::TypeValueError {
-                    subsequent: expecting.subsequent.to_vec(),
-                    alternative: expecting.alternative.to_vec(),
-                    got: k,
-                    offset: tok.offset,
-                    id: tok.id,
-                });
+            _ => {
+                // return Err(ParserError::TypeValueError {
+                //     subsequent: expecting.subsequent.to_vec(),
+                //     alternative: expecting.alternative.to_vec(),
+                //     got: k,
+                //     offset: tok.offset,
+                //     id: tok.id,
+                // });
+                return Err(Diagnostic::error("Asn::Parser::Type"));
             }
         }
 

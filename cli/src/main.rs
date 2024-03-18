@@ -3,7 +3,7 @@ use std::{
     time::Instant,
 };
 
-use asn1::{AsnCompiler, ParserError};
+use asn1::AsnCompiler;
 use clap::{Parser, ValueEnum, ValueHint};
 
 #[derive(Parser)]
@@ -76,7 +76,7 @@ fn main() {
         let display_name = path.to_string_lossy().to_string();
 
         let start = Instant::now();
-        let res = compiler.add_file(display_name.clone(), source.clone());
+        let res = compiler.add_file(display_name.clone(), source);
         let end = start.elapsed();
 
         timings.push(format!("Parse `{display_name}`: {end:?}"));
@@ -87,15 +87,7 @@ fn main() {
                     print!("{}", compiler.print_cst(t))
                 }
             }
-            Err(
-                ref err @ ParserError::Expected { offset, .. }
-                | ref err @ ParserError::TypeValueError { offset, .. },
-            ) => {
-                let at: String = source[offset..].chars().take(15).collect();
-
-                eprintln!("{err:?} = {at:?}");
-            }
-            Err(e) => println!("{e:?}"),
+            Err(e) => eprint!("{e}"),
         }
     }
 

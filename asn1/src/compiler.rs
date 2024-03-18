@@ -4,8 +4,7 @@ use std::ops::{Deref, DerefMut};
 
 use crate::{
     analysis::{AnalysisContext, AnalysisError},
-    cst::{Asn1, Asn1Formatter},
-    parser::ParserError,
+    cst::{Asn1, Asn1Formatter}, diagnostic::Result,
 };
 
 /// Store of all information relating to a whole ASN.1 specification, including
@@ -64,7 +63,7 @@ impl AsnCompiler {
     /// Add a new file to the compiler.  Will do some initial parsing, but will
     /// not run any analysis that is required to check that the source files
     /// are valid.
-    pub fn add_file(&mut self, file_name: String, source: String) -> Result<SourceId, ParserError> {
+    pub fn add_file(&mut self, file_name: String, source: String) -> Result<SourceId> {
         let id = SourceId(self.sources.len());
 
         let tree = self.parser(id, &source).run()?;

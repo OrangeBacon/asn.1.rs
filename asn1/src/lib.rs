@@ -2,16 +2,16 @@
 
 mod analysis;
 mod ast;
+mod codegen;
 mod compiler;
 mod cst;
+mod diagnostic;
 mod lexer;
 mod parser;
 mod token;
 mod util;
-mod codegen;
 
 pub use compiler::AsnCompiler;
-pub use parser::ParserError;
 
 const _: () = assert!(
     unicode_normalization::UNICODE_VERSION.0 == 15

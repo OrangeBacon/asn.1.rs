@@ -1,4 +1,3 @@
-mod error;
 mod module;
 mod parameterized;
 mod reference;
@@ -8,13 +7,12 @@ mod xml_value;
 use crate::{
     compiler::SourceId,
     cst::{Asn1, Asn1Tag, TreeContent},
+    diagnostic::{Diagnostic, Label, Result},
     lexer::Lexer,
     token::{Token, TokenKind},
     util::CowVec,
     AsnCompiler,
 };
-
-pub use self::error::{ParserError, Result};
 
 /// Parser for ASN.1 definition files
 #[derive(Debug)]
@@ -102,12 +100,13 @@ impl<'a> Parser<'a> {
         if kind.contains(&peek.kind) || kind.is_empty() {
             Ok(peek)
         } else {
-            Err(ParserError::Expected {
-                kind,
-                got: peek.kind,
-                offset: peek.offset,
-                id: peek.id,
-            })
+            // Err(ParserError::Expected {
+            //     kind,
+            //     got: peek.kind,
+            //     offset: peek.offset,
+            //     id: peek.id,
+            // })
+            Err(Diagnostic::error("Asn::Parser::Syntax").name("Syntax Error"))
         }
     }
 
@@ -118,12 +117,13 @@ impl<'a> Parser<'a> {
         if kind.contains(&tok.kind) || kind.is_empty() {
             Ok(tok)
         } else {
-            Err(ParserError::Expected {
-                kind: kind.to_vec().into(),
-                got: tok.kind,
-                offset: tok.offset,
-                id: tok.id,
-            })
+            // Err(ParserError::Expected {
+            //     kind: kind.to_vec().into(),
+            //     got: tok.kind,
+            //     offset: tok.offset,
+            //     id: tok.id,
+            // })
+            Err(Diagnostic::error("Asn::Parser::XmlSyntax").name("Syntax Error in XML Literal"))
         }
     }
 
@@ -135,12 +135,13 @@ impl<'a> Parser<'a> {
         if kind.contains(&tok.kind) || kind.is_empty() {
             Ok(tok)
         } else {
-            Err(ParserError::Expected {
-                kind: kind.to_vec().into(),
-                got: tok.kind,
-                offset: tok.offset,
-                id: tok.id,
-            })
+            // Err(ParserError::Expected {
+            //     kind: kind.to_vec().into(),
+            //     got: tok.kind,
+            //     offset: tok.offset,
+            //     id: tok.id,
+            // })
+            Err(Diagnostic::error("Asn::Parser::XmlSyntax").name("Syntax Error in XML Literal"))
         }
     }
 
@@ -155,10 +156,20 @@ impl<'a> Parser<'a> {
     fn start_temp_vec(&mut self, tag: Asn1Tag) -> Result {
         // TODO: make this an actual parameter, not a magic number I picked randomly
         if self.depth >= 100 {
-            return Err(ParserError::ParserDepthExceeded {
-                offset: self.lexer.offset(),
-                id: self.lexer.id,
-            });
+            // return Err(ParserError::ParserDepthExceeded {
+            //     offset: self.lexer.offset(),
+            //     id: self.lexer.id,
+            // });
+            let loc = self.lexer.offset();
+            return Err(Diagnostic::error("Asn::Parser::Depth")
+                .name("Parser recursion depth limit reached")
+                .label("Try refactoring your code into multiple less-complex definitions")
+                .label(
+                    Label::new()
+                        .source(self.lexer.id)
+                        .loc(loc..loc)
+                        .message("Limit reached here"),
+                ));
         }
 
         self.error_nodes.push(TempVec {

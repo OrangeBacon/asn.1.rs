@@ -1,5 +1,7 @@
 use std::{
     collections::{HashMap, VecDeque},
+    error::Error,
+    fmt::Display,
     str::CharIndices,
     sync::OnceLock,
 };
@@ -696,3 +698,10 @@ fn is_ident_continue(ch: char) -> bool {
         || ch.is_ascii_alphanumeric()
         || asn1_data::XID_START.contains_char(ch)
 }
+
+impl Display for LexerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+impl Error for LexerError {}
