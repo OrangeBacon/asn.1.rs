@@ -8,6 +8,7 @@ mod lexer;
 mod parser;
 mod token;
 mod util;
+mod codegen;
 
 pub use compiler::AsnCompiler;
 pub use parser::ParserError;

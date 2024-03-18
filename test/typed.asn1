@@ -1,4 +1,4 @@
-MyModule_éáóíÍáéí {a b(5) 7} "/a/b" definitions ::= begin
+MyModule_éáóíÍáéí definitions ::= begin
     MyType ::= boolean
     my_val MyType ::= true
 end

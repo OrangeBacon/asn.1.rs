@@ -17,7 +17,7 @@ pub struct AnalysisContext<'a> {
     pub warnings: Vec<AnalysisWarning>,
 
     /// List of all modules from all source files
-    pub(super) modules: Vec<Environment>,
+    pub(crate) modules: Vec<Environment>,
 }
 
 impl<'a> AnalysisContext<'a> {

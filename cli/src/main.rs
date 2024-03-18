@@ -1,4 +1,7 @@
-use std::{path::PathBuf, time::Instant};
+use std::{
+    path::{Path, PathBuf},
+    time::Instant,
+};
 
 use asn1::{AsnCompiler, ParserError};
 use clap::{Parser, ValueEnum, ValueHint};
@@ -10,6 +13,10 @@ struct Cli {
     /// All initial source files to be parsed
     #[arg(required = true, value_hint = ValueHint::FilePath)]
     files: Vec<PathBuf>,
+
+    /// Path to the output file. If '-' is passed, uses standard output.
+    #[arg(short, long, default_value = "-")]
+    output: PathBuf,
 
     /// Display timing information for various phases within the compiler
     #[arg(short, long)]
@@ -105,9 +112,27 @@ fn main() {
         eprintln!("{:?}", an.warnings);
     }
 
+    if an.errors.is_empty() {
+        let start = Instant::now();
+        let code = an.rust_codegen();
+        let end = start.elapsed();
+        timings.push(format!("Codegen: {end:?}"));
+
+        match code {
+            Ok(s) => {
+                if cli.output == Path::new("-") {
+                    println!("{s}");
+                } else if std::fs::write(cli.output, s).is_err() {
+                    eprintln!("Error writing output file");
+                }
+            }
+            Err(e) => eprintln!("{e:?}"),
+        }
+    }
+
     if cli.timing {
         for line in timings {
-            println!("{line}");
+            eprintln!("{line}");
         }
     }
 }

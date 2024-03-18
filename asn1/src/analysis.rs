@@ -25,5 +25,6 @@ mod local;
 mod object_tree;
 
 pub use context::AnalysisContext;
+pub use environment::Environment;
 pub use error::AnalysisError;
 // pub use object_tree::{Iri, IriParseError, Oid};
