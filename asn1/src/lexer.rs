@@ -1,7 +1,5 @@
 use std::{
     collections::{HashMap, VecDeque},
-    error::Error,
-    fmt::Display,
     str::CharIndices,
     sync::OnceLock,
 };
@@ -9,6 +7,7 @@ use std::{
 use crate::{
     analysis::AnalysisError,
     compiler::SourceId,
+    diagnostic::{Diagnostic, Label, Result},
     token::{self, Token, TokenKind},
     util::{Peek, Peekable},
     AsnCompiler,
@@ -50,36 +49,6 @@ pub enum SquareBracketMode {
     Join,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum LexerError {
-    /// Unexpected character within the input file
-    UnexpectedCharacter {
-        ch: char,
-        id: SourceId,
-        offset: usize,
-    },
-
-    /// End of file reached when trying to get a token
-    EndOfFile { id: SourceId },
-
-    /// Reached end of file while parsing a multi-line comment
-    NonTerminatedComment { offset: usize, id: SourceId },
-
-    /// Reached end of file while parsing a character string
-    NonTerminatedString { offset: usize, id: SourceId },
-
-    /// Reached end of file while parsing a binary or hexadecimal string
-    NonTerminatedBHString { offset: usize, id: SourceId },
-
-    /// No identifier found after an `&`
-    MissingFieldName { offset: usize, id: SourceId },
-
-    /// Unexpected keyword after an '&'
-    KeywordFieldName { offset: usize, id: SourceId },
-}
-
-pub type Result<T = (), E = LexerError> = std::result::Result<T, E>;
-
 impl AsnCompiler {
     /// Create a new Lexer for a given source file.  `file` represents a file
     /// ID that will be returned with each token.
@@ -112,10 +81,13 @@ impl<'a> Lexer<'a> {
     pub fn peek(&mut self) -> Result<Token> {
         self.skip_trivia()?;
 
-        let &(offset, c) = self
-            .chars
-            .peek(0)
-            .ok_or(LexerError::EndOfFile { id: self.id })?;
+        let loc = self.offset();
+
+        let &(offset, c) = self.chars.peek(0).ok_or_else(|| {
+            Diagnostic::error("Asn::Parser::EndOfFile")
+                .name("Unexpected end of file")
+                .label(Label::new().source(self.id).loc(loc..loc))
+        })?;
 
         let ret = match c {
             '{' => self.simple_token(TokenKind::LeftCurly, offset),
@@ -163,12 +135,10 @@ impl<'a> Lexer<'a> {
 
             ch if is_ident_start(ch) => self.identifier(c, offset),
 
-            ch => {
-                return Err(LexerError::UnexpectedCharacter {
-                    ch,
-                    id: self.id,
-                    offset,
-                })
+            _ => {
+                return Err(Diagnostic::error("Asn::Parser::Character")
+                    .name("Unexpected character within source file")
+                    .label(Label::new().source(self.id).loc(offset..offset + 1)))
             }
         };
 
@@ -198,10 +168,14 @@ impl<'a> Lexer<'a> {
 
     /// Peek the next XML token from the source.
     pub fn peek_xml(&mut self) -> Result<Token> {
-        let &(offset, ch) = self
-            .chars
-            .peek(0)
-            .ok_or(LexerError::EndOfFile { id: self.id })?;
+        let loc = self.offset();
+
+        let &(offset, ch) = self.chars.peek(0).ok_or_else(|| {
+            Diagnostic::error("Asn::Parser::EndOfFile")
+                .name("Unexpected end of file")
+                .label(Label::new().source(self.id).loc(loc..loc))
+                .label("Encountered while parsing an XML value")
+        })?;
 
         Ok(match ch {
             '<' => {
@@ -266,7 +240,7 @@ impl<'a> Lexer<'a> {
 
     /// Returns true if the lexer is at the end of its source file
     pub fn is_eof(&mut self) -> bool {
-        matches!(self.peek(), Err(LexerError::EndOfFile { .. }))
+        self.offset() == self.source.len()
     }
 
     /// skip whitespace and comments
@@ -389,31 +363,53 @@ impl<'a> Lexer<'a> {
         self.chars.next();
 
         let mut length = 2;
-        let mut depth = 1;
-        while let Some(&(_, c)) = self.chars.peek(0) {
+        let mut starts = vec![offset];
+
+        while let Some(&(offset, c)) = self.chars.peek(0) {
+            if starts.is_empty() {
+                break;
+            }
+
             length += c.len_utf8();
             self.chars.next();
 
             if c == '/' && matches!(self.chars.peek(0), Some((_, '*'))) {
                 length += 1;
-                depth += 1;
+                starts.push(offset);
                 self.chars.next();
             } else if c == '*' && matches!(self.chars.peek(0), Some((_, '/'))) {
                 length += 1;
-                depth -= 1;
+                starts.pop();
                 self.chars.next();
-
-                if depth == 0 {
-                    break;
-                }
             }
         }
 
-        if depth != 0 {
-            return Err(LexerError::NonTerminatedComment {
-                offset,
-                id: self.id,
-            });
+        if !starts.is_empty() {
+            let mut diag = Diagnostic::error("Asn::Parser::Comment")
+                .name("End of file within multi-line comment")
+                .label(
+                    Label::new()
+                        .source(self.id)
+                        .loc(self.source.len()..self.source.len())
+                        .message(format!(
+                            "Add {} closing multi-line comment marker{} `*/`",
+                            starts.len(),
+                            if starts.len() == 1 { "" } else { "s" }
+                        )),
+                );
+
+            let mut msg = "Comment started here";
+            for offset in starts {
+                diag = diag.label(
+                    Label::new()
+                        .source(self.id)
+                        .loc(offset..offset + 2)
+                        .message(msg),
+                );
+                msg = "Nested comment started here"
+            }
+
+            return Err(diag);
         }
 
         self.comments.push_back(Token {
@@ -530,12 +526,17 @@ impl<'a> Lexer<'a> {
         let value = &self.source[offset..];
         let mut length = 1;
 
-        while let Some(&(_, ch)) = self.chars.peek(length) {
+        let mut double = None;
+        while let Some(&(offset, ch)) = self.chars.peek(length) {
             length += ch.len_utf8();
 
             if ch == '"' {
                 if matches!(self.chars.peek(length), Some(&(_, '"'))) {
                     length += 1;
+
+                    if double.is_none() {
+                        double = Some(offset);
+                    }
                 } else {
                     break;
                 }
@@ -544,10 +545,27 @@ impl<'a> Lexer<'a> {
 
         let value = &value[..length];
         if !value.ends_with('"') {
-            return Err(LexerError::NonTerminatedString {
-                offset,
-                id: self.id,
-            });
+            let mut diag = Diagnostic::error("Asn::Parser::StringEnd")
+                .name("End of file within string literal")
+                .label(
+                    Label::new()
+                        .source(self.id)
+                        .loc(self.source.len()..self.source.len())
+                        .message("String literal starting here"),
+                );
+            if let Some(offset) = double {
+                diag = diag.label(
+                    Label::new()
+                        .source(self.id)
+                        .loc(offset..offset + 2)
+                        .message(
+                            "Note that two consecutive double quotes are used \
+as an escape sequence for putting a single double quote in the string literal, \
+this does not represent two adjacent strings.",
+                        ),
+                );
+            }
+            return Err(diag);
         }
 
         Ok(Token {
@@ -581,10 +599,23 @@ impl<'a> Lexer<'a> {
 
         let value = &value[..length];
         if !value.ends_with("'B") && !value.ends_with("'H") {
-            return Err(LexerError::NonTerminatedBHString {
-                offset,
-                id: self.id,
-            });
+            if value.ends_with('\'') {
+                return Err(Diagnostic::error("Asn::Parser::DataString")
+                    .name("Missing radix after data string")
+                    .label(
+                        Label::new()
+                            .source(self.id)
+                            .loc(offset + length - 1..offset + length),
+                    ));
+            } else {
+                return Err(Diagnostic::error("Asn::Parser::DataString")
+                    .name("Missing ending of data string")
+                    .label(
+                        Label::new()
+                            .source(self.id)
+                            .loc(offset + length..offset + length),
+                    ));
+            }
         }
 
         Ok(Token {
@@ -598,17 +629,21 @@ impl<'a> Lexer<'a> {
     /// Parse an object field reference `&name`
     fn field(&mut self, offset: usize) -> Result<Token> {
         let Some(&(_, ch)) = self.chars.peek(1) else {
-            return Err(LexerError::MissingFieldName {
-                offset,
-                id: self.id,
-            });
+            let loc = self.offset();
+            return Err(Diagnostic::error("Asn::Parser::Field")
+                .name("Unexpected end of file after `&`")
+                .label(Label::new().source(self.id).loc(loc..loc)));
         };
 
-        if is_ident_start(ch) {
-            return Err(LexerError::MissingFieldName {
-                offset,
-                id: self.id,
-            });
+        if !is_ident_start(ch) {
+            return Err(Diagnostic::error("Asn::Parser::Field")
+                .name("Expected identifier after `&`")
+                .label(
+                    Label::new()
+                        .source(self.id)
+                        .loc(offset + 1..offset + ch.len_utf8())
+                        .message("This character cannot start an identifier"),
+                ));
         }
 
         // ident doesn't check the first character, so this will consume the `&`
@@ -623,10 +658,14 @@ impl<'a> Lexer<'a> {
                 kind: TokenKind::TypeField,
                 ..ident
             }),
-            _ => Err(LexerError::KeywordFieldName {
-                offset,
-                id: self.id,
-            }),
+            _ => Err(Diagnostic::error("Asn::Parser::Field")
+                .name("Unexpected keyword after `&`")
+                .label(
+                    Label::new()
+                        .source(self.id)
+                        .loc(ident.offset..ident.offset + ident.length)
+                        .message("Expected a non-keyword identifier here"),
+                )),
         }
     }
 
@@ -698,10 +737,3 @@ fn is_ident_continue(ch: char) -> bool {
         || ch.is_ascii_alphanumeric()
         || asn1_data::XID_START.contains_char(ch)
 }
-
-impl Display for LexerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-impl Error for LexerError {}

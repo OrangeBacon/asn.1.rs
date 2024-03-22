@@ -1,6 +1,6 @@
 use std::{error::Error, fmt::Display, ops::Range};
 
-use crate::{compiler::SourceId, lexer::LexerError};
+use crate::compiler::SourceId;
 
 /// Any kind of error reported by the compiler
 #[derive(Debug)]
@@ -10,9 +10,6 @@ pub struct Diagnostic {
 
     /// Severity of the error
     pub level: Level,
-
-    /// The compiler internal error that triggered this diagnostic
-    pub cause: Option<Box<dyn Error + 'static>>,
 
     /// Name of the diagnostic
     pub name: String,
@@ -27,7 +24,13 @@ pub struct Label {
     /// The source file
     pub source: Option<SourceId>,
 
-    /// Location within the source file that the diagnostic should be shown at
+    /// Location within the source file that the diagnostic should be shown at.
+    /// If the range is present but empty, that indicates a single character
+    /// position rather than a range of characters.
+    /// The range is a byte range into the source string, not a code point or
+    /// character range.
+    /// There is no guarantee that the range represents a valid index into the
+    /// source file.
     pub location: Option<Range<usize>>,
 
     /// The message to display to the user.
@@ -56,7 +59,6 @@ impl Diagnostic {
         Diagnostic {
             error_code: code,
             level,
-            cause: None,
             name: String::new(),
             labels: vec![],
         }
@@ -65,14 +67,6 @@ impl Diagnostic {
     /// Create an error diagnostic
     pub(crate) fn error(code: impl Into<String>) -> Self {
         Self::new(Level::Error, code.into())
-    }
-
-    /// Set the internal error that caused this error
-    pub(crate) fn cause(self, value: impl Error + 'static) -> Self {
-        Self {
-            cause: Some(Box::new(value)),
-            ..self
-        }
     }
 
     /// Set the descriptive name of an error
@@ -152,17 +146,7 @@ impl Display for Diagnostic {
     }
 }
 
-impl Error for Diagnostic {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.cause.as_deref()
-    }
-}
-
-impl From<LexerError> for Diagnostic {
-    fn from(value: LexerError) -> Self {
-        Diagnostic::error("Asn::Lexer::Error").cause(value)
-    }
-}
+impl Error for Diagnostic {}
 
 impl From<&str> for Label {
     fn from(value: &str) -> Self {
