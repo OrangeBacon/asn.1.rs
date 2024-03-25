@@ -10,4 +10,7 @@ description = "Command line interface to the ASN.1-rs parser"
 [dependencies]
 asn1 = { path = "../asn1" }
 clap = { version = "4.5.1", features = ["derive", "unicode", "wrap_help"] }
-unicode-normalization = "0.1.23"
+
+# need byte indexing, not published to crates.io yet
+ariadne = { git = "https://github.com/zesterer/ariadne", rev = "a45d833", features = ["concolor"] }
+concolor-clap = "0.1.0"

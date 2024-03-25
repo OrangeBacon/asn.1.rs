@@ -43,8 +43,8 @@ struct TempVec {
 
 impl AsnCompiler {
     /// Create a new parser from a lexer
-    pub fn parser<'a>(&'a mut self, id: SourceId, source: &'a str) -> Parser<'a> {
-        let lexer = self.lexer(id, source);
+    pub fn parser(&mut self, id: SourceId) -> Parser {
+        let lexer = self.lexer(id);
 
         Parser {
             lexer,

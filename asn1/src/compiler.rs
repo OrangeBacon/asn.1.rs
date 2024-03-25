@@ -4,7 +4,8 @@ use std::ops::{Deref, DerefMut};
 
 use crate::{
     analysis::{AnalysisContext, AnalysisError},
-    cst::{Asn1, Asn1Formatter}, diagnostic::Result,
+    cst::{Asn1, Asn1Formatter},
+    diagnostic::Result,
 };
 
 /// Store of all information relating to a whole ASN.1 specification, including
@@ -66,14 +67,18 @@ impl AsnCompiler {
     pub fn add_file(&mut self, file_name: String, source: String) -> Result<SourceId> {
         let id = SourceId(self.sources.len());
 
-        let tree = self.parser(id, &source).run()?;
-
+        // push with a dummy tree which will get replaced later, so that any errors
+        // reported during the parsing of this file can find the source text of the file.
         self.sources.push(Source {
             file_name,
             source,
-            tree,
+            tree: Asn1::new(id, vec![], 0),
             id,
         });
+
+        let tree = self.parser(id).run()?;
+
+        self.sources[id.0].tree = tree;
 
         Ok(id)
     }
@@ -92,6 +97,7 @@ impl AsnCompiler {
     /// Convert the CST of a file into a string
     pub fn print_cst(&self, file: SourceId) -> String {
         let source = &self.sources[file.0];
+
         Asn1Formatter {
             tree: &source.tree,
             source: &source.source,
@@ -104,9 +110,14 @@ impl AsnCompiler {
         AnalysisContext::new(self)
     }
 
-    /// Add an analysis error to the compiler
-    pub(crate) fn add_err(&mut self, err: AnalysisError) {
-        self.errors.push(err);
+    /// Get the text content of a source file
+    pub fn source_text(&self, file: SourceId) -> &str {
+        &self.source(file).source
+    }
+
+    /// Get the file name of a source
+    pub fn source_name(&self, file: SourceId) -> &str {
+        &self.source(file).file_name
     }
 }
 

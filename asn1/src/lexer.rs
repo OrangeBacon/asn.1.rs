@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     analysis::AnalysisError,
-    compiler::SourceId,
+    compiler::{Features, SourceId},
     diagnostic::{Diagnostic, Label, Result},
     token::{self, Token, TokenKind},
     util::{Peek, Peekable},
@@ -35,7 +35,9 @@ pub struct Lexer<'a> {
     enable_keywords: bool,
 
     /// The compiler the lexer was created from.
-    compiler: &'a mut AsnCompiler,
+    features: Features,
+
+    warnings: Vec<AnalysisError>,
 }
 
 /// How should lexing of square brackets proceed.
@@ -52,7 +54,8 @@ pub enum SquareBracketMode {
 impl AsnCompiler {
     /// Create a new Lexer for a given source file.  `file` represents a file
     /// ID that will be returned with each token.
-    pub fn lexer<'a>(&'a mut self, id: SourceId, source: &'a str) -> Lexer {
+    pub fn lexer(&mut self, id: SourceId) -> Lexer {
+        let source = &self.source(id).source;
         Lexer {
             chars: source.char_indices().n_peekable(),
             source,
@@ -60,7 +63,8 @@ impl AsnCompiler {
             comments: VecDeque::new(),
             square_bracket_mode: Default::default(),
             enable_keywords: true,
-            compiler: self,
+            features: self.features,
+            warnings: vec![],
         }
     }
 }
@@ -456,7 +460,7 @@ impl<'a> Lexer<'a> {
         let value = &value[..length];
         let kind = self.keyword_kind(value, ident_kind);
 
-        if !self.compiler.unicode_identifiers {
+        if !self.features.unicode_identifiers {
             let mut is_valid = first.is_ascii_alphabetic();
             for ch in value.chars() {
                 is_valid |= ch.is_ascii_alphanumeric()
@@ -467,7 +471,7 @@ impl<'a> Lexer<'a> {
             }
 
             if !is_valid {
-                self.compiler.add_err(AnalysisError::UnicodeIdentifier {
+                self.warnings.push(AnalysisError::UnicodeIdentifier {
                     id: self.id,
                     offset,
                 })
@@ -682,7 +686,7 @@ this does not represent two adjacent strings.",
     /// Is the character any valid whitespace
     fn is_whitespace(&self, c: char) -> bool {
         // A0 = Non breaking space
-        let unicode = self.compiler.unicode_whitespace && asn1_data::WHITE_SPACE.contains_char(c);
+        let unicode = self.features.unicode_whitespace && asn1_data::WHITE_SPACE.contains_char(c);
         "\t \u{A0}".contains(c) || self.is_newline(c) || unicode
     }
 
@@ -691,7 +695,7 @@ this does not represent two adjacent strings.",
     fn is_newline(&self, c: char) -> bool {
         // 0B = Vertical Tab
         // 0C = Form Feed
-        let unicode = self.compiler.unicode_whitespace
+        let unicode = self.features.unicode_whitespace
             && "\u{A}\u{B}\u{C}\u{D}\u{85}\u{2028}\u{2029}".contains(c);
         "\n\x0B\x0C\r".contains(c) || unicode
     }
@@ -703,7 +707,7 @@ this does not represent two adjacent strings.",
             if let Some(kw) = keywords().get(value).copied() {
                 return kw;
             } else if let Some(kw) = lower_keywords().get(value).copied() {
-                if self.compiler.lowercase_keywords {
+                if self.features.lowercase_keywords {
                     return kw;
                 }
             }
