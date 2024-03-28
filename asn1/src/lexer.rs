@@ -139,10 +139,10 @@ impl<'a> Lexer<'a> {
 
             ch if is_ident_start(ch) => self.identifier(c, offset),
 
-            _ => {
+            ch => {
                 return Err(Diagnostic::error("Asn::Parser::Character")
                     .name("Unexpected character within source file")
-                    .label(Label::new().source(self.id).loc(offset..offset + 1)))
+                    .label(Label::new().source(self.id).loc(offset..offset + ch.len_utf8())))
             }
         };
 

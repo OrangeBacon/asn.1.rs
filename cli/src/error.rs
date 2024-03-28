@@ -20,7 +20,7 @@ pub fn to_error(diag: &Diagnostic) -> Result<Report, Box<dyn Error>> {
         .and_then(|l| l.location.clone())
         .map(|l| l.start);
     let (Some(source), Some(offset)) = (source, offset) else {
-        return Err("Unable to get source location from diagnostic".into());
+        return Err(format!("Unable to get source location from diagnostic {diag:?}").into());
     };
 
     let mut report = Report::build(kind, source, offset)
@@ -28,17 +28,21 @@ pub fn to_error(diag: &Diagnostic) -> Result<Report, Box<dyn Error>> {
         .with_message(&diag.name)
         .with_config(Config::default().with_index_type(IndexType::Byte));
 
-    let mut note: Option<String> = None;
+    let mut note = vec![];
     for label in &diag.labels {
         let (Some(source), Some(offset)) = (label.source, &label.location) else {
-            note = Some(note.unwrap_or_default() + "\n" + &label.message);
+            note.push(label.message.clone());
             continue;
         };
-        report.add_label(ariadne::Label::new((source, offset.clone())).with_message(&label.message))
+        let mut l = ariadne::Label::new((source, offset.clone()));
+        if !label.message.is_empty() {
+            l = l.with_message(&label.message)
+        }
+        report.add_label(l)
     }
 
-    if let Some(note) = note {
-        report.set_note(note);
+    if !note.is_empty() {
+        report.set_note(note.join("; "));
     }
 
     Ok(report.finish())
