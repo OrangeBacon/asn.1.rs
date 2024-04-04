@@ -1,4 +1,4 @@
-MyModule_éáóíÍáéí/* definitions ::= begin
+MyModule_éáóíÍáéí definitions ::= begin
     MyType ::= boolean
     my_val MyType ::= true
 end

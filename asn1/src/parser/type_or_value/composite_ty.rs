@@ -334,7 +334,7 @@ impl<'a> Parser<'a> {
 
     /// Parse optional parts of a choice type
     fn choice_extension(&mut self) -> Result {
-        self.start_temp_vec(Asn1Tag::ChoiceExtension)?;
+        self.start_temp_vec(Asn1Tag::ChoiceExtension)?; 
 
         self.extension_and_exception()?;
         let tok = self.peek(&[TokenKind::Comma, TokenKind::RightCurly])?;

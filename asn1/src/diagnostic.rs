@@ -3,7 +3,7 @@ use std::{error::Error, fmt::Display, ops::Range};
 use crate::compiler::SourceId;
 
 /// Any kind of error reported by the compiler
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Diagnostic {
     /// Unique error code reference
     pub error_code: String,
@@ -19,7 +19,7 @@ pub struct Diagnostic {
 }
 
 /// Reference to a source file
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Label {
     /// The source file
     pub source: Option<SourceId>,

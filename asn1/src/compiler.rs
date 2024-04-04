@@ -3,14 +3,15 @@
 use std::ops::{Deref, DerefMut};
 
 use crate::{
-    analysis::{AnalysisContext, AnalysisError},
+    analysis::AnalysisContext,
     cst::{Asn1, Asn1Formatter},
     diagnostic::Result,
+    Diagnostic,
 };
 
 /// Store of all information relating to a whole ASN.1 specification, including
 /// multiple files, analysis and code generation.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct AsnCompiler {
     /// List of all included source files.
     sources: Vec<Source>,
@@ -19,7 +20,7 @@ pub struct AsnCompiler {
     pub(crate) features: Features,
 
     /// Errors reported outside of analysis.
-    pub(crate) errors: Vec<AnalysisError>,
+    pub(crate) diagnostics: Vec<Diagnostic>,
 }
 
 /// All features that can be enabled within the compiler.

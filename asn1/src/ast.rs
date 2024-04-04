@@ -1,4 +1,3 @@
-mod error;
 mod module;
 
 use std::ops::Deref;
@@ -8,11 +7,11 @@ use unicode_normalization::UnicodeNormalization;
 use crate::{
     analysis::AnalysisContext,
     cst::{Asn1Tag, AsnNodeId, CstIter},
+    diagnostic::Result,
     token::{Token, TokenKind},
     util::CowVec,
+    Diagnostic,
 };
-
-pub use self::error::{AstError, Result};
 
 /// A piece of data with an associated id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -36,34 +35,23 @@ impl AnalysisContext<'_> {
         let kind = asn1_tag.into();
 
         let Some(node) = node.into() else {
-            return Err(AstError::NoTreeNode { expected: kind });
+            return Err(Diagnostic::error(format!("no node {kind:?}")));
         };
 
         let source = self.source(node.source());
         let cst = &source.tree;
 
         let Some(tag) = cst.tree_tag(node) else {
-            return Err(AstError::NotTree {
-                node,
-                id: source.id,
-                expected: kind,
-            });
+            return Err(Diagnostic::error(format!("no tree {kind:?}, {node:?}")));
         };
 
         if !kind.is_empty() && !kind.contains(&tag) {
-            return Err(AstError::WrongTree {
-                node,
-                id: source.id,
-                expected: kind,
-                got: tag,
-            });
+            return Err(Diagnostic::error(format!("wrong tree {kind:?} {tag:?}")));
         }
 
-        let iter = cst.iter_tree(node).ok_or(AstError::NotTree {
-            node,
-            id: source.id,
-            expected: kind,
-        })?;
+        let iter = cst
+            .iter_tree(node)
+            .ok_or(Diagnostic::error(format!("no tree {kind:?}")))?;
 
         Ok(iter)
     }
@@ -77,27 +65,18 @@ impl AnalysisContext<'_> {
         let kind = token_kind.into();
 
         let Some(node) = node.into() else {
-            return Err(AstError::NoTokenNode { expected: kind });
+            return Err(Diagnostic::error(format!("no node {kind:?}")));
         };
 
         let source = self.source(node.source());
         let cst = &source.tree;
 
         let Some(tok) = cst.token(node) else {
-            return Err(AstError::NotToken {
-                node,
-                id: source.id,
-                expected: kind,
-            });
+            return Err(Diagnostic::error(format!("not token {kind:?} {node:?}")));
         };
 
         if !kind.is_empty() && !kind.contains(&tok.kind) {
-            return Err(AstError::WrongToken {
-                node,
-                id: source.id,
-                expected: kind,
-                got: tok.kind,
-            });
+            return Err(Diagnostic::error(format!("no token {kind:?} {node:?}")));
         }
 
         Ok(WithId {
@@ -124,7 +103,10 @@ impl AnalysisContext<'_> {
 
     /// Get the normalised identifier value of a token, applies NFC normalisation.
     pub fn ident_value(&self, tok: Token) -> String {
-        self.token_value(tok).replace('\u{2011}', "-").nfc().to_string()
+        self.token_value(tok)
+            .replace('\u{2011}', "-")
+            .nfc()
+            .to_string()
     }
 }
 
@@ -132,10 +114,7 @@ impl CstIter<'_> {
     /// Are there any more nodes in this iterator
     pub fn assert_empty(&mut self) -> Result {
         if let Some(id) = self.peek() {
-            Err(AstError::FoundNode {
-                id: self.file,
-                got: id,
-            })
+            Err(Diagnostic::error(format!("not empty {id:?}")))
         } else {
             Ok(())
         }

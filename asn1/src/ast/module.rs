@@ -1,10 +1,8 @@
 use crate::{
-    analysis::AnalysisContext,
-    cst::{Asn1Tag, AsnNodeId, CstIter},
-    token::{Token, TokenKind},
+    analysis::AnalysisContext, cst::{Asn1Tag, AsnNodeId, CstIter}, diagnostic::Result, token::{Token, TokenKind}
 };
 
-use super::{error::Result, WithId};
+use super::WithId;
 
 /// A group of ASN.1 assignments and settings.
 #[derive(Debug, Clone)]

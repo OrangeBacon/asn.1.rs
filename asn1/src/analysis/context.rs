@@ -1,20 +1,17 @@
 use std::ops::{Deref, DerefMut};
 
-use crate::{compiler::SourceId, AsnCompiler};
+use crate::{compiler::SourceId, AsnCompiler, Diagnostic};
 
-use super::{environment::Environment, error::AnalysisWarning, AnalysisError};
+use super::environment::Environment;
 
 /// Data used and produced by static analysis of source files
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct AnalysisContext<'a> {
     /// context to get source files/trees from
     compiler: &'a mut AsnCompiler,
 
-    /// All errors that occurred while running the analysis.
-    pub errors: Vec<AnalysisError>,
-
-    /// All warnings that occurred while running the analysis.
-    pub warnings: Vec<AnalysisWarning>,
+    /// All diagnostics that occurred while running the analysis.
+    pub diagnostics: Vec<Diagnostic>,
 
     /// List of all modules from all source files
     pub(crate) modules: Vec<Environment>,
@@ -23,12 +20,11 @@ pub struct AnalysisContext<'a> {
 impl<'a> AnalysisContext<'a> {
     /// Create a new, blank, analysis context
     pub(crate) fn new(compiler: &'a mut AsnCompiler) -> Self {
-        let errors = std::mem::take(&mut compiler.errors);
+        let errors = std::mem::take(&mut compiler.diagnostics);
 
         let mut this = Self {
             compiler,
-            errors,
-            warnings: vec![],
+            diagnostics: errors,
             modules: vec![],
         };
 
@@ -46,14 +42,14 @@ impl<'a> AnalysisContext<'a> {
     /// Add a new source file to the context and run local analysis on it.
     fn add_source(&mut self, file: SourceId) {
         if let Err(e) = self.local(file) {
-            self.errors.push(e);
+            self.diagnostics.push(e);
         }
     }
 
     /// Run all analysis passes
     fn run(&mut self) {
         if let Err(e) = self.global() {
-            self.errors.push(e);
+            self.diagnostics.push(e);
         }
     }
 }

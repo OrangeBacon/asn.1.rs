@@ -5,7 +5,6 @@ use std::{
 };
 
 use crate::{
-    analysis::AnalysisError,
     compiler::{Features, SourceId},
     diagnostic::{Diagnostic, Label, Result},
     token::{self, Token, TokenKind},
@@ -37,7 +36,8 @@ pub struct Lexer<'a> {
     /// The compiler the lexer was created from.
     features: Features,
 
-    warnings: Vec<AnalysisError>,
+    /// All non-fatal diagnostics found during lexing
+    diagnostics: Vec<Diagnostic>,
 }
 
 /// How should lexing of square brackets proceed.
@@ -64,7 +64,7 @@ impl AsnCompiler {
             square_bracket_mode: Default::default(),
             enable_keywords: true,
             features: self.features,
-            warnings: vec![],
+            diagnostics: vec![],
         }
     }
 }
@@ -142,7 +142,11 @@ impl<'a> Lexer<'a> {
             ch => {
                 return Err(Diagnostic::error("Asn::Parser::Character")
                     .name("Unexpected character within source file")
-                    .label(Label::new().source(self.id).loc(offset..offset + ch.len_utf8())))
+                    .label(
+                        Label::new()
+                            .source(self.id)
+                            .loc(offset..offset + ch.len_utf8()),
+                    ))
             }
         };
 
@@ -471,10 +475,8 @@ impl<'a> Lexer<'a> {
             }
 
             if !is_valid {
-                self.warnings.push(AnalysisError::UnicodeIdentifier {
-                    id: self.id,
-                    offset,
-                })
+                self.diagnostics
+                    .push(Diagnostic::error("Asn1::Parser::UnicodeIdentifier"))
             }
         }
 

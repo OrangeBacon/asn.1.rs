@@ -1,4 +1,6 @@
-use super::{context::AnalysisContext, error::Result, AnalysisError};
+use crate::diagnostic::Result;
+
+use super::context::AnalysisContext;
 
 impl AnalysisContext<'_> {
     /// Run global analysis to resolve module names/imports/exports
@@ -10,11 +12,11 @@ impl AnalysisContext<'_> {
             let identifier = ast.identifier;
             let module_id = identifier.name.value.to_string();
 
-            if let Some(id) = identifier.iri {
-                return Err(AnalysisError::OidIriUnsupported { id: id.id });
+            if let Some(iri) = identifier.iri {
+                todo!("iri: {iri:?}")
             }
-            if let Some(id) = identifier.oid {
-                return Err(AnalysisError::OidIriUnsupported { id: id.id });
+            if let Some(oid) = identifier.oid {
+                todo!("oid: {oid:?}")
             }
 
             let module = &mut self.modules[module];

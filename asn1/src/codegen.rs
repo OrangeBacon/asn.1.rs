@@ -25,7 +25,7 @@ type Result<T = (), E = CodegenError> = std::result::Result<T, E>;
 impl AnalysisContext<'_> {
     /// Run the code generator to produce a rust source code listing to represent the input files.
     pub fn rust_codegen(&self) -> Result<String> {
-        if !self.errors.is_empty() {
+        if !self.diagnostics.is_empty() {
             return Err(CodegenError::AnalysisErrors);
         }
 

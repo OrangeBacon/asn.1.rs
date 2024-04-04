@@ -134,15 +134,7 @@ fn run(compiler: &mut AsnCompiler) -> Result<Vec<Diagnostic>, ExitCode> {
     let end = start.elapsed();
     timings.push(format!("Analysis: {end:?}"));
 
-    if !an.errors.is_empty() {
-        eprintln!("{:?}", an.errors);
-    }
-
-    if !an.warnings.is_empty() {
-        eprintln!("{:?}", an.warnings);
-    }
-
-    if an.errors.is_empty() {
+    if an.diagnostics.is_empty() {
         let start = Instant::now();
         let code = an.rust_codegen();
         let end = start.elapsed();
@@ -158,6 +150,8 @@ fn run(compiler: &mut AsnCompiler) -> Result<Vec<Diagnostic>, ExitCode> {
             }
             Err(e) => eprintln!("{e:?}"),
         }
+    } else {
+        return Ok(an.diagnostics);
     }
 
     if cli.timing {
