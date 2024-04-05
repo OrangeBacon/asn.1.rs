@@ -1,4 +1,4 @@
-use crate::diagnostic::Result;
+use crate::{diagnostic::Result, Diagnostic};
 
 use super::context::AnalysisContext;
 
@@ -13,10 +13,25 @@ impl AnalysisContext<'_> {
             let module_id = identifier.name.value.to_string();
 
             if let Some(iri) = identifier.iri {
-                todo!("iri: {iri:?}")
+                let id = iri.id;
+
+                self.diagnostics.push(
+                    Diagnostic::error("Asn1::Analysis::Iri")
+                        .name("Module IRI Descriptors are not supported")
+                        .label(self.label(id).message("IRI included here")),
+                );
+                continue;
             }
+
             if let Some(oid) = identifier.oid {
-                todo!("oid: {oid:?}")
+                let id = oid.id;
+
+                self.diagnostics.push(
+                    Diagnostic::error("Asn1::Analysis::OID")
+                        .name("Module OID Descriptors are not supported")
+                        .label(self.label(id).message("OID included here")),
+                );
+                continue;
             }
 
             let module = &mut self.modules[module];

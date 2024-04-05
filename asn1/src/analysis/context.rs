@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use crate::{compiler::SourceId, AsnCompiler, Diagnostic};
+use crate::{compiler::SourceId, cst::AsnNodeId, diagnostic::Label, AsnCompiler, Diagnostic};
 
 use super::environment::Environment;
 
@@ -51,6 +51,11 @@ impl<'a> AnalysisContext<'a> {
         if let Err(e) = self.global() {
             self.diagnostics.push(e);
         }
+    }
+
+    /// Construct a diagnostic label that references a given tree node
+    pub(crate) fn label(&self, node: AsnNodeId) -> Label {
+        self.compiler.source(node.source()).tree.label(node)
     }
 }
 

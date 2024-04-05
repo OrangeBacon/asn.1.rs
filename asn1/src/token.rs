@@ -148,7 +148,7 @@ pub struct Token {
     pub(crate) kind: TokenKind,
 
     /// The byte length of the source of the token in its source file.
-    pub(crate) length: usize,
+    pub(crate) length: u32,
 
     /// Byte offset into the file that the token starts at.  The end location
     /// can be derived from this offset + the length of the value string.

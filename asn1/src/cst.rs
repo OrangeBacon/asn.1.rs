@@ -10,6 +10,7 @@ use std::{fmt::Display, ops::Range};
 
 use crate::{
     compiler::SourceId,
+    diagnostic::Label,
     token::{Token, TokenKind},
 };
 
@@ -28,16 +29,28 @@ pub struct Asn1 {
 
 /// ID representing a single ASN.1 CST node
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct AsnNodeId(usize, SourceId);
+pub struct AsnNodeId(u32, SourceId);
 
 /// Content of a tree
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TreeContent {
     /// Header of a nested node in the tree with a given kind
     Tree {
+        /// The type of this tree node
         tag: Asn1Tag,
-        start: usize,
-        count: usize,
+
+        /// Index of the start of the contents of the node
+        start_node: u32,
+
+        /// Number of contained tree nodes within this node.
+        node_count: u32,
+
+        /// The byte length of the source of all nodes of this tree in its source file.
+        byte_length: u32,
+
+        /// Byte offset into the file that the node starts at.  The end location
+        /// can be derived from this offset + the length of the value string.
+        source_offset: usize,
     },
 
     /// A token from a given source file
@@ -46,7 +59,7 @@ pub enum TreeContent {
         kind: TokenKind,
 
         /// The byte length of the source of the token in its source file.
-        length: usize,
+        length: u32,
 
         /// Byte offset into the file that the token starts at.  The end location
         /// can be derived from this offset + the length of the value string.
@@ -151,7 +164,7 @@ impl Asn1 {
     /// Create a CST from an externally constructed tree.
     pub fn new(id: SourceId, data: Vec<TreeContent>, root_idx: usize) -> Asn1 {
         Asn1 {
-            root: AsnNodeId(root_idx, id),
+            root: AsnNodeId(root_idx.try_into().unwrap(), id),
             data,
             id,
         }
@@ -162,9 +175,12 @@ impl Asn1 {
     pub fn iter_tree(&self, node: AsnNodeId) -> Option<CstIter> {
         debug_assert_eq!(node.1, self.id);
 
-        match self.data[node.0] {
+        match self.data[node.0 as usize] {
             TreeContent::Tree {
-                tag, start, count, ..
+                tag,
+                start_node: start,
+                node_count: count,
+                ..
             } => {
                 let id = self.id;
                 Some(CstIter {
@@ -185,7 +201,7 @@ impl Asn1 {
     pub fn tree_tag(&self, node: AsnNodeId) -> Option<Asn1Tag> {
         debug_assert_eq!(node.1, self.id);
 
-        match self.data[node.0] {
+        match self.data[node.0 as usize] {
             TreeContent::Tree { tag, .. } => Some(tag),
             _ => None,
         }
@@ -195,7 +211,7 @@ impl Asn1 {
     pub fn token(&self, node: AsnNodeId) -> Option<Token> {
         debug_assert_eq!(node.1, self.id);
 
-        match self.data[node.0] {
+        match self.data[node.0 as usize] {
             TreeContent::Token {
                 kind,
                 length,
@@ -208,6 +224,22 @@ impl Asn1 {
             }),
             _ => None,
         }
+    }
+
+    /// Construct a diagnostic label that references a given tree node
+    pub fn label(&self, node: AsnNodeId) -> Label {
+        debug_assert_eq!(node.1, self.id);
+
+        let (TreeContent::Tree {
+            byte_length: length,
+            source_offset: offset,
+            ..
+        }
+        | TreeContent::Token { length, offset, .. }) = self.data[node.0 as usize];
+
+        Label::new()
+            .source(self.id)
+            .loc(offset..offset + length as usize)
     }
 }
 
@@ -245,7 +277,7 @@ impl Display for Asn1Formatter<'_> {
         let fmt = Asn1FormatterInternal {
             depth: 0,
             tree: self.tree,
-            node: self.tree.data[self.tree.root.0],
+            node: self.tree.data[self.tree.root.0 as usize],
             prefix: String::new(),
             child_prefix: String::new(),
             source: self.source,
@@ -270,7 +302,13 @@ impl Display for Asn1FormatterInternal<'_> {
         write!(f, "{}", self.prefix)?;
 
         match self.node {
-            TreeContent::Tree { tag, start, count } => {
+            TreeContent::Tree {
+                tag,
+                start_node: start,
+                node_count: count,
+                ..
+            } => {
+                let (start, count) = (start as usize, count as usize);
                 write!(f, "{:?}:", tag)?;
                 let Some((last, head)) = self.tree.data[start..start + count].split_last() else {
                     writeln!(f, " (empty)")?;
@@ -307,7 +345,12 @@ impl Display for Asn1FormatterInternal<'_> {
                 kind,
                 length,
                 offset,
-            } => writeln!(f, "{:?}: {:?}", kind, &self.source[offset..offset + length])?,
+            } => writeln!(
+                f,
+                "{:?}: {:?}",
+                kind,
+                &self.source[offset..offset + (length as usize)]
+            )?,
         }
 
         Ok(())
@@ -326,7 +369,7 @@ pub struct CstIter<'a> {
     pub node: AsnNodeId,
 
     /// The source iterator representing indexes into a cst
-    range: Range<usize>,
+    range: Range<u32>,
 
     /// A peeked node id
     peek: Option<AsnNodeId>,
@@ -344,7 +387,7 @@ impl CstIter<'_> {
 
         for node in &mut self.range {
             if matches!(
-                self.tree.data[node],
+                self.tree.data[node as usize],
                 TreeContent::Token {
                     kind: TokenKind::MultiComment | TokenKind::SingleComment,
                     ..

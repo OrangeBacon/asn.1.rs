@@ -217,7 +217,7 @@ impl<'a> Lexer<'a> {
 
                 Token {
                     kind: TokenKind::XMLData,
-                    length,
+                    length: length.try_into().unwrap(),
                     offset,
                     id: self.id,
                 }
@@ -306,7 +306,7 @@ impl<'a> Lexer<'a> {
 
         Token {
             kind: multi_kind,
-            length: value.len(),
+            length: value.len().try_into().unwrap(),
             offset,
             id: self.id,
         }
@@ -348,7 +348,7 @@ impl<'a> Lexer<'a> {
 
         self.comments.push_back(Token {
             kind: TokenKind::SingleComment,
-            length,
+            length: length.try_into().unwrap(),
             offset,
             id: self.id,
         });
@@ -422,7 +422,7 @@ impl<'a> Lexer<'a> {
 
         self.comments.push_back(Token {
             kind: TokenKind::MultiComment,
-            length,
+            length: length.try_into().unwrap(),
             offset,
             id: self.id,
         });
@@ -482,7 +482,7 @@ impl<'a> Lexer<'a> {
 
         Token {
             kind,
-            length,
+            length: length.try_into().unwrap(),
             offset,
             id: self.id,
         }
@@ -507,7 +507,7 @@ impl<'a> Lexer<'a> {
 
         Token {
             kind: TokenKind::Number,
-            length,
+            length: length.try_into().unwrap(),
             offset,
             id: self.id,
         }
@@ -576,7 +576,7 @@ this does not represent two adjacent strings.",
 
         Ok(Token {
             kind: TokenKind::CString,
-            length,
+            length: length.try_into().unwrap(),
             offset,
             id: self.id,
         })
@@ -626,7 +626,7 @@ this does not represent two adjacent strings.",
 
         Ok(Token {
             kind: TokenKind::BHString,
-            length,
+            length: length.try_into().unwrap(),
             offset,
             id: self.id,
         })
@@ -669,7 +669,7 @@ this does not represent two adjacent strings.",
                 .label(
                     Label::new()
                         .source(self.id)
-                        .loc(ident.offset..ident.offset + ident.length)
+                        .loc(ident.offset..ident.offset + (ident.length as usize))
                         .message("Expected a non-keyword identifier here"),
                 )),
         }

@@ -98,7 +98,7 @@ impl AnalysisContext<'_> {
 
     /// Get the string value of a token
     pub fn token_value(&self, tok: Token) -> &str {
-        &self.source(tok.id).source[tok.offset..tok.offset + tok.length]
+        &self.source(tok.id).source[tok.offset..tok.offset + tok.length as usize]
     }
 
     /// Get the normalised identifier value of a token, applies NFC normalisation.
