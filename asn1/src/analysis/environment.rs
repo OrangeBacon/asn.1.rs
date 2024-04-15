@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::cst::AsnNodeId;
 
 // use super::{Iri, Oid};
@@ -16,6 +18,8 @@ pub struct Environment {
 
     // /// The iri of the module (if present)
     // pub iri: Option<Iri>,
+    /// All variables defined within the module
+    pub variables: HashMap<String, ()>,
 }
 
 impl Environment {
@@ -26,6 +30,7 @@ impl Environment {
             name: String::new(),
             // oid: None,
             // iri: None,
+            variables: HashMap::new(),
         }
     }
 }

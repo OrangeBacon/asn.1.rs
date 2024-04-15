@@ -1,14 +1,17 @@
 use crate::{
-    analysis::AnalysisContext, cst::{Asn1Tag, AsnNodeId, CstIter}, diagnostic::Result, token::{Token, TokenKind}
+    analysis::AnalysisContext,
+    cst::{Asn1Tag, AsnNodeId, CstIter},
+    diagnostic::Result,
+    token::{Token, TokenKind},
 };
 
 use super::WithId;
 
 /// A group of ASN.1 assignments and settings.
 #[derive(Debug, Clone)]
-pub struct ModuleDefinition<'a> {
+pub struct ModuleDefinition {
     /// Identifier for the module
-    pub identifier: ModuleIdentifier<'a>,
+    pub identifier: ModuleIdentifier,
 
     /// Name of the default encoding
     pub encoding_reference: Option<WithId<Token>>,
@@ -18,10 +21,13 @@ pub struct ModuleDefinition<'a> {
 
     /// Is extensibility implied in this module
     pub extensibility: bool,
+
+    /// assigned values within the module
+    pub assignments: Vec<Assignment>,
 }
 
 #[derive(Debug, Clone)]
-pub struct ModuleIdentifier<'a> {
+pub struct ModuleIdentifier {
     /// Identifier for the module
     pub name: WithId<String>,
 
@@ -29,7 +35,7 @@ pub struct ModuleIdentifier<'a> {
     pub oid: Option<ModuleOid>,
 
     /// The module's internationalized resource identifier value
-    pub iri: Option<WithId<&'a str>>,
+    pub iri: Option<WithId<String>>,
 }
 
 /// An object identifier
@@ -53,11 +59,30 @@ pub struct ModuleOidComponent {
     pub number: Option<WithId<String>>,
 }
 
+/// How tags are applied to a module
 #[derive(Debug, Clone, Copy)]
 pub enum TagDefault {
+    /// All tagging is automatically calculated
     Automatic,
+
+    /// Tags are by default specified as implicit
     Implicit,
+
+    /// Tags are by default specified as explicit
     Explicit,
+}
+
+/// A single assignment from a name to a type or value
+#[derive(Debug, Clone)]
+pub struct Assignment {
+    /// The name being assigned to
+    pub name: WithId<String>,
+
+    /// The value or type assigned to the name.
+    pub value: WithId<()>,
+
+    /// A specified type within the assignment
+    pub ty: Option<WithId<()>>,
 }
 
 impl AnalysisContext<'_> {
@@ -78,11 +103,16 @@ impl AnalysisContext<'_> {
         self.token(iter.next(), TokenKind::Assignment)?;
         self.token(iter.next(), TokenKind::KwBegin)?;
 
+        let assignments = self.assignments(&mut iter)?;
+        self.token(iter.next(), TokenKind::KwEnd)?;
+        iter.assert_empty()?;
+
         Ok(ModuleDefinition {
             identifier: name,
             encoding_reference,
             tag_default,
             extensibility,
+            assignments,
         })
     }
 
@@ -103,7 +133,7 @@ impl AnalysisContext<'_> {
         let iri = if iter.peek().is_some() {
             let tok = self.token(iter.next(), TokenKind::CString)?;
             Some(WithId {
-                value: self.token_value(*tok),
+                value: self.token_value(*tok).to_string(),
                 id: tok.id,
             })
         } else {
@@ -226,5 +256,41 @@ impl AnalysisContext<'_> {
         iter.assert_empty()?;
 
         Ok(true)
+    }
+
+    /// Gather the list of assignments
+    fn assignments(&self, iter: &mut CstIter) -> Result<Vec<Assignment>> {
+        let mut res = vec![];
+
+        while let Some(node) = iter.peek() {
+            let Ok(mut assign) = self.tree(node, Asn1Tag::Assignment) else {
+                break;
+            };
+            iter.next();
+
+            res.push(self.assignment(&mut assign)?);
+        }
+
+        Ok(res)
+    }
+
+    /// Parse a single assignment statement
+    fn assignment(&self, iter: &mut CstIter) -> Result<Assignment> {
+        let name = self.token(
+            iter.next(),
+            &[TokenKind::TypeOrModuleRef, TokenKind::ValueRefOrIdent],
+        )?;
+
+        Ok(Assignment {
+            name: WithId {
+                value: self.token_value(*name).to_string(),
+                id: name.id,
+            },
+            value: WithId {
+                value: (),
+                id: name.id,
+            },
+            ty: None,
+        })
     }
 }

@@ -47,11 +47,17 @@ impl RustCodegen<'_> {
     }
 
     fn module(&mut self, module: &Environment) -> Result {
-        writeln!(
-            self.result,
-            "mod {} {{ }}",
-            module.name.to_case(Case::Snake)
-        )?;
+        writeln!(self.result, "mod {} {{", module.name.to_case(Case::Snake))?;
+
+        for var in module.variables.keys() {
+            writeln!(
+                self.result,
+                "\tconst {}: () = ();",
+                var.to_case(Case::ScreamingSnake)
+            )?;
+        }
+
+        writeln!(self.result, "}}")?;
 
         Ok(())
     }

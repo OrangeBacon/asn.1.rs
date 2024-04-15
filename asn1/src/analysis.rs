@@ -1,8 +1,8 @@
 //! Type checking and name resolution for ASN.1.
 //! The following analysis passes are defined:
-//! - Local: analyse each module in isolation to get its imports and exports.
+//! - Local: analyse each module in isolation to get its assignments,
+//!   imports and exports.
 //! - Global: resolve dependencies between modules (imports and exports).
-//! - Name: resolve names and references within each module.
 //! - Type: resolve types across all modules.
 //! - Value: parse and analyse values now that the type of the value is known.
 //! Note that modules can depend upon each other and must be checked at the
