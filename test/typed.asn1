@@ -1,8 +1,7 @@
 MyModule_éáóíÍáéí definitions ::= begin
     MyType ::= boolean
-    my_val MyType ::= true
+    MyOther ::= DateTime
 end
 MyModule --test--  definitions ::= begin
     MyType ::= boolean
-    my_val MyType ::= true
 end

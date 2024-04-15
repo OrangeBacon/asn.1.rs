@@ -1,4 +1,5 @@
 mod module;
+mod ty_or_value;
 
 use std::ops::Deref;
 
@@ -12,6 +13,8 @@ use crate::{
     util::CowVec,
     Diagnostic,
 };
+
+pub use ty_or_value::Type;
 
 /// A piece of data with an associated id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

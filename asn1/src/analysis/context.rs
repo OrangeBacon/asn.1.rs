@@ -1,4 +1,7 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
 use crate::{compiler::SourceId, cst::AsnNodeId, diagnostic::Label, AsnCompiler, Diagnostic};
 
@@ -14,7 +17,7 @@ pub struct AnalysisContext<'a> {
     pub diagnostics: Vec<Diagnostic>,
 
     /// List of all modules from all source files
-    pub(crate) modules: Vec<Environment>,
+    pub(crate) modules: HashMap<AsnNodeId, Environment>,
 }
 
 impl<'a> AnalysisContext<'a> {
@@ -25,7 +28,7 @@ impl<'a> AnalysisContext<'a> {
         let mut this = Self {
             compiler,
             diagnostics: errors,
-            modules: vec![],
+            modules: HashMap::new(),
         };
 
         let sources: Vec<_> = this.compiler.all_sources().collect();

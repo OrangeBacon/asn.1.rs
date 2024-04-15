@@ -5,7 +5,10 @@ use crate::{
     Diagnostic,
 };
 
-use super::{context::AnalysisContext, environment::Environment};
+use super::{
+    context::AnalysisContext,
+    environment::{Environment, Variable},
+};
 
 impl AnalysisContext<'_> {
     /// Run module-local analysis to gather imports / exports and other requirements
@@ -21,7 +24,7 @@ impl AnalysisContext<'_> {
 
         let mut modules = Vec::with_capacity(ids.len());
         for module in ids {
-            modules.push(self.local_module(module)?);
+            modules.push((module, self.local_module(module)?));
         }
 
         self.modules.extend(modules);
@@ -59,7 +62,14 @@ impl AnalysisContext<'_> {
         module.name = module_id;
 
         for assign in ast.assignments {
-            module.variables.insert(assign.name.value, ());
+            module.variables.insert(
+                assign.name.value,
+                Variable {
+                    id: assign.name.id,
+                    value: assign.value,
+                    ty: None,
+                },
+            );
         }
 
         Ok(module)

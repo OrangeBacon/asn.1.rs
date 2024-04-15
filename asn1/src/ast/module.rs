@@ -5,7 +5,7 @@ use crate::{
     token::{Token, TokenKind},
 };
 
-use super::WithId;
+use super::{ty_or_value::Type, WithId};
 
 /// A group of ASN.1 assignments and settings.
 #[derive(Debug, Clone)]
@@ -79,10 +79,19 @@ pub struct Assignment {
     pub name: WithId<String>,
 
     /// The value or type assigned to the name.
-    pub value: WithId<()>,
+    pub value: WithId<Type>,
 
     /// A specified type within the assignment
     pub ty: Option<WithId<()>>,
+
+    /// The sort of assignment, how to interpret the values
+    pub kind: AssignmentKind,
+}
+
+/// What sort of assignment is this
+#[derive(Debug, Clone)]
+pub enum AssignmentKind {
+    TypeAssignment,
 }
 
 impl AnalysisContext<'_> {
@@ -281,16 +290,20 @@ impl AnalysisContext<'_> {
             &[TokenKind::TypeOrModuleRef, TokenKind::ValueRefOrIdent],
         )?;
 
+        let (value, kind) = if name.kind == TokenKind::TypeOrModuleRef {
+            self.type_assignment(iter)?
+        } else {
+            todo!()
+        };
+
         Ok(Assignment {
             name: WithId {
                 value: self.token_value(*name).to_string(),
                 id: name.id,
             },
-            value: WithId {
-                value: (),
-                id: name.id,
-            },
+            value,
             ty: None,
+            kind,
         })
     }
 }

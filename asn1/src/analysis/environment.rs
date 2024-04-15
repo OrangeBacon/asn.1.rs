@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::cst::AsnNodeId;
+use crate::{
+    ast::{Type, WithId},
+    cst::AsnNodeId,
+};
 
 // use super::{Iri, Oid};
 
@@ -19,7 +22,19 @@ pub struct Environment {
     // /// The iri of the module (if present)
     // pub iri: Option<Iri>,
     /// All variables defined within the module
-    pub variables: HashMap<String, ()>,
+    pub variables: HashMap<String, Variable>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Variable {
+    /// Node ID of the location the variable was defined
+    pub id: AsnNodeId,
+
+    /// The value assigned to the variable
+    pub value: WithId<Type>,
+
+    /// The Type associated with the variable, if specified
+    pub ty: Option<()>,
 }
 
 impl Environment {

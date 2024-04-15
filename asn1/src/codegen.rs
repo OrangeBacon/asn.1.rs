@@ -39,7 +39,7 @@ impl AnalysisContext<'_> {
 
 impl RustCodegen<'_> {
     fn run(mut self) -> Result<String> {
-        for module in &self.analysis.modules {
+        for module in self.analysis.modules.values() {
             self.module(module)?;
         }
 
@@ -49,11 +49,12 @@ impl RustCodegen<'_> {
     fn module(&mut self, module: &Environment) -> Result {
         writeln!(self.result, "mod {} {{", module.name.to_case(Case::Snake))?;
 
-        for var in module.variables.keys() {
+        for (name, var) in &module.variables {
             writeln!(
                 self.result,
-                "\tconst {}: () = ();",
-                var.to_case(Case::ScreamingSnake)
+                "\ttype {} = {:?};",
+                name.to_case(Case::ScreamingSnake),
+                *var.value,
             )?;
         }
 
