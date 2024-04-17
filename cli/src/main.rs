@@ -7,14 +7,33 @@ use std::{
 };
 
 use asn1::{AsnCompiler, Diagnostic};
-use clap::{Parser, ValueEnum, ValueHint};
+use clap::{Args, Parser, Subcommand, ValueEnum, ValueHint};
 use error::{to_error, AsnCompilerCache};
 
 #[derive(Parser)]
-#[command(version, about)]
+#[command(version, about, propagate_version = true)]
 #[command(name = "asn1rs")]
 #[clap(color = concolor_clap::color_choice())]
 struct Cli {
+    /// Error message colour control
+    #[command(flatten)]
+    color: concolor_clap::Color,
+
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Run an ASN.1 source compiler
+    Asn(AsnCommand),
+
+    /// Run an ada compiler
+    Ada {},
+}
+
+#[derive(Args)]
+struct AsnCommand {
     /// All initial source files to be parsed
     #[arg(required = true, value_hint = ValueHint::FilePath)]
     files: Vec<PathBuf>,
@@ -38,10 +57,6 @@ struct Cli {
     /// Enable any additional feature
     #[arg(value_enum, short, long)]
     feature: Vec<Feature>,
-
-    /// Error message colour control
-    #[command(flatten)]
-    color: concolor_clap::Color,
 }
 
 #[derive(ValueEnum, Clone, Copy)]
@@ -57,9 +72,21 @@ enum Feature {
 }
 
 fn main() -> ExitCode {
+    let cli = Cli::parse();
+
+    match &cli.command {
+        Commands::Asn(cli) => asn_command(cli),
+        Commands::Ada {} => {
+            ada::ada();
+            ExitCode::SUCCESS
+        }
+    }
+}
+
+fn asn_command(cli: &AsnCommand) -> ExitCode {
     let mut compiler = AsnCompiler::new();
 
-    let Ok(result) = run(&mut compiler) else {
+    let Ok(result) = run_asn(&mut compiler, cli) else {
         return ExitCode::FAILURE;
     };
 
@@ -78,10 +105,8 @@ fn main() -> ExitCode {
     }
 }
 
-fn run(compiler: &mut AsnCompiler) -> Result<Vec<Diagnostic>, ExitCode> {
+fn run_asn(compiler: &mut AsnCompiler, cli: &AsnCommand) -> Result<Vec<Diagnostic>, ExitCode> {
     let mut errors = vec![];
-
-    let cli = Cli::parse();
 
     let features = if cli.strict {
         &[][..]
@@ -92,7 +117,7 @@ fn run(compiler: &mut AsnCompiler) -> Result<Vec<Diagnostic>, ExitCode> {
             Feature::UnicodeWhitespace,
         ]
     };
-    for feature in features.iter().copied().chain(cli.feature) {
+    for feature in features.iter().chain(&cli.feature) {
         match feature {
             Feature::LowercaseKeywords => compiler.lowercase_keywords = true,
             Feature::UnicodeIdentifiers => compiler.unicode_identifiers = true,
@@ -102,8 +127,8 @@ fn run(compiler: &mut AsnCompiler) -> Result<Vec<Diagnostic>, ExitCode> {
 
     let mut timings = vec![];
 
-    for path in cli.files {
-        let Ok(source) = std::fs::read_to_string(&path) else {
+    for path in &cli.files {
+        let Ok(source) = std::fs::read_to_string(path) else {
             eprintln!("Unable to open source file `{path:?}`");
             return Err(ExitCode::FAILURE);
         };
@@ -144,7 +169,7 @@ fn run(compiler: &mut AsnCompiler) -> Result<Vec<Diagnostic>, ExitCode> {
             Ok(s) => {
                 if cli.output == Path::new("-") {
                     println!("{s}");
-                } else if std::fs::write(cli.output, s).is_err() {
+                } else if std::fs::write(&cli.output, s).is_err() {
                     eprintln!("Error writing output file");
                 }
             }
