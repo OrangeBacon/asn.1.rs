@@ -455,7 +455,7 @@ impl<'a> Lexer<'a> {
             break;
         }
 
-        let ident_kind = if asn1_data::UPPERCASE_LETTER.contains_char(first) {
+        let ident_kind = if unicode_data::UPPERCASE_LETTER.contains_char(first) {
             TokenKind::TypeOrModuleRef
         } else {
             TokenKind::ValueRefOrIdent
@@ -688,7 +688,8 @@ this does not represent two adjacent strings.",
     /// Is the character any valid whitespace
     fn is_whitespace(&self, c: char) -> bool {
         // A0 = Non breaking space
-        let unicode = self.features.unicode_whitespace && asn1_data::WHITE_SPACE.contains_char(c);
+        let unicode =
+            self.features.unicode_whitespace && unicode_data::WHITE_SPACE.contains_char(c);
         "\t \u{A0}".contains(c) || self.is_newline(c) || unicode
     }
 
@@ -732,7 +733,7 @@ fn lower_keywords() -> &'static HashMap<&'static str, TokenKind> {
 }
 
 fn is_ident_start(ch: char) -> bool {
-    ch == '$' || ch == '_' || ch.is_ascii_alphabetic() || asn1_data::XID_START.contains_char(ch)
+    ch == '$' || ch == '_' || ch.is_ascii_alphabetic() || unicode_data::XID_START.contains_char(ch)
 }
 
 fn is_ident_continue(ch: char) -> bool {
@@ -741,5 +742,5 @@ fn is_ident_continue(ch: char) -> bool {
         || ch == '-'
         || ch == '\u{2011}'
         || ch.is_ascii_alphanumeric()
-        || asn1_data::XID_START.contains_char(ch)
+        || unicode_data::XID_START.contains_char(ch)
 }
