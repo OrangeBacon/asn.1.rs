@@ -1,6 +1,7 @@
 use std::ops::BitOr;
 
 /// All possible types of token, includes invalid tokens e.g. error and EOF.
+// Note: A maximum of 128 tokens are supported (as tokens are put into bit sets)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
 pub enum TokenKind {
@@ -12,6 +13,9 @@ pub enum TokenKind {
 
     /// A given character is not valid in a source file outside of a comment
     UnicodeNotCommentError,
+
+    /// An identifier was parsed, that was later shown to be invalid,
+    IdentifierError,
 
     /// The next character was not recognised as the start of any token
     Error,
@@ -181,3 +185,81 @@ impl TokenKindFlags {
         self.0 & (1 << k as u8) != 0
     }
 }
+
+/// Mapping between the text of a keyword and its token kind
+pub static KEYWORDS: &[(&str, TokenKind)] = &[
+    ("abort", TokenKind::KwAbort),
+    ("abs", TokenKind::KwAbs),
+    ("abstract", TokenKind::KwAbstract),
+    ("accept", TokenKind::KwAccept),
+    ("access", TokenKind::KwAccess),
+    ("aliased", TokenKind::KwAliased),
+    ("all", TokenKind::KwAll),
+    ("and", TokenKind::KwAnd),
+    ("array", TokenKind::KwArray),
+    ("at", TokenKind::KwAt),
+    ("begin", TokenKind::KwBegin),
+    ("body", TokenKind::KwBody),
+    ("case", TokenKind::KwCase),
+    ("constant", TokenKind::KwConstant),
+    ("declare", TokenKind::KwDeclare),
+    ("delay", TokenKind::KwDelay),
+    ("delta", TokenKind::KwDelta),
+    ("digits", TokenKind::KwDigits),
+    ("do", TokenKind::KwDo),
+    ("else", TokenKind::KwElse),
+    ("elsif", TokenKind::KwElsif),
+    ("end", TokenKind::KwEnd),
+    ("entry", TokenKind::KwEntry),
+    ("exception", TokenKind::KwException),
+    ("exit", TokenKind::KwExit),
+    ("for", TokenKind::KwFor),
+    ("function", TokenKind::KwFunction),
+    ("generic", TokenKind::KwGeneric),
+    ("goto", TokenKind::KwGoto),
+    ("if", TokenKind::KwIf),
+    ("in", TokenKind::KwIn),
+    ("interface", TokenKind::KwInterface),
+    ("is", TokenKind::KwIs),
+    ("limited", TokenKind::KwLimited),
+    ("loop", TokenKind::KwLoop),
+    ("mod", TokenKind::KwMod),
+    ("new", TokenKind::KwNew),
+    ("not", TokenKind::KwNot),
+    ("null", TokenKind::KwNull),
+    ("of", TokenKind::KwOf),
+    ("or", TokenKind::KwOr),
+    ("others", TokenKind::KwOthers),
+    ("out", TokenKind::KwOut),
+    ("overriding", TokenKind::KwOverriding),
+    ("package", TokenKind::KwPackage),
+    ("parallel", TokenKind::KwParallel),
+    ("pragma", TokenKind::KwPragma),
+    ("private", TokenKind::KwPrivate),
+    ("procedure", TokenKind::KwProcedure),
+    ("protected", TokenKind::KwProtected),
+    ("raise", TokenKind::KwRaise),
+    ("range", TokenKind::KwRange),
+    ("record", TokenKind::KwRecord),
+    ("rem", TokenKind::KwRem),
+    ("renames", TokenKind::KwRenames),
+    ("requeue", TokenKind::KwRequeue),
+    ("return", TokenKind::KwReturn),
+    ("reverse", TokenKind::KwReverse),
+    ("select", TokenKind::KwSelect),
+    ("separate", TokenKind::KwSeparate),
+    ("some", TokenKind::KwSome),
+    ("subtype", TokenKind::KwSubtype),
+    ("synchronized", TokenKind::KwSynchronized),
+    ("tagged", TokenKind::KwTagged),
+    ("task", TokenKind::KwTask),
+    ("terminate", TokenKind::KwTerminate),
+    ("then", TokenKind::KwThen),
+    ("type", TokenKind::KwType),
+    ("until", TokenKind::KwUntil),
+    ("use", TokenKind::KwUse),
+    ("when", TokenKind::KwWhen),
+    ("while", TokenKind::KwWhile),
+    ("with", TokenKind::KwWith),
+    ("xor", TokenKind::KwXor),
+];

@@ -1,6 +1,8 @@
-use std::{iter::Peekable, str::CharIndices};
+use std::{collections::HashMap, iter::Peekable, str::CharIndices, sync::OnceLock};
 
-use crate::token::{Token, TokenKind};
+use unicode_normalization::{is_nfkc_quick, IsNormalized};
+
+use crate::token::{self, Token, TokenKind};
 
 pub struct Lexer<'a> {
     /// Iterator over all chars in the file
@@ -105,6 +107,7 @@ impl<'a> Lexer<'a> {
                 ],
             )?,
 
+            _ if is_ident_start(ch) => self.ident(loc, ch),
             _ if is_whitespace(ch) => t(TokenKind::Whitespace),
             _ => t(TokenKind::Error),
         })
@@ -119,8 +122,8 @@ impl<'a> Lexer<'a> {
 
         for &val in value {
             if val.0 == ch {
-                let (loc, ch) = self.ch()?;
-                self.is_valid(ch, loc, IsComment::No)?;
+                // we know the char is valid as we specified the char in the input array
+                self.chars.next();
 
                 return Ok(Token {
                     kind: val.1,
@@ -131,6 +134,56 @@ impl<'a> Lexer<'a> {
         }
 
         Ok(t)
+    }
+
+    /// Parse an identifier token
+    fn ident(&mut self, start: usize, ch: char) -> Token {
+        let mut end = start + ch.len_utf8();
+        let mut is_err = false;
+        let mut is_last_punc = false;
+
+        while let Some(&(loc, ch)) = self.chars.peek() {
+            if !is_ident(ch) {
+                break;
+            }
+
+            self.chars.next();
+            end += ch.len_utf8();
+
+            // All characters must be valid for being in NFKC and valid for being
+            // in a source file
+            if is_nfkc_quick(std::iter::once(ch)) == IsNormalized::No
+                || self.is_valid(ch, loc, IsComment::No).is_err()
+            {
+                is_err = true;
+            }
+
+            // No 2 adjacent punctuation characters allowed
+            if unicode_data::CONNECTOR_PUNCTUATION.contains_char(ch) {
+                if is_last_punc {
+                    is_err = true
+                }
+                is_last_punc = true;
+            } else {
+                is_last_punc = false;
+            }
+        }
+
+        if is_err || is_last_punc {
+            return Token {
+                kind: TokenKind::IdentifierError,
+                start,
+                end,
+            };
+        }
+
+        let text = case_fold(&self.source[start..end]);
+        let kind = keyword_table()
+            .get(&text)
+            .copied()
+            .unwrap_or(TokenKind::Identifier);
+
+        Token { kind, start, end }
     }
 
     /// Check if the provided character is valid to be in a source file, otherwise
@@ -214,10 +267,63 @@ fn is_graphic_character(ch: char) -> bool {
         || is_format_effector(ch))
 }
 
+/// Does the character count as a separator between adjacent identifiers
 fn is_separator(ch: char) -> bool {
     unicode_data::SPACE_SEPARATOR.contains_char(ch) || is_format_effector(ch)
 }
 
+/// Is the character whitespace, that is allowed anywhere
 fn is_whitespace(ch: char) -> bool {
     is_separator(ch) || unicode_data::FORMAT.contains_char(ch)
+}
+
+/// Is the character allowed at the start of an identifier
+fn is_ident_start(ch: char) -> bool {
+    unicode_data::UPPERCASE_LETTER.contains_char(ch)
+        || unicode_data::LOWERCASE_LETTER.contains_char(ch)
+        || unicode_data::TITLECASE_LETTER.contains_char(ch)
+        || unicode_data::MODIFIER_LETTER.contains_char(ch)
+        || unicode_data::OTHER_LETTER.contains_char(ch)
+        || unicode_data::LETTER_NUMBER.contains_char(ch)
+}
+
+/// Is the character allowed anywhere within an identifier
+fn is_ident(ch: char) -> bool {
+    is_ident_start(ch)
+        || unicode_data::NONSPACING_MARK.contains_char(ch)
+        || unicode_data::SPACING_MARK.contains_char(ch)
+        || unicode_data::DECIMAL_NUMBER.contains_char(ch)
+        || unicode_data::CONNECTOR_PUNCTUATION.contains_char(ch)
+}
+
+/// Get the keyword lookup table
+fn keyword_table() -> &'static HashMap<String, TokenKind> {
+    static TABLE: OnceLock<HashMap<String, TokenKind>> = OnceLock::new();
+
+    TABLE.get_or_init(|| {
+        token::KEYWORDS
+            .iter()
+            .map(|&(s, kind)| (case_fold(s), kind))
+            .collect()
+    })
+}
+
+/// Case fold a string, for case-insensitive matching
+fn case_fold(s: &str) -> String {
+    let table = case_fold_table();
+
+    s.chars()
+        .map(|c| table.get(&c).copied().unwrap_or(c))
+        .collect()
+}
+
+/// Get the case folding mapping table
+fn case_fold_table() -> &'static HashMap<char, char> {
+    static TABLE: OnceLock<HashMap<char, char>> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        unicode_data::CASE_FOLDING_SIMPLE
+            .iter()
+            .map(|&(a, b)| (char::from_u32(a).unwrap(), char::from_u32(b).unwrap()))
+            .collect()
+    })
 }
