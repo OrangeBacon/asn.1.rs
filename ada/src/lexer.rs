@@ -79,7 +79,6 @@ impl<'a> Lexer<'a> {
             ')' => t(TokenKind::RParen),
             '+' => t(TokenKind::Plus),
             ',' => t(TokenKind::Comma),
-            '-' => t(TokenKind::Hyphen),
             ';' => t(TokenKind::SemiColon),
             '@' => t(TokenKind::At),
             '[' => t(TokenKind::LSquare),
@@ -107,6 +106,7 @@ impl<'a> Lexer<'a> {
                 ],
             )?,
 
+            '-' => self.comment(loc, ch),
             _ if is_ident_start(ch) => self.ident(loc, ch),
             _ if is_whitespace(ch) => t(TokenKind::Whitespace),
             _ => t(TokenKind::Error),
@@ -186,6 +186,41 @@ impl<'a> Lexer<'a> {
         Token { kind, start, end }
     }
 
+    /// Parse either a comment or a '-' symbol
+    fn comment(&mut self, start: usize, ch: char) -> Token {
+        let mut end = start + ch.len_utf8();
+
+        if !matches!(self.chars.peek(), Some((_, '-'))) {
+            return Token {
+                kind: TokenKind::Hyphen,
+                start,
+                end: start + ch.len_utf8(),
+            };
+        }
+
+        let mut is_err = false;
+        while let Some(&(loc, ch)) = self.chars.peek() {
+            if is_end_of_line(ch) {
+                break;
+            }
+
+            self.chars.next();
+            end += ch.len_utf8();
+
+            if self.is_valid(ch, loc, IsComment::Yes).is_err() {
+                is_err = true;
+            }
+        }
+
+        let kind = if is_err {
+            TokenKind::CommentError
+        } else {
+            TokenKind::Comment
+        };
+
+        Token { kind, start, end }
+    }
+
     /// Check if the provided character is valid to be in a source file, otherwise
     /// return an error token representing the character.  `loc` is the index of the
     /// character within the source file to use for error reporting.  If the character
@@ -254,7 +289,7 @@ fn join_tokens(last: &mut Token, new: Token) -> bool {
 
 /// Is a character classified as a format effector
 fn is_format_effector(ch: char) -> bool {
-    "\u{09}\u{0A}\u{0C}\u{0D}\u{85}".contains(ch)
+    "\t\n\u{0C}\r\u{85}".contains(ch)
         || unicode_data::LINE_SEPARATOR.contains_char(ch)
         || unicode_data::PARAGRAPH_SEPARATOR.contains_char(ch)
 }
@@ -294,6 +329,11 @@ fn is_ident(ch: char) -> bool {
         || unicode_data::SPACING_MARK.contains_char(ch)
         || unicode_data::DECIMAL_NUMBER.contains_char(ch)
         || unicode_data::CONNECTOR_PUNCTUATION.contains_char(ch)
+}
+
+/// Is the character part of an end of line sequence
+fn is_end_of_line(ch: char) -> bool {
+    (ch != '\t' && is_format_effector(ch)) || ch == '\r' || ch == '\n'
 }
 
 /// Get the keyword lookup table

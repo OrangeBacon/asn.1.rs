@@ -17,6 +17,15 @@ pub enum TokenKind {
     /// An identifier was parsed, that was later shown to be invalid,
     IdentifierError,
 
+    /// Invalid character inside a comment
+    CommentError,
+
+    /// An error occurred during number parsing
+    NumberError,
+
+    /// An error occurred during string literal parsing
+    StringError,
+
     /// The next character was not recognised as the start of any token
     Error,
 
@@ -57,10 +66,13 @@ pub enum TokenKind {
     GreaterGreater,
     Box,
 
+    // Note that character literals should be constructed from other tokens if
+    // required in the parser.  This lexer cannot tell whether an apostrophe should
+    // start a character literal or be its own token.
+    // Character,
     Identifier,
     DecimalNumber,
     BasedNumber,
-    Character,
     String,
 
     KwAbort,
