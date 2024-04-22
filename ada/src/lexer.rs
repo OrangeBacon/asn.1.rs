@@ -63,18 +63,74 @@ impl<'a> Lexer<'a> {
         let (loc, ch) = self.ch()?;
         self.is_valid(ch, loc, IsComment::No)?;
 
+        // helper for simple tokens
+        let t = |k: TokenKind| Token {
+            kind: k,
+            start: loc,
+            end: loc + ch.len_utf8(),
+        };
+
         Ok(match ch {
-            _ if is_whitespace(ch) => Token {
-                kind: TokenKind::Whitespace,
-                start: loc,
-                end: loc + ch.len_utf8(),
-            },
-            ch => Token {
-                kind: TokenKind::Error,
-                start: loc,
-                end: loc + ch.len_utf8(),
-            },
+            '&' => t(TokenKind::Ampersand),
+            '\'' => t(TokenKind::Apostrophe),
+            '(' => t(TokenKind::LParen),
+            ')' => t(TokenKind::RParen),
+            '+' => t(TokenKind::Plus),
+            ',' => t(TokenKind::Comma),
+            '-' => t(TokenKind::Hyphen),
+            ';' => t(TokenKind::SemiColon),
+            '@' => t(TokenKind::At),
+            '[' => t(TokenKind::LSquare),
+            ']' => t(TokenKind::RSquare),
+            '|' => t(TokenKind::VerticalBar),
+
+            '=' => self.multi_token(t(TokenKind::Equals), &[('>', TokenKind::Arrow)])?,
+            '.' => self.multi_token(t(TokenKind::Dot), &[('.', TokenKind::DoubleDot)])?,
+            '*' => self.multi_token(t(TokenKind::Star), &[('*', TokenKind::DoubleStar)])?,
+            ':' => self.multi_token(t(TokenKind::Colon), &[('=', TokenKind::ColonEquals)])?,
+            '/' => self.multi_token(t(TokenKind::Slash), &[('=', TokenKind::SlashEquals)])?,
+            '>' => self.multi_token(
+                t(TokenKind::GreaterThan),
+                &[
+                    ('=', TokenKind::GreaterEquals),
+                    ('>', TokenKind::GreaterGreater),
+                ],
+            )?,
+            '<' => self.multi_token(
+                t(TokenKind::LessThan),
+                &[
+                    ('=', TokenKind::LessEquals),
+                    ('<', TokenKind::LessLess),
+                    ('>', TokenKind::Box),
+                ],
+            )?,
+
+            _ if is_whitespace(ch) => t(TokenKind::Whitespace),
+            _ => t(TokenKind::Error),
         })
+    }
+
+    /// Check the next character after a token to see if a multi-character token
+    /// should be emitted instead
+    fn multi_token(&mut self, t: Token, value: &[(char, TokenKind)]) -> Result<Token, Token> {
+        let Some(&(_, ch)) = self.chars.peek() else {
+            return Ok(t);
+        };
+
+        for &val in value {
+            if val.0 == ch {
+                let (loc, ch) = self.ch()?;
+                self.is_valid(ch, loc, IsComment::No)?;
+
+                return Ok(Token {
+                    kind: val.1,
+                    start: t.start,
+                    end: t.end + val.0.len_utf8(),
+                });
+            }
+        }
+
+        Ok(t)
     }
 
     /// Check if the provided character is valid to be in a source file, otherwise
@@ -133,7 +189,14 @@ fn join_tokens(last: &mut Token, new: Token) -> bool {
         return false;
     }
 
-    false
+    use TokenKind::*;
+    let to_join = NfcError | UnicodeError | UnicodeNotCommentError | Error | Eof | Whitespace;
+
+    if to_join.contains(last.kind) {
+        last.end = new.end
+    }
+
+    true
 }
 
 /// Is a character classified as a format effector

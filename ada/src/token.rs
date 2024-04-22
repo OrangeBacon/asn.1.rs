@@ -1,5 +1,8 @@
+use std::ops::BitOr;
+
 /// All possible types of token, includes invalid tokens e.g. error and EOF.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
 pub enum TokenKind {
     /// The source file was not in NFC form, so just emit one big error token
     NfcError,
@@ -17,6 +20,8 @@ pub enum TokenKind {
     Eof,
 
     Whitespace,
+    Comment,
+
     Ampersand,
     Apostrophe,
     LParen,
@@ -53,7 +58,6 @@ pub enum TokenKind {
     BasedNumber,
     Character,
     String,
-    Comment,
 
     KwAbort,
     KwAbs,
@@ -144,4 +148,36 @@ pub struct Token {
     /// this might equal the start, indicating that the token has a length of 0
     /// bytes (should only happen on EOF)
     pub end: usize,
+}
+
+/// A Bitset of all possible token kinds, used for fast token kind matching
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TokenKindFlags(u128);
+
+impl BitOr<TokenKind> for TokenKind {
+    type Output = TokenKindFlags;
+
+    #[inline(always)]
+    fn bitor(self, rhs: Self) -> Self::Output {
+        let a = 1 << self as u8;
+        let b = 1 << rhs as u8;
+
+        TokenKindFlags(a | b)
+    }
+}
+
+impl BitOr<TokenKind> for TokenKindFlags {
+    type Output = TokenKindFlags;
+
+    #[inline(always)]
+    fn bitor(self, rhs: TokenKind) -> Self::Output {
+        TokenKindFlags(self.0 | (1 << rhs as u8))
+    }
+}
+
+impl TokenKindFlags {
+    /// Does this set of flags contain a given flag
+    pub fn contains(self, k: TokenKind) -> bool {
+        self.0 & (1 << k as u8) != 0
+    }
 }
