@@ -26,6 +26,9 @@ pub enum TokenKind {
     /// An error occurred during string literal parsing
     StringError,
 
+    /// No separator present between identifiers
+    SeparatorError,
+
     /// The next character was not recognised as the start of any token
     Error,
 
@@ -71,8 +74,7 @@ pub enum TokenKind {
     // start a character literal or be its own token.
     // Character,
     Identifier,
-    DecimalNumber,
-    BasedNumber,
+    Number,
     String,
 
     KwAbort,

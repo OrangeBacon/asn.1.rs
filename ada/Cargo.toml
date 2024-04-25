@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 unicode-normalization = "0.1.23"
 unicode-data = { path = "../unicode-data" }
+itertools = "0.12.1"

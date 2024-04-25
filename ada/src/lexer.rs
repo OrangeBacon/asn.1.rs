@@ -1,12 +1,13 @@
-use std::{collections::HashMap, iter::Peekable, str::CharIndices, sync::OnceLock};
+use std::{collections::HashMap, str::CharIndices, sync::OnceLock};
 
+use itertools::{Itertools, PeekNth};
 use unicode_normalization::{is_nfkc_quick, IsNormalized};
 
-use crate::token::{self, Token, TokenKind};
+use crate::token::{self, Token, TokenKind, TokenKindFlags};
 
 pub struct Lexer<'a> {
     /// Iterator over all chars in the file
-    chars: Peekable<CharIndices<'a>>,
+    chars: PeekNth<CharIndices<'a>>,
 
     /// The original source text
     source: &'a str,
@@ -20,7 +21,10 @@ enum IsComment {
 }
 
 impl<'a> Lexer<'a> {
-    /// Get all tokens for a source file
+    /// Get all tokens for a source file.  Note that pragmas are described in the
+    /// lexical syntax of the ada reference manual, however this lexer treats them
+    /// as something to be handled by the parser.  All possible errors are returned
+    /// inline with the token stream.
     pub fn run(source: &'a str) -> Vec<Token> {
         // reject non-nfc source code
         if !unicode_normalization::is_nfc(source) {
@@ -35,7 +39,7 @@ impl<'a> Lexer<'a> {
         let source = source.strip_prefix('\u{FEFF}').unwrap_or(source);
 
         let mut lexer = Lexer {
-            chars: source.char_indices().peekable(),
+            chars: itertools::peek_nth(source.char_indices()),
             source,
         };
 
@@ -54,7 +58,7 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        tokens
+        identifier_separator(source, tokens)
     }
 
     /// Get the next available token.  Note that the return type is a result, however
@@ -106,6 +110,8 @@ impl<'a> Lexer<'a> {
                 ],
             )?,
 
+            '0'..='9' => self.number(loc, ch),
+            '"' => self.string(loc, ch),
             '-' => self.comment(loc, ch),
             _ if is_ident_start(ch) => self.ident(loc, ch),
             _ if is_whitespace(ch) => t(TokenKind::Whitespace),
@@ -221,6 +227,135 @@ impl<'a> Lexer<'a> {
         Token { kind, start, end }
     }
 
+    /// Parse a string literal
+    fn string(&mut self, start: usize, ch: char) -> Token {
+        let mut end = start + ch.len_utf8();
+
+        let mut is_err = false;
+        while let Some((loc, ch)) = self.chars.next() {
+            end += ch.len_utf8();
+
+            if ch == '"' {
+                if self.chars.next_if(|&(_, b)| b == '"').is_some() {
+                    end += '"'.len_utf8();
+                } else {
+                    break;
+                }
+            }
+            if !is_graphic_character(ch) {
+                is_err = true;
+            }
+            if self.is_valid(ch, loc, IsComment::No).is_err() {
+                is_err = true;
+            }
+        }
+
+        let kind = if is_err || !self.source[start..end].ends_with('"') {
+            TokenKind::StringError
+        } else {
+            TokenKind::String
+        };
+
+        Token { kind, start, end }
+    }
+
+    /// Parse any kind of numeric literal
+    fn number(&mut self, start: usize, ch: char) -> Token {
+        // ignores validity checking as anything invalid would always end the
+        // number literal and leave the validity for the next token.
+        let mut is_ok = true;
+
+        let mut end = start + ch.len_utf8();
+        self.numeral(&mut end, false);
+
+        // either decimal part or # numeral . numeral #
+        let next = self.chars.peek();
+        if let Some(&(_, ch @ '.')) = next {
+            if matches!(self.chars.peek_nth(1), Some(&(_, '0'..='9'))) {
+                self.chars.next();
+                end += ch.len_utf8();
+                self.numeral(&mut end, false);
+            }
+        } else if let Some(&(_, ch @ '#')) = next {
+            // assumes that `[0-9]#` will always start a based number, rather than
+            // being a number, then an un related `#`, allowing for better error
+            // messages about missing the second `#` in a number.
+            self.chars.next();
+            end += ch.len_utf8();
+            self.numeral(&mut end, true);
+
+            if let Some(&(_, ch @ '.')) = self.chars.peek() {
+                self.chars.next();
+                end += ch.len_utf8();
+
+                if let Some(&(_, ch)) = self.chars.peek() {
+                    is_ok &= ch.is_ascii_hexdigit();
+                    self.numeral(&mut end, true);
+                }
+            }
+
+            if let Some(&(_, ch @ '#')) = self.chars.peek() {
+                self.chars.next();
+                end += ch.len_utf8();
+            } else {
+                is_ok = false;
+            }
+        }
+
+        // exponent or nothing
+        if let Some(&(_, ee @ ('e' | 'E'))) = self.chars.peek() {
+            let next = self.chars.peek_nth(1).map(|(_, b)| *b);
+            if let Some(pm @ ('+' | '-')) = next {
+                if matches!(self.chars.peek_nth(2), Some(&(_, '0'..='9'))) {
+                    self.chars.next(); // skip the `[eE]`
+                    self.chars.next(); // skip the `[+-]`
+                    end += ee.len_utf8() + pm.len_utf8();
+                    self.numeral(&mut end, false);
+                }
+            } else if matches!(next, Some('0'..='9')) {
+                self.chars.next(); // skip the `[eE]`
+                end += ee.len_utf8();
+                self.numeral(&mut end, false);
+            }
+        }
+
+        let kind = if is_ok {
+            TokenKind::Number
+        } else {
+            TokenKind::NumberError
+        };
+
+        Token { kind, start, end }
+    }
+
+    /// Parse a numeral portion of a number literal, regex = `[0-9](_?[0-9])*`.
+    /// Optionally, if `is_hex` is true, allows hexadecimal digits `[a-fA-F]` in
+    /// addition to `[0-9]`.
+    fn numeral(&mut self, end: &mut usize, is_hex: bool) {
+        let check = if is_hex {
+            char::is_ascii_hexdigit
+        } else {
+            char::is_ascii_digit
+        };
+
+        while let Some(&(_, ch)) = self.chars.peek() {
+            if check(&ch) {
+                self.chars.next();
+                *end += ch.len_utf8();
+            } else if ch == '_' {
+                if let Some(&(_, next)) = self.chars.peek_nth(1) {
+                    if check(&next) {
+                        self.chars.next();
+                        self.chars.next();
+                        *end += ch.len_utf8() + next.len_utf8();
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
     /// Check if the provided character is valid to be in a source file, otherwise
     /// return an error token representing the character.  `loc` is the index of the
     /// character within the source file to use for error reporting.  If the character
@@ -287,6 +422,53 @@ fn join_tokens(last: &mut Token, new: Token) -> bool {
     true
 }
 
+/// Ensure that separators are present between any two reserved words, identifiers
+/// or number literals by modifying a token stream.
+fn identifier_separator(source: &str, mut tokens: Vec<Token>) -> Vec<Token> {
+    let identifier_kinds = identifier_kinds();
+
+    // check whitespace contains a valid separator
+    let mut edits = vec![];
+    for ((_, left), (idx, mid), (_, right)) in tokens.iter().copied().enumerate().tuple_windows() {
+        if !(identifier_kinds.contains(left.kind)
+            && mid.kind == TokenKind::Whitespace
+            && identifier_kinds.contains(right.kind))
+        {
+            continue;
+        }
+
+        let contains_sep = source[mid.start..mid.end].chars().any(is_separator);
+        if !contains_sep {
+            edits.push(idx);
+        }
+    }
+    // set error tokens if required
+    for edit in edits {
+        tokens[edit].kind = TokenKind::SeparatorError;
+    }
+
+    // check two identifiers are not next to each other without a separator
+    let mut edits = vec![];
+    for ((_, left), (idx, right)) in tokens.iter().copied().enumerate().tuple_windows() {
+        if identifier_kinds.contains(left.kind) && identifier_kinds.contains(right.kind) {
+            edits.push((idx, left.end));
+        }
+    }
+    tokens.reserve(edits.len());
+    for (idx, loc) in edits.into_iter().rev() {
+        tokens.insert(
+            idx,
+            Token {
+                kind: TokenKind::SeparatorError,
+                start: loc,
+                end: loc,
+            },
+        )
+    }
+
+    tokens
+}
+
 /// Is a character classified as a format effector
 fn is_format_effector(ch: char) -> bool {
     "\t\n\u{0C}\r\u{85}".contains(ch)
@@ -345,6 +527,19 @@ fn keyword_table() -> &'static HashMap<String, TokenKind> {
             .iter()
             .map(|&(s, kind)| (case_fold(s), kind))
             .collect()
+    })
+}
+
+/// Get the token kinds that are valid identifiers, reserved words or numbers.
+fn identifier_kinds() -> TokenKindFlags {
+    static FLAGS: OnceLock<TokenKindFlags> = OnceLock::new();
+
+    *FLAGS.get_or_init(|| {
+        let kind = TokenKind::Number | TokenKind::Identifier;
+        token::KEYWORDS
+            .iter()
+            .map(|&(_, x)| x)
+            .fold(kind, |a, b| a | b)
     })
 }
 
