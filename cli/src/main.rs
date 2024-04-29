@@ -1,3 +1,5 @@
+// yes i know this whole CLI crate is awful code and needs replacing
+
 mod error;
 
 use std::{
@@ -29,7 +31,7 @@ enum Commands {
     Asn(AsnCommand),
 
     /// Run an ada compiler
-    Ada {},
+    Ada(AdaCommand),
 }
 
 #[derive(Args)]
@@ -71,15 +73,19 @@ enum Feature {
     UnicodeWhitespace,
 }
 
+#[derive(Args)]
+struct AdaCommand {
+    /// All initial source files to be parsed
+    #[arg(required = true, value_hint = ValueHint::FilePath)]
+    files: Vec<PathBuf>,
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
     match &cli.command {
         Commands::Asn(cli) => asn_command(cli),
-        Commands::Ada {} => {
-            ada::ada();
-            ExitCode::SUCCESS
-        }
+        Commands::Ada(cli) => ada_command(cli),
     }
 }
 
@@ -186,4 +192,15 @@ fn run_asn(compiler: &mut AsnCompiler, cli: &AsnCommand) -> Result<Vec<Diagnosti
     }
 
     Ok(vec![])
+}
+
+fn ada_command(cli: &AdaCommand) -> ExitCode {
+    let mut compiler = ada::Compiler::new();
+
+    for path in &cli.files {
+        let source = std::fs::read_to_string(path).unwrap();
+        compiler.add_file(source)
+    }
+
+    ExitCode::SUCCESS
 }

@@ -1,15 +1,31 @@
 use lexer::Lexer;
 
+use crate::parser::Parser;
+
+mod cst;
+mod diagnostic;
 mod lexer;
+mod parser;
 mod token;
 
-pub fn ada() {
-    let source = r#"with Text_IO; use Text_IO;
-    procedure hello is -- comment
-    begin
-       Put_Line("Hello "" world!" & 16#a.4#e-7);
-    end hello;"#;
-    let tokens = Lexer::run(source);
+/// Root of an ada compiler
+pub struct Compiler;
 
-    println!("{tokens:?}");
+impl Default for Compiler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Compiler {
+    /// Create a new compiler
+    pub fn new() -> Compiler {
+        Compiler
+    }
+
+    pub fn add_file(&mut self, source: String) {
+        let parse = Parser::run(Lexer::run(&source));
+
+        println!("{parse:?}");
+    }
 }
